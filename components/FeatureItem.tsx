@@ -1,6 +1,8 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import type { PlanFeature } from "../content/planos";
+import { colors, spacing, typography } from "../lib/theme/tokens";
+import { Text } from "./ui/Text";
 
 type Props = {
   item: PlanFeature;
@@ -9,17 +11,27 @@ type Props = {
 
 export default function FeatureItem({ item, highlighted = false }: Props) {
   const icon = item.included ? "●" : "○";
-  const iconClass = item.included ? (highlighted ? "text-[#FFC700]" : "text-emerald-500") : "text-slate-400";
-  const textClass = item.included
+  const iconColor = item.included ? (highlighted ? colors.einsteinYellow : "#35c980") : "rgba(255,255,255,0.35)";
+  const textColor = item.included
     ? highlighted || item.emphasis
-      ? "text-slate-100 font-semibold"
-      : "text-slate-700"
-    : "text-slate-400";
+      ? colors.white
+      : "rgba(255,255,255,0.88)"
+    : "rgba(255,255,255,0.45)";
 
   return (
-    <View className="flex-row items-start gap-3">
-      <Text className={`text-base leading-5 ${iconClass}`}>{icon}</Text>
-      <Text className={`flex-1 text-sm ${textClass}`}>{item.label}</Text>
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing.xs }}>
+      <Text style={{ color: iconColor, fontSize: 16, lineHeight: 20 }}>{icon}</Text>
+      <Text
+        style={{
+          flex: 1,
+          color: textColor,
+          fontSize: 14,
+          lineHeight: 20,
+          fontWeight: highlighted || item.emphasis ? "600" : "400",
+        }}
+      >
+        {item.label}
+      </Text>
     </View>
   );
 }

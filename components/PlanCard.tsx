@@ -1,7 +1,9 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import type { PlanItem } from "../content/planos";
 import FeatureItem from "./FeatureItem";
+import { Text } from "./ui/Text";
+import { colors, radii, spacing, typography } from "../lib/theme/tokens";
 
 type Props = {
   plan: PlanItem;
@@ -12,21 +14,60 @@ export default function PlanCard({ plan, onPress }: Props) {
   const isPro = plan.highlighted;
 
   return (
-    <View className={`rounded-2xl p-6 ${isPro ? "border-2 border-[#FFC700] bg-slate-900" : "border border-slate-200 bg-white"}`}>
+    <View
+      style={{
+        borderRadius: radii.lg,
+        padding: spacing.md,
+        borderWidth: isPro ? 2 : 1,
+        borderColor: isPro ? colors.einsteinYellow : colors.borderSoft,
+        backgroundColor: isPro ? colors.surfaceCard : colors.surfacePanel,
+      }}
+    >
       {plan.badge ? (
-        <View className="mb-4 self-center rounded-full bg-[#FFC700] px-3 py-1">
-          <Text className="text-[10px] font-black uppercase tracking-widest text-[#000066]">{plan.badge}</Text>
+        <View
+          style={{
+            alignSelf: "center",
+            marginBottom: spacing.xs,
+            borderRadius: radii.pill,
+            backgroundColor: colors.einsteinYellow,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 4,
+          }}
+        >
+          <Text style={{ color: colors.einsteinBlue, fontSize: 10, letterSpacing: 1, textTransform: "uppercase" }} weight="bold">
+            {plan.badge}
+          </Text>
         </View>
       ) : null}
 
-      <Text className={`text-xs font-bold uppercase tracking-wider ${isPro ? "text-[#FFC700]" : "text-slate-500"}`}>{plan.title}</Text>
-      <View className="mt-1 flex-row items-end">
-        <Text className={`text-4xl font-black ${isPro ? "text-white" : "text-slate-900"}`}>{plan.price}</Text>
-        {plan.period ? <Text className="ml-1 pb-1 text-lg font-medium text-slate-500">{plan.period}</Text> : null}
+      <Text
+        style={{
+          color: isPro ? colors.einsteinYellow : "rgba(255,255,255,0.75)",
+          fontSize: typography.small.fontSize,
+          textTransform: "uppercase",
+          letterSpacing: 0.8,
+        }}
+        weight="bold"
+      >
+        {plan.title}
+      </Text>
+      <View style={{ marginTop: 2, flexDirection: "row", alignItems: "flex-end" }}>
+        <Text style={{ color: colors.white, fontSize: 38, lineHeight: 42 }} weight="bold">
+          {plan.price}
+        </Text>
+        {plan.period ? (
+          <Text style={{ marginLeft: 4, marginBottom: 2, color: "rgba(255,255,255,0.6)", fontSize: 18 }}>
+            {plan.period}
+          </Text>
+        ) : null}
       </View>
-      {plan.subtitle ? <Text className="mt-1 text-xs italic text-slate-400">{plan.subtitle}</Text> : null}
+      {plan.subtitle ? (
+        <Text style={{ marginTop: 2, color: "rgba(255,255,255,0.55)", fontSize: typography.small.fontSize, fontStyle: "italic" }}>
+          {plan.subtitle}
+        </Text>
+      ) : null}
 
-      <View className="mt-6 gap-3">
+      <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
         {plan.features.map((feature) => (
           <FeatureItem key={`${plan.id}-${feature.label}`} item={feature} highlighted={isPro} />
         ))}
@@ -34,9 +75,20 @@ export default function PlanCard({ plan, onPress }: Props) {
 
       <Pressable
         onPress={() => onPress?.(plan)}
-        className={`mt-6 h-12 items-center justify-center rounded-xl ${isPro ? "bg-[#FFC700]" : "border-2 border-[#000066]"}`}
+        style={{
+          marginTop: spacing.md,
+          height: 46,
+          borderRadius: radii.md,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: isPro ? colors.einsteinYellow : "transparent",
+          borderWidth: isPro ? 0 : 1,
+          borderColor: colors.einsteinYellow,
+        }}
       >
-        <Text className={`font-bold ${isPro ? "text-[#000066]" : "text-[#000066]"}`}>{plan.cta}</Text>
+        <Text style={{ color: isPro ? colors.einsteinBlue : colors.einsteinYellow }} weight="bold">
+          {plan.cta}
+        </Text>
       </Pressable>
     </View>
   );

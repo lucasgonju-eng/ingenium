@@ -1,67 +1,188 @@
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import FAQAccordion from "./FAQAccordion";
 import PlanCard from "./PlanCard";
 import { planosContent } from "../content/planos";
 import StitchScreenFrame from "./layout/StitchScreenFrame";
 import StitchHeader from "./ui/StitchHeader";
+import { Text } from "./ui/Text";
+import { colors, radii, spacing, typography } from "../lib/theme/tokens";
 
 export default function PlanosIngeniumScreen() {
   return (
     <StitchScreenFrame>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 64 }}>
-        <View className="px-4 pt-2">
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
           <StitchHeader title="Planos" subtitle="Assinatura InGenium" variant="feed" />
         </View>
 
-        <View className="mt-3 bg-[#000066] px-6 pb-10 pt-8">
-          <View className="self-center rounded-full border border-[#FFC700]/30 bg-[#FFC700]/10 px-4 py-1">
-            <Text className="text-xs font-semibold uppercase tracking-widest text-[#FFC700]">{planosContent.heroTag}</Text>
+        <View style={{ paddingHorizontal: spacing.md }}>
+          <View
+            style={{
+              marginTop: spacing.sm,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.md,
+            }}
+          >
+            <View
+              style={{
+                alignSelf: "flex-start",
+                borderRadius: radii.pill,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.35)",
+                backgroundColor: "rgba(255,199,0,0.08)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 4,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize, letterSpacing: 1, textTransform: "uppercase" }} weight="semibold">
+                {planosContent.heroTag}
+              </Text>
+            </View>
+            <Text style={{ marginTop: spacing.sm, color: colors.white, fontSize: 34, lineHeight: 38 }} weight="bold">
+              {planosContent.title}
+            </Text>
+            <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.88)", fontSize: 16 }} weight="semibold">
+              {planosContent.subtitle}
+            </Text>
+            <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 22 }}>
+              {planosContent.description}
+            </Text>
+            <Pressable
+              style={{
+                marginTop: spacing.md,
+                height: 42,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.25)",
+                backgroundColor: "rgba(255,255,255,0.10)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: colors.white }} weight="bold">
+                {planosContent.compareCta}
+              </Text>
+            </Pressable>
           </View>
-          <Text className="mt-5 text-center text-4xl font-black text-white">{planosContent.title}</Text>
-          <Text className="mt-3 text-center text-lg font-medium text-slate-200">{planosContent.subtitle}</Text>
-          <Text className="mt-3 text-center text-sm leading-6 text-slate-300">{planosContent.description}</Text>
-          <Pressable className="mt-6 self-center rounded-xl border border-white/20 bg-white/10 px-6 py-3">
-            <Text className="font-bold text-white">{planosContent.compareCta}</Text>
-          </Pressable>
         </View>
 
-        <View className="-mt-6 gap-5 px-4">
+        <View style={{ marginTop: spacing.md, gap: spacing.md, paddingHorizontal: spacing.md }}>
           {planosContent.plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}
         </View>
 
-        <View className="mt-10 bg-slate-100/80 px-6 py-10">
-          <Text className="text-center text-2xl font-black text-[#000066]">{planosContent.howItWorksTitle}</Text>
-          <View className="mt-7 gap-6">
+        <View
+          style={{
+            marginTop: spacing.xl,
+            marginHorizontal: spacing.md,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            backgroundColor: colors.surfacePanel,
+            padding: spacing.md,
+          }}
+        >
+          <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize, textAlign: "center" }} weight="bold">
+            {planosContent.howItWorksTitle}
+          </Text>
+          <View style={{ marginTop: spacing.md, gap: spacing.md }}>
             {planosContent.howItWorks.map((step) => (
-              <View key={step.title} className="items-center">
-                <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white">
-                  <Text className="text-2xl text-[#000066]">★</Text>
+              <View key={step.title} style={{ alignItems: "center" }}>
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.einsteinYellow, fontSize: 24 }}>★</Text>
                 </View>
-                <Text className="mt-3 text-center text-base font-bold text-slate-900">{step.title}</Text>
-                <Text className="mt-1 text-center text-sm text-slate-500">{step.text}</Text>
+                <Text style={{ marginTop: spacing.xs, color: colors.white, fontSize: 16, textAlign: "center" }} weight="bold">
+                  {step.title}
+                </Text>
+                <Text style={{ marginTop: 2, color: "rgba(255,255,255,0.70)", fontSize: 14, textAlign: "center" }}>
+                  {step.text}
+                </Text>
               </View>
             ))}
           </View>
         </View>
 
-        <View className="bg-white px-8 py-14">
-          <Text className="text-center text-2xl italic leading-9 text-[#000066]">{planosContent.quote}</Text>
+        <View
+          style={{
+            marginTop: spacing.xl,
+            marginHorizontal: spacing.md,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            backgroundColor: colors.surfacePanel,
+            padding: spacing.lg,
+          }}
+        >
+          <Text style={{ color: colors.einsteinYellow, fontSize: 28, textAlign: "center", lineHeight: 40, fontStyle: "italic" }}>
+            {planosContent.quote}
+          </Text>
         </View>
 
-        <View className="bg-slate-100 px-6 py-10">
-          <Text className="mb-5 text-xl font-black text-slate-900">Perguntas frequentes</Text>
+        <View
+          style={{
+            marginTop: spacing.xl,
+            marginHorizontal: spacing.md,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            backgroundColor: colors.surfacePanel,
+            padding: spacing.md,
+          }}
+        >
+          <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize, marginBottom: spacing.sm }} weight="bold">
+            Perguntas frequentes
+          </Text>
           <FAQAccordion items={planosContent.faq} />
         </View>
 
-        <View className="bg-[#000066] px-6 pb-16 pt-10">
-          <Text className="text-center text-2xl font-bold text-white">{planosContent.finalTitle}</Text>
-          <Pressable className="mt-7 h-14 items-center justify-center rounded-xl bg-[#FFC700]">
-            <Text className="text-lg font-black text-[#000066]">{planosContent.finalCta}</Text>
+        <View
+          style={{
+            marginTop: spacing.xl,
+            marginHorizontal: spacing.md,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            backgroundColor: colors.surfacePanel,
+            padding: spacing.md,
+          }}
+        >
+          <Text style={{ color: colors.white, fontSize: 28, lineHeight: 34, textAlign: "center" }} weight="bold">
+            {planosContent.finalTitle}
+          </Text>
+          <Pressable
+            style={{
+              marginTop: spacing.md,
+              height: 54,
+              borderRadius: radii.md,
+              backgroundColor: colors.einsteinYellow,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: colors.einsteinBlue, fontSize: 16 }} weight="bold">
+              {planosContent.finalCta}
+            </Text>
           </Pressable>
-          <Text className="mt-4 text-center text-sm text-slate-300">{planosContent.finalNote}</Text>
+          <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, textAlign: "center" }}>
+            {planosContent.finalNote}
+          </Text>
         </View>
       </ScrollView>
     </StitchScreenFrame>
