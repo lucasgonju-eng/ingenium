@@ -3,6 +3,7 @@ export type OlympiadFormat = {
   estrutura: string;
   tipo?: string;
   questoes?: number;
+  publico?: string;
   participation?: string;
   observacao?: string;
   janelaAplicacao?: string;
@@ -47,6 +48,7 @@ export type OlympiadCatalogItem = {
   mentorTeacher: string;
   officialUrl: string;
   regulationUrl: string;
+  regulationCtaLabel?: string;
   faqUrl?: string;
   visualSealLabel?: string;
   regulationNote?: string;
@@ -207,6 +209,63 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     },
     listBadges: ["Online", "Final presencial"],
     tags: ["Online", "Final presencial", "Humanas", "Geografia", "Equipe"],
+  },
+  {
+    slug: "canguru",
+    name: "Canguru de Matemática Brasil",
+    organizer: "UpMat Brasil",
+    category: "Exatas / Matemática",
+    mentorTeacher: "Professora Samantha",
+    officialUrl: "https://www.cangurudematematicabrasil.com.br/",
+    regulationUrl: "https://www.cangurudematematicabrasil.com.br/regulamento",
+    regulationCtaLabel: "Ver regulamento",
+    visualSealLabel: "UPMAT OFICIAL",
+    headline: "A maior competição internacional de Matemática — e você pode medalhar.",
+    shortDescription:
+      "Prova objetiva e divertida, perfeita para treinar raciocínio lógico, ganhar ritmo de prova e representar o Einstein em uma competição global.",
+    longDescription:
+      "O Canguru de Matemática é uma competição internacional que incentiva o raciocínio lógico com questões criativas e objetivas. É uma porta de entrada excelente para cultura olímpica (e também para quem já compete), com aplicação organizada pela escola e resultados que valorizam desempenho e consistência.",
+    format: {
+      modalidade: "Aplicação na escola (impresso ou online, conforme escola)",
+      estrutura: "Prova única",
+      tipo: "Objetiva (múltipla escolha)",
+      duracao: "1h40",
+      publico: "Do 3º ano do Fundamental ao 3º do Ensino Médio",
+      observacao: "Inscrição feita pela escola (não é inscrição individual).",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      registrationStart: "2026-03-19",
+      registrationDeadline: "2026-03-25",
+      examDate: "2026-03-19",
+      resultsDate: "2026-06-02",
+      medalsRequestWindow: {
+        start: "2026-06-02",
+        end: "2026-10-12",
+      },
+      calendarEvents: [
+        {
+          key: "janela_prova",
+          label: "Janela de prova",
+          start: "2026-03-19",
+          end: "2026-03-25",
+        },
+        {
+          key: "resultado",
+          label: "Resultado",
+          date: "2026-06-02",
+        },
+        {
+          key: "janela_venda_medalhas",
+          label: "Venda de medalhas",
+          start: "2026-06-02",
+          end: "2026-10-12",
+        },
+      ],
+    },
+    listBadges: ["Prova única", "Internacional"],
+    tags: ["Exatas", "Matemática", "Internacional", "Prova única"],
   },
   {
     slug: "onhb",

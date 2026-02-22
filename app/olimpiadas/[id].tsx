@@ -367,6 +367,11 @@ export default function OlimpiadaDetalheScreen() {
                   {catalogItem.format.tipo ?? ""}
                 </Text>
               ) : null}
+              {catalogItem.format.publico ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                  Público: {catalogItem.format.publico}
+                </Text>
+              ) : null}
               {catalogItem.format.janelaAplicacao || catalogItem.format.duracao ? (
                 <Text style={{ color: "rgba(255,255,255,0.78)" }}>
                   {catalogItem.format.janelaAplicacao ? `Janela: ${catalogItem.format.janelaAplicacao}` : ""}
@@ -453,7 +458,7 @@ export default function OlimpiadaDetalheScreen() {
                 }}
               >
                 <Text style={{ color: colors.white }} weight="bold">
-                  Calendário / Edital
+                  {catalogItem.regulationCtaLabel ?? "Calendário / Edital"}
                 </Text>
               </Pressable>
               {catalogItem.regulationNote ? (
