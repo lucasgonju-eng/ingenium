@@ -268,21 +268,6 @@ export default function OlimpiadaDetalheScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xxl }}>
         <StitchHeader
           title={olympiad.title}
-          onBack={() => router.back()}
-          rightSlot={
-            <Pressable
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: radii.pill,
-                backgroundColor: "rgba(255,255,255,0.08)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ color: "white", fontSize: 18 }}>↗</Text>
-            </Pressable>
-          }
         />
 
         <View
