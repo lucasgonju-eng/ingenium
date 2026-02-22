@@ -15,6 +15,9 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   const navigation = useNavigation();
   const contentWidthStyle = Platform.OS === "web" ? { width: "100%" as const, maxWidth, flex: 1 } : { width: "100%" as const, flex: 1 };
   const canGoBack = navigation.canGoBack();
+  const logoSize = 120;
+  const logoTopPadding = spacing.xs;
+  const logoBottomSpacing = spacing.xs;
 
   function handleBack() {
     if (canGoBack) {
@@ -32,14 +35,14 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
             style={{
               width: "100%",
               alignItems: "center",
-              justifyContent: "center",
-              paddingTop: spacing.xs,
-              paddingBottom: spacing.xs,
+              height: logoSize + logoTopPadding + logoBottomSpacing,
+              paddingTop: logoTopPadding,
+              marginBottom: logoBottomSpacing,
             }}
           >
             <Image
               source={require("../../assets/ingenium-logo.webp")}
-              style={{ width: 120, height: 120 }}
+              style={{ width: logoSize, height: logoSize }}
               resizeMode="contain"
             />
           </View>
