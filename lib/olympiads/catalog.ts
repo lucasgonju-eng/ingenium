@@ -88,7 +88,7 @@ export type OlympiadDbShape = {
   registration_deadline: string | null;
 };
 
-const HIDDEN_OLYMPIAD_TITLE_SNIPPETS = ["olimpiada de fisica aplicada"];
+const HIDDEN_OLYMPIAD_TITLE_SNIPPETS = ["olimpiada de fisica aplicada", "olimpiada de quimica"];
 
 function normalizeForMatch(value: string) {
   return value
