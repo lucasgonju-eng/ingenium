@@ -11,6 +11,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -18,19 +19,29 @@ export default function LoginScreen() {
       return;
     }
 
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setLoading(false);
+    try {
+      setLoading(true);
+      setErrorText(null);
 
-    if (error) {
-      Alert.alert("Erro no login", error.message);
-      return;
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setErrorText(error.message);
+        Alert.alert("Erro no login", error.message);
+        return;
+      }
+
+      router.replace("/(tabs)/dashboard");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha de conexão ao tentar entrar.";
+      setErrorText(message);
+      Alert.alert("Erro no login", message);
+    } finally {
+      setLoading(false);
     }
-
-    router.replace("/(tabs)/dashboard");
   };
 
   return (
@@ -80,6 +91,9 @@ export default function LoginScreen() {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
+              onSubmitEditing={() => {
+                void handleLogin();
+              }}
               style={{
                 marginTop: spacing.xs,
                 height: 46,
@@ -92,6 +106,11 @@ export default function LoginScreen() {
                 fontFamily: typography.fontFamily.base,
               }}
             />
+            {errorText ? (
+              <Text style={{ color: "#fca5a5", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
+                {errorText}
+              </Text>
+            ) : null}
 
             <Pressable
               onPress={handleLogin}
