@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, TextInput, View } from "react-native";
+import { getOlympiadCatalogBySlug } from "../../lib/olympiads/catalog";
 import { fetchOlympiads } from "../../lib/supabase/queries";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
 import StitchScreenFrame from "../layout/StitchScreenFrame";
@@ -128,6 +129,8 @@ export default function OlimpiadasListScreen() {
                     <OlimpiadaCard
                       title={top.title}
                       subject={top.category ?? undefined}
+                      mentorTeacher={getOlympiadCatalogBySlug(top.id)?.mentorTeacher}
+                      modalityBadge={getOlympiadCatalogBySlug(top.id)?.proofFormat.modalidade}
                       status={status}
                       startAt={fmtDate(top.start_date)}
                       registrationEndAt={fmtDate(top.registration_deadline)}
@@ -151,6 +154,8 @@ export default function OlimpiadasListScreen() {
             <OlimpiadaCard
               title={item.title}
               subject={item.category ?? undefined}
+              mentorTeacher={getOlympiadCatalogBySlug(item.id)?.mentorTeacher}
+              modalityBadge={getOlympiadCatalogBySlug(item.id)?.proofFormat.modalidade}
               status={status as OlympiadStatus}
               startAt={fmtDate(item.start_date)}
               registrationEndAt={fmtDate(item.registration_deadline)}

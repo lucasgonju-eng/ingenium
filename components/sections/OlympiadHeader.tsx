@@ -7,6 +7,8 @@ type Props = {
   title: string;
   category: string | null;
   status: string | null;
+  organizer?: string;
+  mentorTeacher?: string;
   startDate: string;
   endDate: string;
   registrationDeadline: string;
@@ -16,6 +18,8 @@ export default function OlympiadHeader({
   title,
   category,
   status,
+  organizer,
+  mentorTeacher,
   startDate,
   endDate,
   registrationDeadline,
@@ -36,6 +40,11 @@ export default function OlympiadHeader({
       <Text style={{ color: "rgba(255,255,255,0.60)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
         {category ?? "Categoria geral"} • {status ?? "status indefinido"}
       </Text>
+      {(organizer || mentorTeacher) ? (
+        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+          {organizer ? `Organizador: ${organizer}` : ""}{organizer && mentorTeacher ? " • " : ""}{mentorTeacher ? `Mentor: ${mentorTeacher}` : ""}
+        </Text>
+      ) : null}
       <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.sm, fontSize: typography.subtitle.fontSize }}>
         Início: {startDate} • Fim: {endDate}
       </Text>

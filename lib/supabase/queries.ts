@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { getOlympiadCatalogBySlug, mergeOlympiadsWithCatalog } from "../olympiads/catalog";
 
 type Olympiad = {
   id: string;
@@ -184,7 +185,7 @@ export async function fetchOlympiads() {
     .order("start_date", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as Olympiad[];
+  return mergeOlympiadsWithCatalog((data ?? []) as Olympiad[]);
 }
 
 export async function fetchOlympiadById(olympiadId: string) {
@@ -195,7 +196,21 @@ export async function fetchOlympiadById(olympiadId: string) {
     .maybeSingle();
 
   if (error) throw error;
-  return data as Olympiad | null;
+  if (data) return data as Olympiad;
+
+  const catalog = getOlympiadCatalogBySlug(olympiadId);
+  if (!catalog) return null;
+
+  return {
+    id: catalog.slug,
+    title: catalog.name,
+    description: catalog.shortDescription,
+    category: catalog.category,
+    status: "open",
+    start_date: catalog.schedule.examDate,
+    end_date: catalog.schedule.examDate,
+    registration_deadline: catalog.schedule.registrationDeadline,
+  } as Olympiad;
 }
 
 export async function fetchMyEnrollment(olympiadId: string) {

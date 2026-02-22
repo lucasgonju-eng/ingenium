@@ -7,6 +7,8 @@ import { OlympiadStatus } from "./olympiadStatus";
 type Props = {
   title: string;
   subject?: string;
+  mentorTeacher?: string;
+  modalityBadge?: string;
   status: OlympiadStatus;
   startAt?: string;
   registrationEndAt?: string;
@@ -18,6 +20,8 @@ type Props = {
 export default function OlimpiadaCard({
   title,
   subject,
+  mentorTeacher,
+  modalityBadge,
   status,
   startAt,
   registrationEndAt,
@@ -53,11 +57,25 @@ export default function OlimpiadaCard({
           <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
             {subject ?? "Categoria geral"}
           </Text>
+          {mentorTeacher ? (
+            <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2, fontSize: typography.small.fontSize }}>
+              Mentor: {mentorTeacher}
+            </Text>
+          ) : null}
         </View>
-        <View style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: badgeBg }}>
-          <Text style={{ color: badgeColor, fontSize: 10 }} weight="bold">
-            {badgeText}
-          </Text>
+        <View style={{ alignItems: "flex-end", gap: 6 }}>
+          {modalityBadge ? (
+            <View style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: "rgba(56,189,248,0.14)" }}>
+              <Text style={{ color: "#7DD3FC", fontSize: 10 }} weight="bold">
+                {modalityBadge.toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
+          <View style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: badgeBg }}>
+            <Text style={{ color: badgeColor, fontSize: 10 }} weight="bold">
+              {badgeText}
+            </Text>
+          </View>
         </View>
       </View>
 

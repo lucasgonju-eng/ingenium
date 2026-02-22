@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import OlympiadEnrollmentCTA from "../../components/sections/OlympiadEnrollmentCTA";
 import OlympiadHeader from "../../components/sections/OlympiadHeader";
@@ -8,6 +8,7 @@ import OlympiadMyPositionCard from "../../components/sections/OlympiadMyPosition
 import OlympiadRankingSection from "../../components/sections/OlympiadRankingSection";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
+import { getOlympiadCatalogBySlug } from "../../lib/olympiads/catalog";
 import { supabase } from "../../lib/supabase/client";
 import {
   enrollInOlympiad,
@@ -56,6 +57,24 @@ function fmtDate(value: string | null) {
   return new Date(value).toLocaleDateString("pt-BR");
 }
 
+function fmtDateRange(start: string, end: string) {
+  return `${fmtDate(start)} a ${fmtDate(end)}`;
+}
+
+async function openExternalUrl(url: string) {
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (!supported) {
+      Alert.alert("Link indisponível", "Não foi possível abrir este link no dispositivo.");
+      return;
+    }
+    await Linking.openURL(url);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Não foi possível abrir o link.";
+    Alert.alert("Erro", message);
+  }
+}
+
 export default function OlimpiadaDetalheScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const olympiadId = Array.isArray(id) ? id[0] : id;
@@ -63,11 +82,16 @@ export default function OlimpiadaDetalheScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [olympiad, setOlympiad] = useState<OlympiadDetail | null>(null);
+  const [isPersistedOlympiad, setIsPersistedOlympiad] = useState(false);
   const [enrolled, setEnrolled] = useState(false);
   const [myRank, setMyRank] = useState<MyRank>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [topRows, setTopRows] = useState<RankingRow[]>([]);
   const [search, setSearch] = useState("");
+  const catalogItem = useMemo(
+    () => (olympiadId ? getOlympiadCatalogBySlug(olympiadId) : null),
+    [olympiadId],
+  );
   const top3 = useMemo(() => topRows.slice(0, 3), [topRows]);
   const restRows = useMemo(() => topRows.slice(3), [topRows]);
   const adjustedRestRows = useMemo(() => {
@@ -87,25 +111,30 @@ export default function OlimpiadaDetalheScreen() {
   }, [adjustedRestRows, search]);
 
   const canRegister = useMemo(() => {
+    if (catalogItem) {
+      return new Date(`${catalogItem.schedule.registrationDeadline}T23:59:59`).getTime() >= Date.now();
+    }
     if (!olympiad) return false;
     const isOpen = olympiad.status === "open" || olympiad.status === "published";
     const deadlineOk =
       !olympiad.registration_deadline ||
       new Date(olympiad.registration_deadline).getTime() >= Date.now();
     return isOpen && deadlineOk;
-  }, [olympiad]);
+  }, [catalogItem, olympiad]);
 
   async function load() {
     if (!olympiadId) return;
     try {
       setLoading(true);
-      const [o, e] = await Promise.all([
+      const [o, e, persisted] = await Promise.all([
         fetchOlympiadById(olympiadId),
         fetchMyEnrollment(olympiadId),
+        supabase.from("olympiads").select("id").eq("id", olympiadId).maybeSingle(),
       ]);
 
       setOlympiad(o as OlympiadDetail | null);
       setEnrolled(e.enrolled);
+      setIsPersistedOlympiad(Boolean(persisted.data?.id));
 
       const [{ data: sessionData }, mine, top] = await Promise.all([
         supabase.auth.getSession(),
@@ -141,6 +170,14 @@ export default function OlimpiadaDetalheScreen() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleParticipate() {
+    if (catalogItem && !isPersistedOlympiad) {
+      await openExternalUrl(catalogItem.officialUrl);
+      return;
+    }
+    await handleEnroll();
   }
 
   useEffect(() => {
@@ -234,12 +271,120 @@ export default function OlimpiadaDetalheScreen() {
           title={olympiad.title}
           category={olympiad.category}
           status={olympiad.status}
+          organizer={catalogItem?.organizer}
+          mentorTeacher={catalogItem?.mentorTeacher}
           startDate={fmtDate(olympiad.start_date)}
           endDate={fmtDate(olympiad.end_date)}
           registrationDeadline={fmtDate(olympiad.registration_deadline)}
         />
 
         <OlympiadEnrollmentCTA ctaLabel={ctaLabel} ctaDisabled={ctaDisabled} onPress={handleEnroll} />
+
+        {catalogItem ? (
+          <View
+            style={{
+              marginTop: spacing.md,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: sizes.compactCardPadding,
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
+              {catalogItem.headline}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.8)" }}>{catalogItem.longDescription}</Text>
+
+            <View style={{ marginTop: spacing.sm }}>
+              <Text style={{ color: "white" }} weight="bold">
+                Formato da prova
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
+                {catalogItem.proofFormat.modalidade} • {catalogItem.proofFormat.estrutura} • {catalogItem.proofFormat.questoes} questões • {catalogItem.proofFormat.tipo}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                Janela: {catalogItem.proofFormat.janelaAplicacao} • Duração: {catalogItem.proofFormat.duracao}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                Regra de início: {catalogItem.proofFormat.regraInicio}
+              </Text>
+            </View>
+
+            <View style={{ marginTop: spacing.sm }}>
+              <Text style={{ color: "white" }} weight="bold">
+                Calendário oficial
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
+                Inscrições até: {fmtDate(catalogItem.schedule.registrationDeadline)}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                Prova: {fmtDate(catalogItem.schedule.examDate)} (horário de Brasília)
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                Recursos: {fmtDateRange(catalogItem.schedule.appealsWindow.start, catalogItem.schedule.appealsWindow.end)}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                Resultado: {fmtDate(catalogItem.schedule.resultsDate)}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                Solicitação de medalhas: {fmtDateRange(catalogItem.schedule.medalsRequestWindow.start, catalogItem.schedule.medalsRequestWindow.end)}
+              </Text>
+            </View>
+
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+              <Pressable
+                onPress={() => {
+                  void openExternalUrl(catalogItem.regulationUrl);
+                }}
+                style={{
+                  height: sizes.buttonHeight,
+                  borderRadius: radii.md,
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Ver edital
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  void openExternalUrl(catalogItem.officialUrl);
+                }}
+                style={{
+                  height: sizes.buttonHeight,
+                  borderRadius: radii.md,
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Site oficial
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  void handleParticipate();
+                }}
+                style={{
+                  height: sizes.buttonHeight,
+                  borderRadius: radii.md,
+                  backgroundColor: colors.einsteinYellow,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  Quero participar
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         <OlympiadMyPositionCard myRank={myRank} />
 
