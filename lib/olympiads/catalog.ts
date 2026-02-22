@@ -89,6 +89,7 @@ export type OlympiadDbShape = {
 };
 
 const HIDDEN_OLYMPIAD_TITLE_SNIPPETS = ["olimpiada de fisica aplicada", "olimpiada de quimica"];
+const HIDDEN_OLYMPIAD_SLUGS = ["obb"];
 
 function normalizeForMatch(value: string) {
   return value
@@ -99,8 +100,14 @@ function normalizeForMatch(value: string) {
 }
 
 function shouldHideDbOlympiad(row: OlympiadDbShape) {
+  const id = normalizeForMatch(row.id ?? "");
+  if (HIDDEN_OLYMPIAD_SLUGS.some((slug) => id === normalizeForMatch(slug))) return true;
   const title = normalizeForMatch(row.title ?? "");
   return HIDDEN_OLYMPIAD_TITLE_SNIPPETS.some((snippet) => title.includes(snippet));
+}
+
+function shouldHideCatalogOlympiad(item: OlympiadCatalogItem) {
+  return HIDDEN_OLYMPIAD_SLUGS.some((slug) => normalizeForMatch(item.slug) === normalizeForMatch(slug));
 }
 
 function assertRequired(value: string, fieldName: string) {
@@ -625,16 +632,19 @@ function toDbRow(item: OlympiadCatalogItem): OlympiadDbShape {
 
 export function getOlympiadCatalogBySlug(slug: string) {
   const normalized = slug.trim().toLowerCase();
-  return olympiadCatalog.find((item) => item.slug.toLowerCase() === normalized) ?? null;
+  return olympiadCatalog.find((item) => item.slug.toLowerCase() === normalized && !shouldHideCatalogOlympiad(item)) ?? null;
 }
 
 export function mergeOlympiadsWithCatalog(rows: OlympiadDbShape[]) {
   const visibleRows = rows.filter((row) => !shouldHideDbOlympiad(row));
   const merged = new Map(visibleRows.map((row) => [row.id, row]));
   for (const item of olympiadCatalog) {
+    if (shouldHideCatalogOlympiad(item)) continue;
     merged.set(item.slug, toDbRow(item));
   }
-  return [...merged.values()].sort((a, b) => {
+  return [...merged.values()]
+    .filter((row) => !shouldHideDbOlympiad(row))
+    .sort((a, b) => {
     const da = a.start_date ? new Date(a.start_date).getTime() : Number.MAX_SAFE_INTEGER;
     const db = b.start_date ? new Date(b.start_date).getTime() : Number.MAX_SAFE_INTEGER;
     return da - db;
