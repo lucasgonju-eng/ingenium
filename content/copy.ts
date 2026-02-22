@@ -1,6 +1,6 @@
-﻿export const copy = {
+export const copy = {
   brand: {
-    name: "Ingenium Einstein",
+    name: "InGenium Einstein",
     domain: "ingenium.einsteinhub.co",
     sloganLines: ["Compete quem estuda.", "Vence quem se prepara."],
     keyPhrases: [

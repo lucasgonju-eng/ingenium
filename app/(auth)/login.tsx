@@ -48,7 +48,7 @@ export default function LoginScreen() {
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Entrar" subtitle="Acesse sua conta Ingenium" variant="feed" />
+          <StitchHeader title="Entrar" subtitle="Acesse sua conta InGenium" variant="feed" />
         </View>
 
         <View style={{ paddingHorizontal: spacing.md }}>

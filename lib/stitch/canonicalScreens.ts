@@ -8,7 +8,7 @@ export type CanonicalScreen = {
 
 export const canonicalScreens: CanonicalScreen[] = [
   {
-    title: "Landing Page: Ingenium Einstein",
+    title: "Landing Page: InGenium Einstein",
     screenId: "projects/14208087628780676024/screens/eafc3c14e8c34a44ae3ac504d913a1a3",
     route: "/(marketing)",
     group: "core",

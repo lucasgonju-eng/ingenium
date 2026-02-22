@@ -83,7 +83,7 @@ export default function FeedPostCard({ authorName, authorAvatar, body, createdAt
       >
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-            Ingenium Destaques
+            InGenium Destaques
           </Text>
           <View style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: "rgba(255,199,0,0.18)" }}>
             <Text style={{ color: colors.einsteinYellow, fontSize: 10 }} weight="bold">

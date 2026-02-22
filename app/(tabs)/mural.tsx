@@ -117,7 +117,7 @@ export default function MuralScreen() {
           <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
             <StitchHeader
               title="Mural"
-              subtitle="Ingenium Einstein"
+              subtitle="InGenium Einstein"
               variant="feed"
             />
 
@@ -129,7 +129,7 @@ export default function MuralScreen() {
         renderItem={({ item }) => (
           <View style={{ marginHorizontal: spacing.md }}>
             <FeedPostCard
-              authorName="Comunidade Ingenium"
+              authorName="Comunidade InGenium"
               body={item.content}
               createdAt={item.created_at}
               kind={(item as FeedPost & { kind?: "announcement" | "highlight" | "tip" }).kind}

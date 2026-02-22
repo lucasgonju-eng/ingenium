@@ -6,7 +6,7 @@ Regra aplicada: manter uma variante canônica (mais completa/recente) por títul
 
 | Título | Screen ID canônico | Rota local |
 |---|---|---|
-| Landing Page: Ingenium Einstein | `projects/14208087628780676024/screens/eafc3c14e8c34a44ae3ac504d913a1a3` | `/(marketing)` |
+| Landing Page: InGenium Einstein | `projects/14208087628780676024/screens/eafc3c14e8c34a44ae3ac504d913a1a3` | `/(marketing)` |
 | Auth: Login Screen | `projects/14208087628780676024/screens/8549c5bc28e64fd3b7ffb80fbf4d5eb2` | `/(auth)/login` |
 | Auth: Cadastro Aluno | `projects/14208087628780676024/screens/e07237ebd52e41d0821984cbaba39ebe` | `/(auth)/cadastro` |
 | Dashboard: Home do Aluno | `projects/14208087628780676024/screens/3598d2133deb4963a56c14d07400a6e1` | `/(tabs)/dashboard` |

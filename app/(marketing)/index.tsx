@@ -62,7 +62,7 @@ export default function MarketingLandingScreen() {
       >
         <View style={{ paddingTop: spacing.xs }}>
           <Text style={{ color: colors.white, fontSize: 28 }} weight="bold">
-            Ingenium Einstein
+            InGenium Einstein
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 21 }}>
             Plataforma de olimpíadas com ranking ao vivo, ligas e recompensas para alunos de alta performance.
@@ -227,7 +227,7 @@ export default function MarketingLandingScreen() {
           {[
             { date: "Nov 12", name: "OBM - 2ª Fase", meta: "Matemática • Nacional" },
             { date: "Nov 18", name: "Olimpíada de Física", meta: "Física • Seletiva" },
-            { date: "Dez 05", name: "Desafio Ingenium", meta: "Geral • Online" },
+            { date: "Dez 05", name: "Desafio InGenium", meta: "Geral • Online" },
           ].map((item) => (
             <View
               key={item.name}
