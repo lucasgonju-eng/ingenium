@@ -352,7 +352,7 @@ export default function OlimpiadaDetalheScreen() {
 
             <View style={{ marginTop: spacing.sm }}>
               <Text style={{ color: "white" }} weight="bold">
-                Formato
+                Formato da prova
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
                 {catalogItem.format.modalidade} • {catalogItem.format.estrutura}
