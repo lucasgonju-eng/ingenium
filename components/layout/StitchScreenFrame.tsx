@@ -29,19 +29,17 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, alignItems: "center" }}>
           <View
-            pointerEvents="none"
             style={{
-              position: "absolute",
-              top: spacing.xs,
-              left: 0,
-              right: 0,
+              width: "100%",
               alignItems: "center",
-              zIndex: 20,
+              justifyContent: "center",
+              paddingTop: spacing.xs,
+              paddingBottom: spacing.xs,
             }}
           >
             <Image
               source={require("../../assets/ingenium-logo.webp")}
-              style={{ width: 60, height: 60 }}
+              style={{ width: 120, height: 120 }}
               resizeMode="contain"
             />
           </View>

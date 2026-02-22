@@ -62,9 +62,6 @@ export default function MarketingLandingScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md }}
       >
         <View style={{ paddingTop: spacing.xs }}>
-          <Text style={{ color: colors.white, fontSize: 28 }} weight="bold">
-            InGenium Einstein
-          </Text>
           <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 21 }}>
             {copy.program.headline}
           </Text>
