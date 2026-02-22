@@ -19,9 +19,10 @@ export default function CadastroScreen() {
       return;
     }
 
-    const emailRedirectTo =
+    const siteUrl =
       process.env.EXPO_PUBLIC_SITE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+    const emailRedirectTo = `${siteUrl.replace(/\/+$/, "")}/login`;
 
     setLoading(true);
     const { error } = await supabase.auth.signUp({
