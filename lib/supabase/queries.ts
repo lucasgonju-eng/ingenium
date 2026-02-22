@@ -184,7 +184,10 @@ export async function fetchOlympiads() {
     .select("id,title,description,category,status,start_date,end_date,registration_deadline")
     .order("start_date", { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    // Fallback local para manter catálogo funcional quando o backend falhar.
+    return mergeOlympiadsWithCatalog([]);
+  }
   return mergeOlympiadsWithCatalog((data ?? []) as Olympiad[]);
 }
 
@@ -195,7 +198,20 @@ export async function fetchOlympiadById(olympiadId: string) {
     .eq("id", olympiadId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    const catalog = getOlympiadCatalogBySlug(olympiadId);
+    if (!catalog) throw error;
+    return {
+      id: catalog.slug,
+      title: catalog.name,
+      description: catalog.shortDescription,
+      category: catalog.category,
+      status: "open",
+      start_date: catalog.schedule.examDate,
+      end_date: catalog.schedule.examDate,
+      registration_deadline: catalog.schedule.registrationDeadline,
+    } as Olympiad;
+  }
   if (data) return data as Olympiad;
 
   const catalog = getOlympiadCatalogBySlug(olympiadId);

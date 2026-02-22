@@ -132,7 +132,22 @@ export default function OlimpiadaDetalheScreen() {
         supabase.from("olympiads").select("id").eq("id", olympiadId).maybeSingle(),
       ]);
 
-      setOlympiad(o as OlympiadDetail | null);
+      const resolvedOlympiad =
+        (o as OlympiadDetail | null) ??
+        (catalogItem
+          ? {
+              id: catalogItem.slug,
+              title: catalogItem.name,
+              description: catalogItem.shortDescription,
+              category: catalogItem.category,
+              status: "open",
+              start_date: catalogItem.schedule.examDate,
+              end_date: catalogItem.schedule.examDate,
+              registration_deadline: catalogItem.schedule.registrationDeadline,
+            }
+          : null);
+
+      setOlympiad(resolvedOlympiad as OlympiadDetail | null);
       setEnrolled(e.enrolled);
       setIsPersistedOlympiad(Boolean(persisted.data?.id));
 
@@ -208,14 +223,18 @@ export default function OlimpiadaDetalheScreen() {
     );
   }
 
-  const ctaLabel = enrolled
-    ? "Inscrito ✅"
-    : !canRegister
+  const ctaLabel = catalogItem
+    ? !canRegister
       ? "Inscrições encerradas"
-      : submitting
-        ? "Inscrevendo..."
-        : "Inscrever-se";
-  const ctaDisabled = enrolled || !canRegister || submitting;
+      : "Quero participar"
+    : enrolled
+      ? "Inscrito ✅"
+      : !canRegister
+        ? "Inscrições encerradas"
+        : submitting
+          ? "Inscrevendo..."
+          : "Inscrever-se";
+  const ctaDisabled = catalogItem ? !canRegister || submitting : enrolled || !canRegister || submitting;
 
   return (
     <StitchScreenFrame>
@@ -278,7 +297,7 @@ export default function OlimpiadaDetalheScreen() {
           registrationDeadline={fmtDate(olympiad.registration_deadline)}
         />
 
-        <OlympiadEnrollmentCTA ctaLabel={ctaLabel} ctaDisabled={ctaDisabled} onPress={handleEnroll} />
+        <OlympiadEnrollmentCTA ctaLabel={ctaLabel} ctaDisabled={ctaDisabled} onPress={handleParticipate} />
 
         {catalogItem ? (
           <View
