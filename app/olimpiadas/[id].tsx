@@ -126,10 +126,9 @@ export default function OlimpiadaDetalheScreen() {
     if (!olympiadId) return;
     try {
       setLoading(true);
-      const [o, e, persisted] = await Promise.all([
+      const [o, e] = await Promise.all([
         fetchOlympiadById(olympiadId),
         fetchMyEnrollment(olympiadId),
-        supabase.from("olympiads").select("id").eq("id", olympiadId).maybeSingle(),
       ]);
 
       const resolvedOlympiad =
@@ -149,7 +148,19 @@ export default function OlimpiadaDetalheScreen() {
 
       setOlympiad(resolvedOlympiad as OlympiadDetail | null);
       setEnrolled(e.enrolled);
-      setIsPersistedOlympiad(Boolean(persisted.data?.id));
+      setIsPersistedOlympiad(false);
+
+      // A checagem de persistência é opcional e não pode bloquear a tela.
+      try {
+        const { data: persistedData } = await supabase
+          .from("olympiads")
+          .select("id")
+          .eq("id", olympiadId)
+          .maybeSingle();
+        setIsPersistedOlympiad(Boolean(persistedData?.id));
+      } catch {
+        setIsPersistedOlympiad(false);
+      }
 
       const [{ data: sessionData }, mine, top] = await Promise.all([
         supabase.auth.getSession(),
