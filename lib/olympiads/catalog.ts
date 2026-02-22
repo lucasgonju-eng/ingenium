@@ -88,6 +88,21 @@ export type OlympiadDbShape = {
   registration_deadline: string | null;
 };
 
+const HIDDEN_OLYMPIAD_TITLE_SNIPPETS = ["olimpiada de fisica aplicada"];
+
+function normalizeForMatch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function shouldHideDbOlympiad(row: OlympiadDbShape) {
+  const title = normalizeForMatch(row.title ?? "");
+  return HIDDEN_OLYMPIAD_TITLE_SNIPPETS.some((snippet) => title.includes(snippet));
+}
+
 function assertRequired(value: string, fieldName: string) {
   if (!value.trim()) {
     throw new Error(`Catálogo de olimpíadas inválido: campo obrigatório "${fieldName}" vazio.`);
@@ -614,7 +629,8 @@ export function getOlympiadCatalogBySlug(slug: string) {
 }
 
 export function mergeOlympiadsWithCatalog(rows: OlympiadDbShape[]) {
-  const merged = new Map(rows.map((row) => [row.id, row]));
+  const visibleRows = rows.filter((row) => !shouldHideDbOlympiad(row));
+  const merged = new Map(visibleRows.map((row) => [row.id, row]));
   for (const item of olympiadCatalog) {
     merged.set(item.slug, toDbRow(item));
   }
