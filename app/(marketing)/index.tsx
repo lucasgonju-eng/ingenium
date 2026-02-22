@@ -193,9 +193,9 @@ export default function MarketingLandingScreen() {
             Evolua seu status e desbloqueie recompensas exclusivas.
           </Text>
           {[
-            { icon: "🥉", title: "Lobo Bronze", desc: "Início da jornada. Acesso a simulados básicos e ranking estadual.", range: "0 - 5.000 pts" },
-            { icon: "🥈", title: "Lobo Prata", desc: "Competidores sérios. Acesso a mentorias e desafios semanais.", range: "5.001 - 15.000 pts" },
             { icon: "🥇", title: "Lobo Ouro", desc: "A elite nacional. Bolsas de estudo, prêmios físicos e eventos exclusivos.", range: "15.001+ pts" },
+            { icon: "🥈", title: "Lobo Prata", desc: "Competidores sérios. Acesso a mentorias e desafios semanais.", range: "5.001 - 15.000 pts" },
+            { icon: "🥉", title: "Lobo Bronze", desc: "Início da jornada. Acesso a simulados básicos e ranking estadual.", range: "0 - 5.000 pts" },
           ].map((item) => (
             <View
               key={item.title}
