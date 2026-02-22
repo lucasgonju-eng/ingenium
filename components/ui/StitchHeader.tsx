@@ -49,7 +49,7 @@ export default function StitchHeader({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View style={{ minWidth: 40, alignItems: "flex-start", justifyContent: "center" }}>
+        <View style={{ width: 40, alignItems: "flex-start", justifyContent: "center" }}>
           {variant === "feed" ? (
             leftSlot ?? (
               <View
@@ -84,12 +84,21 @@ export default function StitchHeader({
           )}
         </View>
 
-        <View style={{ alignItems: "center" }}>
-          <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xs }}>
+          <Text
+            style={{ color: colors.white, fontSize: typography.titleMd.fontSize, textAlign: "center" }}
+            weight="bold"
+            numberOfLines={variant === "feed" ? 1 : 2}
+            ellipsizeMode="tail"
+          >
             {title}
           </Text>
           {subtitle ? (
-            <Text style={{ color: "rgba(255,255,255,0.70)", fontSize: typography.small.fontSize, marginTop: -2 }}>
+            <Text
+              style={{ color: "rgba(255,255,255,0.70)", fontSize: typography.small.fontSize, marginTop: -2 }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               {subtitle}
             </Text>
           ) : null}
@@ -97,7 +106,7 @@ export default function StitchHeader({
 
         <View
           style={{
-            minWidth: 40,
+            width: 40,
             height: 40,
             borderRadius: radii.pill,
             alignItems: "center",
