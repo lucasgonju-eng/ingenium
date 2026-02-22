@@ -6,6 +6,7 @@ import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import { fetchPublicRankingTeaser } from "../../lib/supabase/queries";
 import { colors, radii, shadows, spacing, typography } from "../../lib/theme/tokens";
+import { copy } from "../../content/copy";
 
 type TeaserRow = {
   rank: number;
@@ -65,7 +66,7 @@ export default function MarketingLandingScreen() {
             InGenium Einstein
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 21 }}>
-            Plataforma de olimpíadas com ranking ao vivo, ligas e recompensas para alunos de alta performance.
+            {copy.program.headline}
           </Text>
         </View>
 
@@ -190,13 +191,9 @@ export default function MarketingLandingScreen() {
             Ligas de Elite
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.7)", lineHeight: 20 }}>
-            Evolua seu status e desbloqueie recompensas exclusivas.
+            {copy.program.xpSummary}
           </Text>
-          {[
-            { icon: "🥇", title: "Lobo Ouro", desc: "A elite nacional. Bolsas de estudo, prêmios físicos e eventos exclusivos.", range: "15.001+ pts" },
-            { icon: "🥈", title: "Lobo Prata", desc: "Competidores sérios. Acesso a mentorias e desafios semanais.", range: "5.001 - 15.000 pts" },
-            { icon: "🥉", title: "Lobo Bronze", desc: "Início da jornada. Acesso a simulados básicos e ranking estadual.", range: "0 - 5.000 pts" },
-          ].map((item) => (
+          {copy.program.tiers.map((item) => (
             <View
               key={item.title}
               style={{
@@ -216,6 +213,82 @@ export default function MarketingLandingScreen() {
                 </Text>
               </View>
               <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 20 }}>{item.desc}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+            Como funciona o XP oficial
+          </Text>
+          {copy.program.xpRules.map((rule) => (
+            <View
+              key={rule.key}
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.sm }}>
+                <Text style={{ color: colors.white, flex: 1 }} weight="bold">
+                  {rule.label}
+                </Text>
+                <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                  +{rule.xp.toLocaleString("pt-BR")} XP
+                </Text>
+              </View>
+              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4, lineHeight: 20 }}>{rule.criteria}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+            Premiação - Lobo de Ouro
+          </Text>
+          {copy.program.goldAwards.map((award) => (
+            <View
+              key={award}
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+              }}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.84)" }}>{award}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+            Ranking final - Top 3 Lobo Ouro
+          </Text>
+          {copy.program.goldTop3Awards.map((row) => (
+            <View
+              key={row.place}
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+                gap: 4,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                {row.place}
+              </Text>
+              {row.items.map((item) => (
+                <Text key={`${row.place}-${item}`} style={{ color: "rgba(255,255,255,0.84)" }}>
+                  - {item}
+                </Text>
+              ))}
             </View>
           ))}
         </View>

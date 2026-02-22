@@ -10,6 +10,7 @@ import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import { fetchMyRankGeralMedia, fetchRankingGeralMediaPublic, MyRankGeralMedia } from "../../lib/supabase/queries";
 import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
+import { copy } from "../../content/copy";
 
 type RankingRow = {
   position_geral_media: number;
@@ -170,6 +171,53 @@ export default function RankingScreen() {
             Matemática
           </Text>
         </Pressable>
+      </View>
+
+      <View
+        style={{
+          marginTop: spacing.sm,
+          borderRadius: radii.lg,
+          borderWidth: 1,
+          borderColor: colors.borderSoft,
+          backgroundColor: colors.surfacePanel,
+          padding: spacing.md,
+          gap: spacing.xs,
+        }}
+      >
+        <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+          Faixas oficiais de classificação
+        </Text>
+        {copy.program.tiers.map((tier) => (
+          <View key={tier.key} style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.sm }}>
+            <Text style={{ color: "rgba(255,255,255,0.84)", flex: 1 }}>
+              {tier.title}
+            </Text>
+            <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+              {tier.range}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <View
+        style={{
+          marginTop: spacing.sm,
+          borderRadius: radii.lg,
+          borderWidth: 1,
+          borderColor: colors.borderSoft,
+          backgroundColor: colors.surfacePanel,
+          padding: spacing.md,
+          gap: spacing.xs,
+        }}
+      >
+        <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+          Regras oficiais de XP
+        </Text>
+        {copy.program.xpRules.map((rule) => (
+          <Text key={rule.key} style={{ color: "rgba(255,255,255,0.8)" }}>
+            - {rule.label}: +{rule.xp.toLocaleString("pt-BR")} XP
+          </Text>
+        ))}
       </View>
 
       <RankingEligibilityCard rankInfo={myRankInfo} />

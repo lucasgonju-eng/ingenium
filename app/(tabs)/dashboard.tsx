@@ -14,6 +14,7 @@ import {
   MyRankGeralMedia,
 } from "../../lib/supabase/queries";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
+import { copy } from "../../content/copy";
 
 type LoboClass = "bronze" | "silver" | "gold";
 type OlympiadRow = {
@@ -37,13 +38,13 @@ function getHeroAccent(cls: LoboClass) {
 }
 
 function getProgressToNext(points: number) {
-  if (points >= 500) return { pct: 100, text: "Classe máxima atingida", next: "Ouro" };
-  if (points >= 200) {
-    const pct = Math.min(100, Math.max(0, ((points - 200) / 300) * 100));
-    return { pct, text: `+${500 - points} pts para Ouro`, next: "Ouro" };
+  if (points >= 20000) return { pct: 100, text: "Classe máxima atingida", next: "Ouro" };
+  if (points >= 8000) {
+    const pct = Math.min(100, Math.max(0, ((points - 8000) / 12000) * 100));
+    return { pct, text: `+${(20000 - points).toLocaleString("pt-BR")} pts para Ouro`, next: "Ouro" };
   }
-  const pct = Math.min(100, Math.max(0, (points / 200) * 100));
-  return { pct, text: `+${200 - points} pts para Prata`, next: "Prata" };
+  const pct = Math.min(100, Math.max(0, (points / 8000) * 100));
+  return { pct, text: `+${(8000 - points).toLocaleString("pt-BR")} pts para Prata`, next: "Prata" };
 }
 
 export default function DashboardScreen() {
@@ -258,22 +259,23 @@ export default function DashboardScreen() {
           }}
         >
           <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-            Missões da semana
+            Como funciona o XP oficial
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: spacing.xs }}>
-            Complete ações para acelerar sua evolução na liga.
+            Pontuação baseada em participação, resultado e constância.
           </Text>
 
           <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-            <View style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
-              <Text style={{ color: "white" }}>Atualizar perfil • +100 XP</Text>
-            </View>
-            <View style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
-              <Text style={{ color: "white" }}>Inscrever-se em 1 olimpíada • +500 XP</Text>
-            </View>
-            <View style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
-              <Text style={{ color: "white" }}>Concluir quiz diário • +50 XP</Text>
-            </View>
+            {copy.program.xpRules.map((rule) => (
+              <View key={rule.key} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
+                <Text style={{ color: "white" }}>
+                  {rule.label} • +{rule.xp.toLocaleString("pt-BR")} XP
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                  {rule.criteria}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
