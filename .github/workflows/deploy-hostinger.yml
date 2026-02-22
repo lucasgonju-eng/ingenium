@@ -56,6 +56,11 @@ jobs:
           RewriteRule ^ index.html [L]
           EOF
 
+      - name: Add Hostinger avatar upload endpoint
+        run: |
+          mkdir -p dist/imagens
+          cp hostinger/upload-avatar.php dist/upload-avatar.php
+
       - name: Deploy to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -66,4 +71,4 @@ jobs:
           protocol: ftps
           local-dir: dist/
           server-dir: /public_html/
-          dangerous-clean-slate: true
+          dangerous-clean-slate: false
