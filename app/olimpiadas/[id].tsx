@@ -126,25 +126,37 @@ export default function OlimpiadaDetalheScreen() {
     if (!olympiadId) return;
     try {
       setLoading(true);
+      if (catalogItem) {
+        const localOlympiad: OlympiadDetail = {
+          id: catalogItem.slug,
+          title: catalogItem.name,
+          description: catalogItem.shortDescription,
+          category: catalogItem.category,
+          status: "open",
+          start_date: catalogItem.schedule.examDate,
+          end_date: catalogItem.schedule.examDate,
+          registration_deadline: catalogItem.schedule.registrationDeadline,
+        };
+
+        setOlympiad(localOlympiad);
+        setEnrolled(false);
+        setIsPersistedOlympiad(false);
+        setMyRank(null);
+        setTopRows([]);
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setMyUserId(session?.user?.id ?? null);
+        return;
+      }
+
       const [o, e] = await Promise.all([
         fetchOlympiadById(olympiadId),
         fetchMyEnrollment(olympiadId),
       ]);
 
-      const resolvedOlympiad =
-        (o as OlympiadDetail | null) ??
-        (catalogItem
-          ? {
-              id: catalogItem.slug,
-              title: catalogItem.name,
-              description: catalogItem.shortDescription,
-              category: catalogItem.category,
-              status: "open",
-              start_date: catalogItem.schedule.examDate,
-              end_date: catalogItem.schedule.examDate,
-              registration_deadline: catalogItem.schedule.registrationDeadline,
-            }
-          : null);
+      const resolvedOlympiad = o as OlympiadDetail | null;
 
       setOlympiad(resolvedOlympiad as OlympiadDetail | null);
       setEnrolled(e.enrolled);
@@ -181,6 +193,10 @@ export default function OlimpiadaDetalheScreen() {
 
   async function handleEnroll() {
     if (!olympiadId || submitting) return;
+    if (catalogItem && !isPersistedOlympiad) {
+      await openExternalUrl(catalogItem.officialUrl);
+      return;
+    }
     try {
       setSubmitting(true);
       const result = await enrollInOlympiad(olympiadId);
