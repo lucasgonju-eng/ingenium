@@ -62,7 +62,14 @@ export default function OlimpiadasListScreen() {
       return byTab && bySearch;
     });
   }, [rows, search, tab]);
-  const listRows = useMemo(() => filteredRows.slice(1), [filteredRows]);
+  const listRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const searchedRows = rows.filter((row) => {
+      return !q || row.title.toLowerCase().includes(q) || (row.category ?? "").toLowerCase().includes(q);
+    });
+    const featuredId = filteredRows[0]?.id;
+    return searchedRows.filter((row) => row.id !== featuredId);
+  }, [rows, search, filteredRows]);
 
   if (loading) {
     return (
