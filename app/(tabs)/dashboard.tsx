@@ -48,6 +48,12 @@ function getProgressToNext(points: number) {
   return { pct, text: `+${(8000 - points).toLocaleString("pt-BR")} pts para Prata`, next: "Prata" };
 }
 
+function getFirstName(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "Aluno";
+  return trimmed.split(/\s+/)[0] ?? "Aluno";
+}
+
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [points, setPoints] = useState<number>(0);
@@ -73,7 +79,7 @@ export default function DashboardScreen() {
         sessionData.session?.user?.email?.split("@")[0] ||
         "Estudante";
 
-      setName(fullName);
+      setName(getFirstName(fullName));
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
       setCls((p?.lobo_class ?? "bronze") as LoboClass);
@@ -141,11 +147,8 @@ export default function DashboardScreen() {
         />
 
         <View style={{ paddingHorizontal: spacing.md }}>
-          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.subtitle.fontSize }}>
-            Bem-vindo de volta,
-          </Text>
           <Text style={{ color: "white", fontSize: typography.titleLg.fontSize }} weight="bold">
-            {name}
+            Bem-vindo, {name}
           </Text>
         </View>
 

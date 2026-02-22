@@ -15,9 +15,8 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   const navigation = useNavigation();
   const contentWidthStyle = Platform.OS === "web" ? { width: "100%" as const, maxWidth, flex: 1 } : { width: "100%" as const, flex: 1 };
   const canGoBack = navigation.canGoBack();
-  const logoSize = 120;
-  const logoTopPadding = spacing.xs;
-  const logoBottomSpacing = spacing.xs;
+  const logoSize = 92;
+  const logoBottomSpacing = 4;
 
   function handleBack() {
     if (canGoBack) {
@@ -35,8 +34,8 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
             style={{
               width: "100%",
               alignItems: "center",
-              height: logoSize + logoTopPadding + logoBottomSpacing,
-              paddingTop: logoTopPadding,
+              height: logoSize + logoBottomSpacing,
+              justifyContent: "center",
               marginBottom: logoBottomSpacing,
             }}
           >
