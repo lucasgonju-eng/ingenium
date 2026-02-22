@@ -8,6 +8,7 @@ import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import {
+  fetchMyProfile,
   fetchMyPoints,
   fetchMyRankGeralMedia,
   fetchOlympiads,
@@ -58,14 +59,16 @@ export default function DashboardScreen() {
   async function load() {
     try {
       setLoading(true);
-      const [{ data: sessionData }, mediaRank, p, upcoming] = await Promise.all([
+      const [{ data: sessionData }, mediaRank, p, upcoming, profile] = await Promise.all([
         supabase.auth.getSession(),
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
         fetchOlympiads(),
+        fetchMyProfile(),
       ]);
 
       const fullName =
+        profile?.full_name?.trim() ||
         sessionData.session?.user?.user_metadata?.full_name ??
         sessionData.session?.user?.email?.split("@")[0] ??
         "Estudante";
