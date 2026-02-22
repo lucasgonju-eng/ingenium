@@ -19,11 +19,16 @@ export default function CadastroScreen() {
       return;
     }
 
+    const emailRedirectTo =
+      process.env.EXPO_PUBLIC_SITE_URL ??
+      (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
+        emailRedirectTo,
         data: {
           full_name: nome.trim(),
           role: "student",
@@ -37,6 +42,7 @@ export default function CadastroScreen() {
       return;
     }
 
+    Alert.alert("Confirme seu e-mail", "Enviamos um link de confirmação para seu e-mail.");
     router.replace("/(auth)/login");
   };
 
