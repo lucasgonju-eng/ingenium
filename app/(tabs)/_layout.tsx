@@ -6,6 +6,7 @@ export default function TabsLayout() {
     <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="dashboard" options={{ title: "Início" }} />
       <Tabs.Screen name="olimpiadas" options={{ title: "Olimpíadas" }} />
+      <Tabs.Screen name="planos" options={{ title: "Planos" }} />
       <Tabs.Screen name="ranking" options={{ title: "Ranking" }} />
       <Tabs.Screen name="mural" options={{ title: "Mural" }} />
       <Tabs.Screen name="perfil" options={{ title: "Perfil" }} />

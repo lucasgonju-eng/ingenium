@@ -229,11 +229,7 @@ export default function OlimpiadaDetalheScreen() {
   }
 
   async function handleParticipate() {
-    if (catalogItem && !isPersistedOlympiad) {
-      await openExternalUrl(catalogItem.officialUrl);
-      return;
-    }
-    await handleEnroll();
+    router.push("/(tabs)/planos");
   }
 
   useEffect(() => {
