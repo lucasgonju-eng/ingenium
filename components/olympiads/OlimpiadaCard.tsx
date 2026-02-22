@@ -8,6 +8,7 @@ type Props = {
   title: string;
   subject?: string;
   mentorTeacher?: string;
+  visualSealLabel?: string;
   badges?: string[];
   status: OlympiadStatus;
   startAt?: string;
@@ -21,6 +22,7 @@ export default function OlimpiadaCard({
   title,
   subject,
   mentorTeacher,
+  visualSealLabel,
   badges,
   status,
   startAt,
@@ -57,6 +59,24 @@ export default function OlimpiadaCard({
           <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
             {subject ?? "Categoria geral"}
           </Text>
+          {visualSealLabel ? (
+            <View
+              style={{
+                alignSelf: "flex-start",
+                marginTop: 6,
+                paddingHorizontal: spacing.xs,
+                paddingVertical: 4,
+                borderRadius: radii.pill,
+                backgroundColor: "rgba(255,199,0,0.14)",
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.32)",
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: 10 }} weight="bold">
+                {visualSealLabel}
+              </Text>
+            </View>
+          ) : null}
           {mentorTeacher ? (
             <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2, fontSize: typography.small.fontSize }}>
               Mentor: {mentorTeacher}

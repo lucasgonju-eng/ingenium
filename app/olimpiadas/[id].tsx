@@ -314,6 +314,7 @@ export default function OlimpiadaDetalheScreen() {
           status={olympiad.status}
           organizer={catalogItem?.organizer}
           mentorTeacher={catalogItem?.mentorTeacher}
+          visualSealLabel={catalogItem?.visualSealLabel}
           startDate={fmtDate(olympiad.start_date)}
           endDate={fmtDate(olympiad.end_date)}
           registrationDeadline={fmtDate(olympiad.registration_deadline)}

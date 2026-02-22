@@ -138,6 +138,7 @@ export default function OlimpiadasListScreen() {
                       title={top.title}
                       subject={top.category ?? undefined}
                       mentorTeacher={catalog?.mentorTeacher}
+                      visualSealLabel={catalog?.visualSealLabel}
                       badges={catalog?.listBadges ?? (catalog?.format.modalidade ? [catalog.format.modalidade] : undefined)}
                       status={status}
                       startAt={fmtDate(top.start_date)}
@@ -164,6 +165,7 @@ export default function OlimpiadasListScreen() {
               title={item.title}
               subject={item.category ?? undefined}
               mentorTeacher={catalog?.mentorTeacher}
+              visualSealLabel={catalog?.visualSealLabel}
               badges={catalog?.listBadges ?? (catalog?.format.modalidade ? [catalog.format.modalidade] : undefined)}
               status={status as OlympiadStatus}
               startAt={fmtDate(item.start_date)}

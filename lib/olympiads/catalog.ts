@@ -48,6 +48,7 @@ export type OlympiadCatalogItem = {
   officialUrl: string;
   regulationUrl: string;
   faqUrl?: string;
+  visualSealLabel?: string;
   regulationNote?: string;
   headline: string;
   shortDescription: string;
@@ -106,6 +107,7 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     mentorTeacher: "Gisliane",
     officialUrl: "https://www.seletaeducacao.com.br/obgp-regulamento",
     regulationUrl: "https://www.seletaeducacao.com.br/obgp-regulamento",
+    visualSealLabel: "SELETA OFICIAL",
     headline: "Entenda o mundo como ele funciona — e prove isso em prova.",
     shortDescription:
       "A OBGP coloca você no tabuleiro do mundo: relações internacionais, conflitos, alianças, economia e decisões globais. Excelente para repertório de atualidades e redação.",
@@ -147,6 +149,7 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     officialUrl: "https://www.obgeografia.com.br/",
     regulationUrl: "https://www.obgeografia.com.br/",
     regulationNote: "Regulamento e calendário publicados no portal oficial.",
+    visualSealLabel: "OBG OFICIAL",
     headline: "Geografia de verdade: território, mundo e estratégia — em equipe.",
     shortDescription:
       "A OBG é uma competição que mistura geografia física e humana com desafios aplicados, leitura de mapas e análise do mundo real. Ideal pra quem curte humanas e trabalho em equipe.",
@@ -214,6 +217,7 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     officialUrl: "https://www.olimpiadadehistoria.com.br/",
     regulationUrl: "https://www.olimpiadadehistoria.com.br/calendario/index",
     faqUrl: "https://www.olimpiadadehistoria.com.br/paginas/onhb18/duvidas",
+    visualSealLabel: "UNICAMP OFICIAL",
     headline: "História não é decorar: é investigar. Em equipe.",
     shortDescription:
       "A ONHB é uma olimpíada em equipe, com fases online semanais e final presencial. Você aprende História do Brasil analisando fontes, tomando decisões e resolvendo desafios reais.",
