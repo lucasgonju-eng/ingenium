@@ -48,6 +48,15 @@ export const planosContent = {
   finalTitle: "Escolha a modalidade que melhor se adequa à sua jornada.",
   finalCta: "Aderir ao Plano PRO",
   finalNote: "Plano anual com pagamento facilitado.",
+  sharedBenefits: [
+    "Aulas específicas para as Olimpíadas",
+    "Inscrições ilimitadas inclusas",
+    "Gestão direta time Einstein",
+    "Gestão de calendário centralizada",
+    "Ranking com premiação oficial",
+    "Camiseta oficial inclusa",
+    "Suporte prioritário",
+  ],
   plans: [
     {
       id: "free",
@@ -55,13 +64,13 @@ export const planosContent = {
       price: "Gratuito",
       cta: "Manter Plano Free",
       features: [
-        { label: "Acesso app", included: true },
-        { label: "Ranking", included: true },
-        { label: "XP acumulado", included: true },
-        { label: "Inscrição independente", included: true },
-        { label: "Sem premiação no ranking", included: false },
-        { label: "Sem camiseta oficial", included: false },
-        { label: "Pagamentos individuais por prova", included: false },
+        { label: "Aulas específicas para as Olimpíadas", included: false },
+        { label: "Inscrições ilimitadas inclusas", included: false },
+        { label: "Gestão direta time Einstein", included: false },
+        { label: "Gestão de calendário centralizada", included: false },
+        { label: "Ranking com premiação oficial", included: false },
+        { label: "Camiseta oficial inclusa", included: false },
+        { label: "Suporte prioritário", included: false },
       ],
     },
     {
@@ -74,6 +83,7 @@ export const planosContent = {
       cta: "Selecionar Plano PRO",
       highlighted: true,
       features: [
+        { label: "Aulas específicas para as Olimpíadas", included: true, emphasis: true },
         { label: "Inscrições ilimitadas inclusas", included: true, emphasis: true },
         { label: "Gestão direta time Einstein", included: true, emphasis: true },
         { label: "Gestão de calendário centralizada", included: true, emphasis: true },

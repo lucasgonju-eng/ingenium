@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import FAQAccordion from "./FAQAccordion";
 import PlanCard from "./PlanCard";
 import { planosContent } from "../content/planos";
@@ -9,6 +10,35 @@ import { Text } from "./ui/Text";
 import { colors, radii, spacing, typography } from "../lib/theme/tokens";
 
 export default function PlanosIngeniumScreen() {
+  const params = useLocalSearchParams<{
+    source?: string | string[];
+    olympiadTitle?: string | string[];
+    signupUrl?: string | string[];
+  }>();
+  const source = Array.isArray(params.source) ? params.source[0] : params.source;
+  const olympiadTitle = Array.isArray(params.olympiadTitle) ? params.olympiadTitle[0] : params.olympiadTitle;
+  const signupUrl = Array.isArray(params.signupUrl) ? params.signupUrl[0] : params.signupUrl;
+  const cameFromOlympiad = source === "olympiad";
+
+  async function handleSelectPlan(planId: "free" | "pro") {
+    if (planId === "pro") {
+      Alert.alert("Plano PRO", "Link de pagamento do Asaas será conectado em breve.");
+      return;
+    }
+
+    if (cameFromOlympiad && signupUrl) {
+      const ok = await Linking.canOpenURL(signupUrl);
+      if (!ok) {
+        Alert.alert("Erro", "Não foi possível abrir o link de inscrição da olimpíada.");
+        return;
+      }
+      await Linking.openURL(signupUrl);
+      return;
+    }
+
+    Alert.alert("Plano FREE", "No Plano Free, escolha uma olimpíada e clique em Inscrever-se para abrir o link oficial.");
+  }
+
   return (
     <StitchScreenFrame>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
@@ -52,6 +82,23 @@ export default function PlanosIngeniumScreen() {
             <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 22 }}>
               {planosContent.description}
             </Text>
+            {cameFromOlympiad ? (
+              <View
+                style={{
+                  marginTop: spacing.xs,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  backgroundColor: "rgba(255,199,0,0.08)",
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.xs,
+                }}
+              >
+                <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="semibold">
+                  Origem: {olympiadTitle ? `inscrição da olimpíada ${olympiadTitle}` : "inscrição de olimpíada"}
+                </Text>
+              </View>
+            ) : null}
             <Pressable
               style={{
                 marginTop: spacing.md,
@@ -73,7 +120,20 @@ export default function PlanosIngeniumScreen() {
 
         <View style={{ marginTop: spacing.md, gap: spacing.md, paddingHorizontal: spacing.md }}>
           {planosContent.plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} />
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              ctaLabel={
+                plan.id === "free"
+                  ? cameFromOlympiad
+                    ? "Continuar no Plano Free"
+                    : "Usar Plano Free"
+                  : "Selecionar Plano PRO"
+              }
+              onPress={(selectedPlan) => {
+                void handleSelectPlan(selectedPlan.id);
+              }}
+            />
           ))}
         </View>
 

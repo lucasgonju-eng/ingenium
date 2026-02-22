@@ -8,9 +8,10 @@ import { colors, radii, spacing, typography } from "../lib/theme/tokens";
 type Props = {
   plan: PlanItem;
   onPress?: (plan: PlanItem) => void;
+  ctaLabel?: string;
 };
 
-export default function PlanCard({ plan, onPress }: Props) {
+export default function PlanCard({ plan, onPress, ctaLabel }: Props) {
   const isPro = plan.highlighted;
 
   return (
@@ -87,7 +88,7 @@ export default function PlanCard({ plan, onPress }: Props) {
         }}
       >
         <Text style={{ color: isPro ? colors.einsteinBlue : colors.einsteinYellow }} weight="bold">
-          {plan.cta}
+          {ctaLabel ?? plan.cta}
         </Text>
       </Pressable>
     </View>

@@ -10,8 +10,8 @@ type Props = {
 };
 
 export default function FeatureItem({ item, highlighted = false }: Props) {
-  const icon = item.included ? "●" : "○";
-  const iconColor = item.included ? (highlighted ? colors.einsteinYellow : "#35c980") : "rgba(255,255,255,0.35)";
+  const icon = item.included ? "✓" : "✕";
+  const iconColor = item.included ? (highlighted ? colors.einsteinYellow : "#35c980") : "#ff4d4f";
   const textColor = item.included
     ? highlighted || item.emphasis
       ? colors.white
@@ -28,6 +28,7 @@ export default function FeatureItem({ item, highlighted = false }: Props) {
           fontSize: 14,
           lineHeight: 20,
           fontWeight: highlighted || item.emphasis ? "600" : "400",
+          textDecorationLine: item.included ? "none" : "line-through",
         }}
       >
         {item.label}

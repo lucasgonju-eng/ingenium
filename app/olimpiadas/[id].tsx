@@ -229,7 +229,15 @@ export default function OlimpiadaDetalheScreen() {
   }
 
   async function handleParticipate() {
-    router.push("/(tabs)/planos");
+    const signupUrl = catalogItem?.officialUrl ?? "";
+    router.push({
+      pathname: "/(tabs)/planos",
+      params: {
+        source: "olympiad",
+        olympiadTitle: olympiad?.title ?? "",
+        signupUrl,
+      },
+    });
   }
 
   useEffect(() => {
