@@ -121,10 +121,12 @@ export default function PerfilScreen() {
       return;
     }
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("Permissão necessária", "Permita acesso à galeria para alterar sua foto.");
-        return;
+      if (Platform.OS !== "web") {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert("Permissão necessária", "Permita acesso à galeria para alterar sua foto.");
+          return;
+        }
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -156,9 +158,16 @@ export default function PerfilScreen() {
         method: "POST",
         body: formData,
       });
-      const uploadJson = (await uploadResponse.json()) as { ok?: boolean; url?: string; error?: string };
+      const rawResponse = await uploadResponse.text();
+      let uploadJson: { ok?: boolean; url?: string; error?: string } = {};
+      try {
+        uploadJson = JSON.parse(rawResponse) as { ok?: boolean; url?: string; error?: string };
+      } catch {
+        // Em alguns 500 do servidor compartilhado, a resposta pode vir em HTML.
+      }
       if (!uploadResponse.ok || !uploadJson?.ok || !uploadJson.url) {
-        throw new Error(uploadJson?.error || "Falha no upload para Hostinger.");
+        const serverMsg = uploadJson?.error || rawResponse.slice(0, 180);
+        throw new Error(serverMsg || "Falha no upload para Hostinger.");
       }
 
       const publicUrl = uploadJson.url;

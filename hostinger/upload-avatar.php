@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+ini_set("display_errors", "0");
+error_reporting(E_ALL);
+
 header("Content-Type: application/json; charset=utf-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
@@ -50,9 +53,15 @@ if ((int) $file["size"] > $maxBytes) {
   exit;
 }
 
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$mime = $finfo ? (string) finfo_file($finfo, $file["tmp_name"]) : "";
-if ($finfo) finfo_close($finfo);
+$mime = "";
+if (function_exists("finfo_open")) {
+  $finfo = finfo_open(FILEINFO_MIME_TYPE);
+  $mime = $finfo ? (string) finfo_file($finfo, $file["tmp_name"]) : "";
+  if ($finfo) finfo_close($finfo);
+}
+if ($mime === "") {
+  $mime = (string) ($file["type"] ?? "");
+}
 
 $allowedMime = [
   "jpg" => "image/jpeg",
@@ -60,7 +69,7 @@ $allowedMime = [
   "webp" => "image/webp",
 ];
 
-if (!isset($allowedMime[$ext]) || $allowedMime[$ext] !== $mime) {
+if (!isset($allowedMime[$ext]) || ($mime !== "" && $allowedMime[$ext] !== $mime)) {
   http_response_code(415);
   echo json_encode(["ok" => false, "error" => "Tipo de arquivo inválido."]);
   exit;
