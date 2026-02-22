@@ -26,7 +26,6 @@ export default function AvatarWithFallback({
 }: AvatarWithFallbackProps) {
   const [imageError, setImageError] = useState(false);
   const initials = useMemo(() => getInitials(fullName), [fullName]);
-  const showImage = Boolean(avatarUrl && !imageError);
 
   return (
     <View
@@ -40,7 +39,7 @@ export default function AvatarWithFallback({
         justifyContent: "center",
       }}
     >
-      {showImage ? (
+      {avatarUrl && !imageError ? (
         <Image
           source={{ uri: avatarUrl }}
           style={{ width: size, height: size }}
