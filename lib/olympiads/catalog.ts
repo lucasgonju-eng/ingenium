@@ -428,6 +428,52 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     tags: ["Linguagens", "Redação", "Cidadania", "FGV", "Calendário a confirmar"],
   },
   {
+    slug: "oba-obafog",
+    name: "OBA + OBAFOG — Astronomia, Astronáutica e Foguetes",
+    organizer: "OBA (coordenação nacional / portal oficial)",
+    category: "Ciências / Astronomia / STEAM / Maker",
+    mentorTeacher: "Professor Leon",
+    officialUrl: "https://www.oba.org.br/site/",
+    siteCtaLabel: "Portal oficial",
+    regulationUrl: "https://www.oba.org.br/site/",
+    regulationCtaLabel: "Editais / comunicados",
+    contactEmail: "oba.secretaria@gmail.com",
+    contactCtaLabel: "Contato (secretaria)",
+    visualSealLabel: "OBA OFICIAL",
+    headline: "Ciência na prática: prova + construção + lançamento de foguetes.",
+    shortDescription:
+      "A OBA testa Astronomia/Astronáutica e a OBAFOG coloca você no modo maker: construir e lançar foguetes de verdade. É STEAM com emoção.",
+    longDescription:
+      "A OBA (Astronomia e Astronáutica) é uma olimpíada tradicional aplicada pela escola. A OBAFOG complementa com uma experiência maker: construir e lançar foguetes reais (em equipes). É uma das melhores oportunidades para viver ciência aplicada, registrar projetos, competir e representar o Einstein com visibilidade e protagonismo.",
+    format: {
+      modalidade: "OBA: prova aplicada na escola | OBAFOG: projeto/lançamento de foguetes",
+      estrutura: "OBA: prova única | OBAFOG: construção + lançamento (individual ou em equipe)",
+      publico: "Do Fundamental ao Ensino Médio (ver regras da edição)",
+      participation: "STEAM / Maker",
+      observacao:
+        "Como funciona: OBA (prova) e OBAFOG (construção + lançamento). OBAFOG: equipes geralmente até 3 participantes (consultar edital anual). Calendário e regras variam por edição — consultar portal.",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      calendarStatus: "A confirmar (aguardando publicação no site oficial)",
+      calendarYearConfirmed: false,
+      calendarNote:
+        "O cronograma oficial 2026 da OBA/OBAFOG ainda não foi publicado no portal. Assim que sair, vamos atualizar aqui.",
+    },
+    historicalSchedule: {
+      year: 2025,
+      note: "Referência do último cronograma publicado (2025). Não usar como data oficial de 2026.",
+      calendarEvents: [
+        { key: "inscricoes_ate", label: "Inscrições (até)", date: "2025-05-01" },
+        { key: "prova_oba", label: "Prova OBA", date: "2025-05-16" },
+        { key: "prazo_lancamentos_obafog_ate", label: "Prazo de lançamentos OBAFOG (até)", date: "2025-05-16" },
+      ],
+    },
+    listBadges: ["STEAM/MAKER", "Calendário 2026: a confirmar"],
+    tags: ["Ciências", "Astronomia", "Astronáutica", "Maker", "STEAM", "Foguetes"],
+  },
+  {
     slug: "obb",
     name: "OBB — Olimpíada Brasileira de Biologia",
     organizer: "Instituto Butantan",
