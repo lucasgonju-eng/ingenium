@@ -11,6 +11,14 @@ type Olympiad = {
   registration_deadline: string | null;
 };
 
+export type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  grade: string | null;
+  class_name: string | null;
+  avatar_url: string | null;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -215,7 +223,7 @@ export async function enrollInOlympiad(olympiadId: string) {
     error: sessionError,
   } = await supabase.auth.getSession();
   if (sessionError) throw sessionError;
-  if (!session) throw new Error("Not authenticated");
+  if (!session) throw new Error("Usuário não autenticado");
 
   const { error } = await supabase
     .from("enrollments")
@@ -230,6 +238,51 @@ export async function enrollInOlympiad(olympiadId: string) {
   }
 
   return { ok: true, already: false };
+}
+
+export async function fetchMyProfile() {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,full_name,grade,class_name,avatar_url")
+    .eq("id", session.user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data ?? null) as ProfileRow | null;
+}
+
+export async function upsertMyProfile(input: Omit<ProfileRow, "id">) {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const payload = {
+    id: session.user.id,
+    full_name: input.full_name?.trim() || null,
+    grade: input.grade?.trim() || null,
+    class_name: input.class_name?.trim() || null,
+    avatar_url: input.avatar_url?.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(payload, { onConflict: "id" })
+    .select("id,full_name,grade,class_name,avatar_url")
+    .single();
+
+  if (error) throw error;
+  return data as ProfileRow;
 }
 
 export type FeedPost = {

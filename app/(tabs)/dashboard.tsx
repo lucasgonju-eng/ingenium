@@ -147,6 +147,7 @@ export default function DashboardScreen() {
 
       <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
         <DashboardHero
+          loboClass={cls}
           label={label}
           accent={accent}
           points={points}

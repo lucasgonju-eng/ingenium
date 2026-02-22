@@ -1,9 +1,10 @@
 import React from "react";
-import { View } from "react-native";
+import { Image, ImageSourcePropType, View } from "react-native";
 import { Text } from "../ui/Text";
 import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
 
 type Props = {
+  loboClass: "bronze" | "silver" | "gold";
   label: string;
   accent: string;
   points: number;
@@ -14,7 +15,14 @@ type Props = {
   eligibilityText: string;
 };
 
+const WOLF_BY_CLASS: Record<"bronze" | "silver" | "gold", ImageSourcePropType> = {
+  bronze: require("../../assets/wolf-bronze.png"),
+  silver: require("../../assets/wolf-silver.png"),
+  gold: require("../../assets/wolf-gold.png"),
+};
+
 export default function DashboardHero({
+  loboClass,
   label,
   accent,
   points,
@@ -47,9 +55,14 @@ export default function DashboardHero({
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "rgba(0,0,0,0.3)",
+              overflow: "hidden",
             }}
           >
-            <Text style={{ color: accent, fontSize: 34 }}>🐺</Text>
+            <Image
+              source={WOLF_BY_CLASS[loboClass]}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="cover"
+            />
           </View>
           <Text style={{ color: accent, fontSize: 20, marginTop: spacing.xs }} weight="bold">
             {label}
