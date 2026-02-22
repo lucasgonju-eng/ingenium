@@ -6,7 +6,7 @@ export default function AdminDashboardScreen() {
       title="Admin"
       subtitle="Dashboard de coordenação"
       sections={[
-        { title: "KPIs em tempo real", body: "Acompanhe inscrições, taxa de conclusão, NPS e engajamento por olimpíada.", badge: "LIVE" },
+        { title: "KPIs em tempo real", body: "Acompanhe inscrições, taxa de conclusão, NPS e engajamento por olimpíada.", badge: "AO VIVO" },
         { title: "Alertas críticos", body: "Pendências de moderação, inconsistências de pontuação e eventos próximos ao deadline." },
       ]}
       ctas={[

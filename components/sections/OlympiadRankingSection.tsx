@@ -34,7 +34,7 @@ export default function OlympiadRankingSection({ top3, rows, myUserId }: Props) 
       }}
     >
       <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-        Top ranking
+        Top do ranking
       </Text>
 
       <RankingTopPodium

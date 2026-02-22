@@ -130,7 +130,7 @@ export default function OlimpiadaDetalheScreen() {
       setSubmitting(true);
       const result = await enrollInOlympiad(olympiadId);
       if (result.already) {
-        Alert.alert("Info", "Você já está inscrito nesta olimpíada.");
+        Alert.alert("Informação", "Você já está inscrito nesta olimpíada.");
       } else {
         Alert.alert("Sucesso", "Inscrição realizada com sucesso.");
       }
@@ -217,7 +217,7 @@ export default function OlimpiadaDetalheScreen() {
         >
           <Text style={{ color: "rgba(255,255,255,0.6)", marginRight: spacing.xs }}>⌕</Text>
           <TextInput
-            placeholder="Search student..."
+            placeholder="Buscar aluno..."
             placeholderTextColor="rgba(255,255,255,0.5)"
             value={search}
             onChangeText={setSearch}

@@ -22,7 +22,7 @@ export default function RankingHero({ onRefresh }: Props) {
         <View>
           <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.subtitle.fontSize }}>Ranking ao vivo</Text>
           <Text style={{ color: "white", fontSize: typography.titleLg.fontSize }} weight="bold">
-            Leaderboard Geral
+            Ranking Geral
           </Text>
         </View>
         <Pressable

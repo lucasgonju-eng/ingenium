@@ -108,7 +108,7 @@ export default function OlimpiadasListScreen() {
             >
               <Text style={{ color: "rgba(255,255,255,0.6)", marginRight: spacing.xs }}>⌕</Text>
               <TextInput
-                placeholder="Search olympiads..."
+                placeholder="Buscar olimpíadas..."
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={search}
                 onChangeText={setSearch}

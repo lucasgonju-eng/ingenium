@@ -78,7 +78,7 @@ export default function RankingScreen() {
   const headerComponent = (
     <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
       <StitchHeader
-        title="Leaderboard Geral"
+        title="Ranking Geral"
         rightSlot={
           <Pressable
             onPress={() => {
@@ -113,7 +113,7 @@ export default function RankingScreen() {
         >
           <Text style={{ color: "rgba(255,255,255,0.6)", marginRight: spacing.xs }}>⌕</Text>
           <TextInput
-            placeholder="Search student..."
+            placeholder="Buscar aluno..."
             placeholderTextColor="rgba(255,255,255,0.5)"
             value={search}
             onChangeText={setSearch}
@@ -139,7 +139,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
-            All
+            Todos
           </Text>
         </Pressable>
         <Pressable
@@ -153,7 +153,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
-            12th Grade
+            3º Ano
           </Text>
         </Pressable>
         <Pressable
@@ -167,7 +167,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
-            Math
+            Matemática
           </Text>
         </Pressable>
       </View>

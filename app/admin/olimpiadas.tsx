@@ -7,7 +7,7 @@ export default function AdminOlimpiadasScreen() {
       subtitle="Administração de eventos"
       sections={[
         { title: "Publicadas", body: "Visualize e edite olimpíadas abertas, inscrições e cronogramas." },
-        { title: "Rascunhos", body: "Prepare novas olimpíadas e regras de pontuação antes de publicar.", badge: "DRAFT" },
+        { title: "Rascunhos", body: "Prepare novas olimpíadas e regras de pontuação antes de publicar.", badge: "RASCUNHO" },
       ]}
       ctas={[
         { label: "Nova olimpíada" },
