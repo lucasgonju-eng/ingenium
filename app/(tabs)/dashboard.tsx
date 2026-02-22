@@ -59,14 +59,18 @@ export default function DashboardScreen() {
   const [points, setPoints] = useState<number>(0);
   const [cls, setCls] = useState<LoboClass>("bronze");
   const [rankInfo, setRankInfo] = useState<MyRankGeralMedia | null>(null);
-  const [name, setName] = useState("Estudante");
+  const [name, setName] = useState("Aluno");
   const [olympiads, setOlympiads] = useState<OlympiadRow[]>([]);
 
   async function load() {
     try {
       setLoading(true);
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const [{ data: userData, error: userError }, { data: sessionData }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.auth.getSession(),
+      ]);
       if (userError) throw userError;
+      const sessionUser = sessionData.session?.user ?? null;
 
       let profileName = "";
       try {
@@ -78,9 +82,11 @@ export default function DashboardScreen() {
 
       const fullName =
         profileName ||
+        String(sessionUser?.user_metadata?.full_name ?? "").trim() ||
         String(userData.user?.user_metadata?.full_name ?? "").trim() ||
+        sessionUser?.email?.split("@")[0] ||
         userData.user?.email?.split("@")[0] ||
-        "Estudante";
+        "Aluno";
 
       setName(getFirstName(fullName));
 
