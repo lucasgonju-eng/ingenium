@@ -123,14 +123,15 @@ export default function OlimpiadasListScreen() {
               <View style={{ marginTop: spacing.md }}>
                 {(() => {
                   const top = filteredRows[0];
+                  const catalog = getOlympiadCatalogBySlug(top.id);
                   const status = mapOlympiadStatus(top.status);
                   const ui = getOlympiadStatusUI(status);
                   return (
                     <OlimpiadaCard
                       title={top.title}
                       subject={top.category ?? undefined}
-                      mentorTeacher={getOlympiadCatalogBySlug(top.id)?.mentorTeacher}
-                      modalityBadge={getOlympiadCatalogBySlug(top.id)?.proofFormat.modalidade}
+                      mentorTeacher={catalog?.mentorTeacher}
+                      badges={catalog?.listBadges ?? (catalog?.format.modalidade ? [catalog.format.modalidade] : undefined)}
                       status={status}
                       startAt={fmtDate(top.start_date)}
                       registrationEndAt={fmtDate(top.registration_deadline)}
@@ -148,14 +149,15 @@ export default function OlimpiadasListScreen() {
           </View>
         }
         renderItem={({ item }) => {
+          const catalog = getOlympiadCatalogBySlug(item.id);
           const status = mapOlympiadStatus(item.status);
           const ui = getOlympiadStatusUI(status);
           return (
             <OlimpiadaCard
               title={item.title}
               subject={item.category ?? undefined}
-              mentorTeacher={getOlympiadCatalogBySlug(item.id)?.mentorTeacher}
-              modalityBadge={getOlympiadCatalogBySlug(item.id)?.proofFormat.modalidade}
+              mentorTeacher={catalog?.mentorTeacher}
+              badges={catalog?.listBadges ?? (catalog?.format.modalidade ? [catalog.format.modalidade] : undefined)}
               status={status as OlympiadStatus}
               startAt={fmtDate(item.start_date)}
               registrationEndAt={fmtDate(item.registration_deadline)}

@@ -52,7 +52,7 @@ type MyRank = {
   none_count: number;
 } | null;
 
-function fmtDate(value: string | null) {
+function fmtDate(value: string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleDateString("pt-BR");
 }
@@ -133,9 +133,9 @@ export default function OlimpiadaDetalheScreen() {
           description: catalogItem.shortDescription,
           category: catalogItem.category,
           status: "open",
-          start_date: catalogItem.schedule.examDate,
-          end_date: catalogItem.schedule.examDate,
-          registration_deadline: catalogItem.schedule.registrationDeadline,
+          start_date: catalogItem.schedule.examDate ?? null,
+          end_date: catalogItem.schedule.examDate ?? null,
+          registration_deadline: catalogItem.schedule.registrationDeadline ?? null,
         };
 
         setOlympiad(localOlympiad);
@@ -330,38 +330,91 @@ export default function OlimpiadaDetalheScreen() {
 
             <View style={{ marginTop: spacing.sm }}>
               <Text style={{ color: "white" }} weight="bold">
-                Formato da prova
+                Formato
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
-                {catalogItem.proofFormat.modalidade} • {catalogItem.proofFormat.estrutura} • {catalogItem.proofFormat.questoes} questões • {catalogItem.proofFormat.tipo}
+                {catalogItem.format.modalidade} • {catalogItem.format.estrutura}
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                Janela: {catalogItem.proofFormat.janelaAplicacao} • Duração: {catalogItem.proofFormat.duracao}
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                Regra de início: {catalogItem.proofFormat.regraInicio}
-              </Text>
+              {catalogItem.format.participation ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>Participação: {catalogItem.format.participation}</Text>
+              ) : null}
+              {catalogItem.format.questoes !== undefined || catalogItem.format.tipo ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                  {catalogItem.format.questoes !== undefined ? `${catalogItem.format.questoes} questões` : ""}
+                  {catalogItem.format.questoes !== undefined && catalogItem.format.tipo ? " • " : ""}
+                  {catalogItem.format.tipo ?? ""}
+                </Text>
+              ) : null}
+              {catalogItem.format.janelaAplicacao || catalogItem.format.duracao ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                  {catalogItem.format.janelaAplicacao ? `Janela: ${catalogItem.format.janelaAplicacao}` : ""}
+                  {catalogItem.format.janelaAplicacao && catalogItem.format.duracao ? " • " : ""}
+                  {catalogItem.format.duracao ? `Duração: ${catalogItem.format.duracao}` : ""}
+                </Text>
+              ) : null}
+              {catalogItem.format.regraInicio ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                  Regra de início: {catalogItem.format.regraInicio}
+                </Text>
+              ) : null}
+              {catalogItem.format.observacao ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                  Observação: {catalogItem.format.observacao}
+                </Text>
+              ) : null}
             </View>
 
             <View style={{ marginTop: spacing.sm }}>
               <Text style={{ color: "white" }} weight="bold">
-                Calendário oficial
+                Calendário 2026
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
-                Inscrições até: {fmtDate(catalogItem.schedule.registrationDeadline)}
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                Prova: {fmtDate(catalogItem.schedule.examDate)} (horário de Brasília)
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                Recursos: {fmtDateRange(catalogItem.schedule.appealsWindow.start, catalogItem.schedule.appealsWindow.end)}
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                Resultado: {fmtDate(catalogItem.schedule.resultsDate)}
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                Solicitação de medalhas: {fmtDateRange(catalogItem.schedule.medalsRequestWindow.start, catalogItem.schedule.medalsRequestWindow.end)}
-              </Text>
+              {catalogItem.schedule.calendarEvents?.length ? (
+                catalogItem.schedule.calendarEvents.map((event, index) => (
+                  <Text key={`${event.key}-${index}`} style={{ color: "rgba(255,255,255,0.78)", marginTop: index === 0 ? 4 : 0 }}>
+                    {event.label}:{" "}
+                    {event.note
+                      ? event.note
+                      : event.start && event.end
+                        ? fmtDateRange(event.start, event.end)
+                        : fmtDate(event.date)}
+                  </Text>
+                ))
+              ) : (
+                <>
+                  {catalogItem.schedule.registrationStart || catalogItem.schedule.registrationDeadline ? (
+                    <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
+                      Inscrições: {catalogItem.schedule.registrationStart && catalogItem.schedule.registrationDeadline
+                        ? fmtDateRange(catalogItem.schedule.registrationStart, catalogItem.schedule.registrationDeadline)
+                        : fmtDate(catalogItem.schedule.registrationDeadline)}
+                    </Text>
+                  ) : null}
+                  {catalogItem.schedule.examDate ? (
+                    <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                      Prova: {fmtDate(catalogItem.schedule.examDate)} ({catalogItem.schedule.displayTimezoneLabel ?? "horário de Brasília"})
+                    </Text>
+                  ) : null}
+                  {catalogItem.schedule.appealsWindow ? (
+                    <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                      Recursos: {fmtDateRange(catalogItem.schedule.appealsWindow.start, catalogItem.schedule.appealsWindow.end)}
+                    </Text>
+                  ) : null}
+                  {catalogItem.schedule.resultsDate ? (
+                    <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                      Resultado: {fmtDate(catalogItem.schedule.resultsDate)}
+                    </Text>
+                  ) : null}
+                  {catalogItem.schedule.medalsRequestWindow ? (
+                    <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                      Solicitação de medalhas: {fmtDateRange(catalogItem.schedule.medalsRequestWindow.start, catalogItem.schedule.medalsRequestWindow.end)}
+                    </Text>
+                  ) : null}
+                </>
+              )}
+              {catalogItem.schedule.finalPresentialNote ? (
+                <Text style={{ color: colors.einsteinYellow, marginTop: 6 }} weight="semibold">
+                  {catalogItem.schedule.finalPresentialNote}
+                </Text>
+              ) : null}
             </View>
 
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
@@ -378,9 +431,14 @@ export default function OlimpiadaDetalheScreen() {
                 }}
               >
                 <Text style={{ color: colors.white }} weight="bold">
-                  Ver edital
+                  Ver regulamento/calendário
                 </Text>
               </Pressable>
+              {catalogItem.regulationNote ? (
+                <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
+                  {catalogItem.regulationNote}
+                </Text>
+              ) : null}
               <Pressable
                 onPress={() => {
                   void openExternalUrl(catalogItem.officialUrl);

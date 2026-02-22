@@ -8,7 +8,7 @@ type Props = {
   title: string;
   subject?: string;
   mentorTeacher?: string;
-  modalityBadge?: string;
+  badges?: string[];
   status: OlympiadStatus;
   startAt?: string;
   registrationEndAt?: string;
@@ -21,7 +21,7 @@ export default function OlimpiadaCard({
   title,
   subject,
   mentorTeacher,
-  modalityBadge,
+  badges,
   status,
   startAt,
   registrationEndAt,
@@ -64,13 +64,16 @@ export default function OlimpiadaCard({
           ) : null}
         </View>
         <View style={{ alignItems: "flex-end", gap: 6 }}>
-          {modalityBadge ? (
-            <View style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: "rgba(56,189,248,0.14)" }}>
+          {badges?.map((badge) => (
+            <View
+              key={badge}
+              style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: "rgba(56,189,248,0.14)" }}
+            >
               <Text style={{ color: "#7DD3FC", fontSize: 10 }} weight="bold">
-                {modalityBadge.toUpperCase()}
+                {badge.toUpperCase()}
               </Text>
             </View>
-          ) : null}
+          ))}
           <View style={{ paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: badgeBg }}>
             <Text style={{ color: badgeColor, fontSize: 10 }} weight="bold">
               {badgeText}

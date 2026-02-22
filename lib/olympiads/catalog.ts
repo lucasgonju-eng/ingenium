@@ -1,26 +1,42 @@
-export type OlympiadProofFormat = {
+export type OlympiadFormat = {
   modalidade: string;
   estrutura: string;
-  questoes: number;
-  tipo: string;
-  janelaAplicacao: string;
-  duracao: string;
-  regraInicio: string;
+  tipo?: string;
+  questoes?: number;
+  participation?: string;
+  observacao?: string;
+  janelaAplicacao?: string;
+  duracao?: string;
+  regraInicio?: string;
+};
+
+export type OlympiadCalendarEvent = {
+  key: string;
+  label: string;
+  date?: string;
+  start?: string;
+  end?: string;
+  note?: string;
+  dateTbd?: boolean;
 };
 
 export type OlympiadSchedule = {
-  registrationDeadline: string;
-  examDate: string;
-  appealsWindow: {
-    start: string;
-    end: string;
-  };
-  resultsDate: string;
-  medalsRequestWindow: {
-    start: string;
-    end: string;
-  };
   timezone: string;
+  displayTimezoneLabel?: string;
+  registrationStart?: string;
+  registrationDeadline?: string;
+  examDate?: string;
+  appealsWindow?: {
+    start: string;
+    end: string;
+  };
+  resultsDate?: string;
+  medalsRequestWindow?: {
+    start: string;
+    end: string;
+  };
+  finalPresentialNote?: string;
+  calendarEvents?: OlympiadCalendarEvent[];
 };
 
 export type OlympiadCatalogItem = {
@@ -31,11 +47,13 @@ export type OlympiadCatalogItem = {
   mentorTeacher: string;
   officialUrl: string;
   regulationUrl: string;
+  regulationNote?: string;
   headline: string;
   shortDescription: string;
   longDescription: string;
-  proofFormat: OlympiadProofFormat;
+  format: OlympiadFormat;
   schedule: OlympiadSchedule;
+  listBadges?: string[];
   tags: string[];
 };
 
@@ -67,22 +85,14 @@ function validateItem(item: OlympiadCatalogItem) {
   assertRequired(item.headline, "headline");
   assertRequired(item.shortDescription, "shortDescription");
   assertRequired(item.longDescription, "longDescription");
-  assertRequired(item.proofFormat.modalidade, "proofFormat.modalidade");
-  assertRequired(item.proofFormat.estrutura, "proofFormat.estrutura");
-  assertRequired(item.proofFormat.tipo, "proofFormat.tipo");
-  assertRequired(item.proofFormat.janelaAplicacao, "proofFormat.janelaAplicacao");
-  assertRequired(item.proofFormat.duracao, "proofFormat.duracao");
-  assertRequired(item.proofFormat.regraInicio, "proofFormat.regraInicio");
-  assertRequired(item.schedule.registrationDeadline, "schedule.registrationDeadline");
-  assertRequired(item.schedule.examDate, "schedule.examDate");
-  assertRequired(item.schedule.appealsWindow.start, "schedule.appealsWindow.start");
-  assertRequired(item.schedule.appealsWindow.end, "schedule.appealsWindow.end");
-  assertRequired(item.schedule.resultsDate, "schedule.resultsDate");
-  assertRequired(item.schedule.medalsRequestWindow.start, "schedule.medalsRequestWindow.start");
-  assertRequired(item.schedule.medalsRequestWindow.end, "schedule.medalsRequestWindow.end");
+  assertRequired(item.format.modalidade, "format.modalidade");
+  assertRequired(item.format.estrutura, "format.estrutura");
   assertRequired(item.schedule.timezone, "schedule.timezone");
-  if (item.proofFormat.questoes <= 0) {
-    throw new Error('Catálogo de olimpíadas inválido: "proofFormat.questoes" deve ser maior que zero.');
+  if (item.format.questoes !== undefined && item.format.questoes <= 0) {
+    throw new Error('Catálogo de olimpíadas inválido: "format.questoes" deve ser maior que zero.');
+  }
+  if (!item.schedule.registrationDeadline && !item.schedule.calendarEvents?.length) {
+    throw new Error('Catálogo de olimpíadas inválido: informar "schedule.registrationDeadline" ou "schedule.calendarEvents".');
   }
 }
 
@@ -100,7 +110,7 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
       "A OBGP coloca você no tabuleiro do mundo: relações internacionais, conflitos, alianças, economia e decisões globais. Excelente para repertório de atualidades e redação.",
     longDescription:
       "A OBGP é uma olimpíada que desafia alunos a interpretar o cenário internacional: poder entre países, geopolítica, economia global, conflitos, blocos, diplomacia e impactos no dia a dia. É indicada para quem curte atualidades, debate, história/geografia e quer repertório forte para redação e provas.",
-    proofFormat: {
+    format: {
       modalidade: "Online",
       estrutura: "Fase única",
       questoes: 30,
@@ -110,6 +120,7 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
       regraInicio: "Início máximo até 21:00 para completar as 2h",
     },
     schedule: {
+      displayTimezoneLabel: "horário de Brasília",
       registrationDeadline: "2026-03-25",
       examDate: "2026-04-01",
       appealsWindow: {
@@ -123,7 +134,75 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
       },
       timezone: "America/Sao_Paulo",
     },
+    listBadges: ["Online"],
     tags: ["Online", "Humanas", "Geopolítica", "Atualidades"],
+  },
+  {
+    slug: "obg",
+    name: "OBG — Olimpíada Brasileira de Geografia",
+    organizer: "OBG (portal oficial)",
+    category: "Humanas / Geografia",
+    mentorTeacher: "Gisliane",
+    officialUrl: "https://www.obgeografia.com.br/",
+    regulationUrl: "https://www.obgeografia.com.br/",
+    regulationNote: "Regulamento e calendário publicados no portal oficial.",
+    headline: "Geografia de verdade: território, mundo e estratégia — em equipe.",
+    shortDescription:
+      "A OBG é uma competição que mistura geografia física e humana com desafios aplicados, leitura de mapas e análise do mundo real. Ideal pra quem curte humanas e trabalho em equipe.",
+    longDescription:
+      "A Olimpíada Brasileira de Geografia (OBG) desafia equipes a interpretarem mapas, fenômenos naturais, população, economia e geopolítica do Brasil e do mundo. É uma chance de competir em alto nível, aprender de forma aplicada e representar o Einstein em uma jornada com fases online e etapa presencial.",
+    format: {
+      modalidade: "Online (fases) + Presencial (final)",
+      estrutura: "3 fases online + final presencial",
+      participation: "Em equipe (padrão OBG)",
+      observacao: "Cronograma com janelas por fase; final presencial ocorre na semana de novembro.",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      registrationStart: "2026-04-06",
+      registrationDeadline: "2026-06-16",
+      finalPresentialNote: "Final presencial: semana de novembro/2026 (data exata a confirmar no portal).",
+      calendarEvents: [
+        {
+          key: "registrations",
+          label: "Inscrições",
+          start: "2026-04-06",
+          end: "2026-06-16",
+        },
+        {
+          key: "fase_1_online",
+          label: "Fase 1 (online)",
+          start: "2026-08-05",
+          end: "2026-08-12",
+        },
+        {
+          key: "divulgacao_classificados_medalhistas_estaduais",
+          label: "Divulgação de classificados e medalhistas estaduais",
+          date: "2026-09-01",
+        },
+        {
+          key: "fase_2_online",
+          label: "Fase 2 (online)",
+          start: "2026-09-14",
+          end: "2026-09-19",
+        },
+        {
+          key: "fase_3_online",
+          label: "Fase 3 (online)",
+          start: "2026-10-05",
+          end: "2026-10-10",
+        },
+        {
+          key: "final_presencial",
+          label: "Final presencial",
+          note: "Semana de novembro/2026 (data exata a confirmar no portal).",
+          dateTbd: true,
+        },
+      ],
+    },
+    listBadges: ["Online", "Final presencial"],
+    tags: ["Online", "Final presencial", "Humanas", "Geografia", "Equipe"],
   },
 ];
 
@@ -135,23 +214,43 @@ function endOfDay(dateIso: string) {
   return new Date(`${dateIso}T23:59:59`);
 }
 
+function getFirstEventDate(schedule: OlympiadSchedule) {
+  const dates = (schedule.calendarEvents ?? [])
+    .map((event) => event.start ?? event.date)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return dates[0] ?? null;
+}
+
 function getStatusFromSchedule(schedule: OlympiadSchedule) {
   const now = new Date();
-  if (now <= endOfDay(schedule.registrationDeadline)) return "open";
-  if (now <= endOfDay(schedule.resultsDate)) return "upcoming";
+  if (schedule.registrationStart && schedule.registrationDeadline) {
+    const start = new Date(`${schedule.registrationStart}T00:00:00`);
+    const end = endOfDay(schedule.registrationDeadline);
+    if (now < start) return "upcoming";
+    if (now <= end) return "open";
+  } else if (schedule.registrationDeadline) {
+    if (now <= endOfDay(schedule.registrationDeadline)) return "open";
+  }
+
+  if (schedule.resultsDate && now <= endOfDay(schedule.resultsDate)) return "upcoming";
+  if (schedule.examDate && now <= endOfDay(schedule.examDate)) return "upcoming";
+  const firstEventDate = getFirstEventDate(schedule);
+  if (firstEventDate && now <= endOfDay(firstEventDate)) return "upcoming";
   return "closed";
 }
 
 function toDbRow(item: OlympiadCatalogItem): OlympiadDbShape {
+  const firstEventDate = getFirstEventDate(item.schedule);
   return {
     id: item.slug,
     title: item.name,
     description: item.shortDescription,
     category: item.category,
     status: getStatusFromSchedule(item.schedule),
-    start_date: item.schedule.examDate,
-    end_date: item.schedule.examDate,
-    registration_deadline: item.schedule.registrationDeadline,
+    start_date: item.schedule.examDate ?? firstEventDate,
+    end_date: item.schedule.examDate ?? firstEventDate,
+    registration_deadline: item.schedule.registrationDeadline ?? null,
   };
 }
 
