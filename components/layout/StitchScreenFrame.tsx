@@ -40,7 +40,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
             }}
           >
             <Image
-              source={require("../../assets/ingenium-logo.png")}
+              source={require("../../assets/ingenium-logo.webp")}
               style={{ width: 60, height: 60 }}
               resizeMode="contain"
             />
