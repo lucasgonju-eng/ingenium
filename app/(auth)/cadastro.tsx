@@ -7,15 +7,45 @@ import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
+const SERIES_OPTIONS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatCpf(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
+}
+
+function formatWhatsapp(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : "";
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export default function CadastroScreen() {
   const [nome, setNome] = useState("");
+  const [serie, setSerie] = useState<(typeof SERIES_OPTIONS)[number] | "">("");
+  const [cpf, setCpf] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
+  const [showSeries, setShowSeries] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!nome || !email || !password) {
-      Alert.alert("Campos obrigatórios", "Preencha nome, e-mail e senha.");
+    if (!nome || !serie || !cpf || !email || !password) {
+      Alert.alert("Campos obrigatórios", "Preencha nome completo, série, CPF, e-mail e senha.");
+      return;
+    }
+    if (onlyDigits(cpf).length !== 11) {
+      Alert.alert("CPF inválido", "Digite um CPF válido com 11 números.");
       return;
     }
 
@@ -32,6 +62,9 @@ export default function CadastroScreen() {
         emailRedirectTo,
         data: {
           full_name: nome.trim(),
+          grade: serie,
+          cpf: onlyDigits(cpf),
+          whatsapp: onlyDigits(whatsapp) || null,
           role: "student",
         },
       },
@@ -43,7 +76,10 @@ export default function CadastroScreen() {
       return;
     }
 
-    Alert.alert("Confirme seu e-mail", "Enviamos um link de confirmação para seu e-mail.");
+    Alert.alert(
+      "Confirme sua inscrição",
+      "Enviamos um e-mail de confirmação. Confirme o link para liberar seu primeiro login.",
+    );
     router.replace("/(auth)/login");
   };
 
@@ -66,7 +102,7 @@ export default function CadastroScreen() {
             }}
           >
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-              Dados de acesso
+              Cadastro do aluno
             </Text>
 
             <TextInput
@@ -76,6 +112,71 @@ export default function CadastroScreen() {
               onChangeText={setNome}
               style={{
                 marginTop: spacing.sm,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+            <Pressable
+              onPress={() => setShowSeries((v) => !v)}
+              style={{
+                marginTop: spacing.xs,
+                minHeight: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                paddingHorizontal: spacing.sm,
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: serie ? colors.white : "rgba(255,255,255,0.45)" }}>
+                {serie || "Série"}
+              </Text>
+            </Pressable>
+            {showSeries ? (
+              <View
+                style={{
+                  marginTop: spacing.xs,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  overflow: "hidden",
+                }}
+              >
+                {SERIES_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      setSerie(option);
+                      setShowSeries(false);
+                    }}
+                    style={{
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: spacing.sm,
+                      borderTopWidth: option === SERIES_OPTIONS[0] ? 0 : 1,
+                      borderTopColor: colors.borderSoft,
+                    }}
+                  >
+                    <Text style={{ color: colors.white }}>{option}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <TextInput
+              placeholder="CPF"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              keyboardType="number-pad"
+              value={cpf}
+              onChangeText={(value) => setCpf(formatCpf(value))}
+              style={{
+                marginTop: spacing.xs,
                 height: 46,
                 borderRadius: radii.md,
                 borderWidth: 1,
@@ -106,6 +207,24 @@ export default function CadastroScreen() {
               }}
             />
             <TextInput
+              placeholder="WhatsApp (opcional)"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              keyboardType="phone-pad"
+              value={whatsapp}
+              onChangeText={(value) => setWhatsapp(formatWhatsapp(value))}
+              style={{
+                marginTop: spacing.xs,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+            <TextInput
               placeholder="Senha"
               placeholderTextColor="rgba(255,255,255,0.45)"
               secureTextEntry
@@ -123,6 +242,9 @@ export default function CadastroScreen() {
                 fontFamily: typography.fontFamily.base,
               }}
             />
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.sm, lineHeight: 20 }}>
+              Você receberá um e-mail de confirmação. Confirme sua inscrição para fazer o primeiro login.
+            </Text>
 
             <Pressable
               onPress={handleSignUp}

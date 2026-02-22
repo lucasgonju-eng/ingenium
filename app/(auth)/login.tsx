@@ -65,6 +65,9 @@ export default function LoginScreen() {
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
               Entrar com e-mail
             </Text>
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
+              Já confirmou sua inscrição no e-mail? Isso acontece apenas no primeiro acesso.
+            </Text>
 
             <TextInput
               placeholder="E-mail"
