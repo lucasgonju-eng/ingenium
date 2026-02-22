@@ -65,28 +65,40 @@ export default function DashboardScreen() {
   async function load() {
     try {
       setLoading(true);
-      const [{ data: sessionData }, mediaRank, p, upcoming, profile] = await Promise.all([
-        supabase.auth.getSession(),
-        fetchMyRankGeralMedia(),
-        fetchMyPoints(),
-        fetchOlympiads(),
-        fetchMyProfile(),
-      ]);
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      let profileName = "";
+      try {
+        const profile = await fetchMyProfile();
+        profileName = profile?.full_name?.trim() ?? "";
+      } catch {
+        // Se o Data API falhar temporariamente, ainda mostramos o nome pelo metadata do Auth.
+      }
 
       const fullName =
-        profile?.full_name?.trim() ||
-        sessionData.session?.user?.user_metadata?.full_name ||
-        sessionData.session?.user?.email?.split("@")[0] ||
+        profileName ||
+        String(userData.user?.user_metadata?.full_name ?? "").trim() ||
+        userData.user?.email?.split("@")[0] ||
         "Estudante";
 
       setName(getFirstName(fullName));
+
+      const [mediaRankRes, pointsRes, olympiadsRes] = await Promise.allSettled([
+        fetchMyRankGeralMedia(),
+        fetchMyPoints(),
+        fetchOlympiads(),
+      ]);
+
+      const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
+      const p = pointsRes.status === "fulfilled" ? pointsRes.value : null;
+      const upcoming = olympiadsRes.status === "fulfilled" ? olympiadsRes.value : [];
+
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
       setCls((p?.lobo_class ?? "bronze") as LoboClass);
       setOlympiads(
-        upcoming
-          .filter((o) => o.status === "open" || o.status === "upcoming" || o.status === "published")
-          .slice(0, 5),
+        upcoming.filter((o) => o.status === "open" || o.status === "upcoming" || o.status === "published").slice(0, 5),
       );
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar seu desempenho";
