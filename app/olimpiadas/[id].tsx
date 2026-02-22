@@ -395,6 +395,16 @@ export default function OlimpiadaDetalheScreen() {
               <Text style={{ color: "white" }} weight="bold">
                 Calendário 2026
               </Text>
+              {catalogItem.schedule.calendarStatus ? (
+                <Text style={{ color: colors.einsteinYellow, marginTop: 4 }} weight="semibold">
+                  {catalogItem.schedule.calendarStatus}
+                </Text>
+              ) : null}
+              {catalogItem.schedule.calendarNote ? (
+                <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 2 }}>
+                  {catalogItem.schedule.calendarNote}
+                </Text>
+              ) : null}
               {catalogItem.schedule.calendarEvents?.length ? (
                 sortCalendarEvents(catalogItem.schedule.calendarEvents).map((event, index) => (
                   <Text
@@ -451,6 +461,28 @@ export default function OlimpiadaDetalheScreen() {
                 </Text>
               ) : null}
             </View>
+
+            {catalogItem.historicalSchedule?.calendarEvents?.length ? (
+              <View style={{ marginTop: spacing.sm }}>
+                <Text style={{ color: "white" }} weight="bold">
+                  Histórico ({catalogItem.historicalSchedule.year})
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                  {catalogItem.historicalSchedule.note}
+                </Text>
+                {sortCalendarEvents(catalogItem.historicalSchedule.calendarEvents).map((event, index) => (
+                  <Text key={`hist-${event.key}-${index}`} style={{ color: "rgba(255,255,255,0.74)", marginTop: index === 0 ? 4 : 0 }}>
+                    {event.label}:{" "}
+                    {event.note
+                      ? event.note
+                      : event.start && event.end
+                        ? fmtDateRange(event.start, event.end)
+                        : fmtDate(event.date)}
+                    {event.timeNote ? ` às ${event.timeNote}` : ""}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
 
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               <Pressable

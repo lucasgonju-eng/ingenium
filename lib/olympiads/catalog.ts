@@ -25,6 +25,9 @@ export type OlympiadCalendarEvent = {
 export type OlympiadSchedule = {
   timezone: string;
   displayTimezoneLabel?: string;
+  calendarStatus?: string;
+  calendarNote?: string;
+  calendarYearConfirmed?: boolean;
   registrationStart?: string;
   registrationDeadline?: string;
   examDate?: string;
@@ -39,6 +42,12 @@ export type OlympiadSchedule = {
   };
   finalPresentialNote?: string;
   calendarEvents?: OlympiadCalendarEvent[];
+};
+
+export type OlympiadHistoricalSchedule = {
+  year: number;
+  note: string;
+  calendarEvents: OlympiadCalendarEvent[];
 };
 
 export type OlympiadCatalogItem = {
@@ -58,6 +67,7 @@ export type OlympiadCatalogItem = {
   longDescription: string;
   format: OlympiadFormat;
   schedule: OlympiadSchedule;
+  historicalSchedule?: OlympiadHistoricalSchedule;
   listBadges?: string[];
   tags: string[];
 };
@@ -96,8 +106,10 @@ function validateItem(item: OlympiadCatalogItem) {
   if (item.format.questoes !== undefined && item.format.questoes <= 0) {
     throw new Error('Catálogo de olimpíadas inválido: "format.questoes" deve ser maior que zero.');
   }
-  if (!item.schedule.registrationDeadline && !item.schedule.calendarEvents?.length) {
-    throw new Error('Catálogo de olimpíadas inválido: informar "schedule.registrationDeadline" ou "schedule.calendarEvents".');
+  if (!item.schedule.registrationDeadline && !item.schedule.calendarEvents?.length && !item.schedule.calendarStatus) {
+    throw new Error(
+      'Catálogo de olimpíadas inválido: informar "schedule.registrationDeadline", "schedule.calendarEvents" ou "schedule.calendarStatus".',
+    );
   }
 }
 
@@ -320,6 +332,48 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     tags: ["Biologia", "Ciências da Natureza", "Online", "Fase única"],
   },
   {
+    slug: "obf",
+    name: "OBF — Olimpíada Brasileira de Física",
+    organizer: "Sociedade Brasileira de Física (SBF)",
+    category: "Exatas / Física",
+    mentorTeacher: "Professor Paulo Sergio",
+    officialUrl: "https://www1.fisica.org.br/olimpiada/",
+    regulationUrl: "https://www1.fisica.org.br/olimpiada/",
+    regulationCtaLabel: "Edital / Portal da OBF",
+    visualSealLabel: "SBF OFICIAL",
+    headline: "Física de competição: problemas, lógica e performance.",
+    shortDescription:
+      "A OBF é a olimpíada oficial de Física da SBF e é referência nacional. Ideal pra quem gosta de desafios e quer treinar resolução de problemas em alto nível.",
+    longDescription:
+      "A OBF (Sociedade Brasileira de Física) é uma das olimpíadas acadêmicas mais tradicionais e reconhecidas do Brasil. Ela desenvolve raciocínio, modelagem e resolução de problemas — uma trilha excelente para alunos que querem competir forte, ganhar maturidade de prova e representar o Einstein em nível nacional.",
+    format: {
+      modalidade: "Fases (online/presencial variam por edição)",
+      estrutura: "Múltiplas fases (calendário anual publicado pela SBF)",
+      observacao:
+        "O formato e as datas específicas devem ser confirmados no calendário oficial da edição vigente.",
+      participation: "Múltiplas fases; datas variam por edição",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      calendarStatus: "A confirmar (aguardando publicação no site oficial)",
+      calendarYearConfirmed: false,
+      calendarNote:
+        "O calendário oficial 2026 ainda não foi publicado no portal da OBF/SBF. Assim que sair, vamos atualizar aqui.",
+    },
+    historicalSchedule: {
+      year: 2025,
+      note: "Referência do último calendário publicado (2025). Não usar como data oficial de 2026.",
+      calendarEvents: [
+        { key: "fase_1_window", label: "Fase 1", start: "2025-06-13", end: "2025-06-14" },
+        { key: "fase_2_date", label: "Fase 2", date: "2025-08-09" },
+        { key: "fase_3_date", label: "Fase 3", date: "2025-10-18" },
+      ],
+    },
+    listBadges: ["Calendário 2026: a confirmar"],
+    tags: ["Exatas", "Física", "Calendário a confirmar", "SBF"],
+  },
+  {
     slug: "obb",
     name: "OBB — Olimpíada Brasileira de Biologia",
     organizer: "Instituto Butantan",
@@ -421,6 +475,8 @@ function getFirstEventDate(schedule: OlympiadSchedule) {
 }
 
 function getStatusFromSchedule(schedule: OlympiadSchedule) {
+  if (schedule.calendarYearConfirmed === false) return "upcoming";
+
   const now = new Date();
   if (schedule.registrationStart && schedule.registrationDeadline) {
     const start = new Date(`${schedule.registrationStart}T00:00:00`);
