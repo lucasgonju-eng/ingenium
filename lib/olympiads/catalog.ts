@@ -56,9 +56,14 @@ export type OlympiadCatalogItem = {
   organizer: string;
   category: string;
   mentorTeacher: string;
+  coMentorTeacher?: string;
   officialUrl: string;
+  siteCtaLabel?: string;
   regulationUrl: string;
+  showRegulationCta?: boolean;
   regulationCtaLabel?: string;
+  contactEmail?: string;
+  contactCtaLabel?: string;
   faqUrl?: string;
   visualSealLabel?: string;
   regulationNote?: string;
@@ -372,6 +377,55 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     },
     listBadges: ["Calendário 2026: a confirmar"],
     tags: ["Exatas", "Física", "Calendário a confirmar", "SBF"],
+  },
+  {
+    slug: "obp",
+    name: "OBP — Olimpíada do Bem Público (FGV)",
+    organizer: "FGV (FGV Brasília / EPPG)",
+    category: "Linguagens / Redação / Cidadania",
+    mentorTeacher: "Professora Thammy",
+    coMentorTeacher: "Professora a definir (Redação do Fundamental)",
+    officialUrl: "https://eppge.fgv.br/olimpiada-do-bem-publico",
+    siteCtaLabel: "Portal oficial",
+    regulationUrl: "https://eppge.fgv.br/olimpiada-do-bem-publico",
+    showRegulationCta: false,
+    contactEmail: "obp.eppg@fgv.br",
+    contactCtaLabel: "Contato",
+    visualSealLabel: "FGV OFICIAL",
+    headline: "Sua redação pode virar projeto — e sua ideia pode ser defendida em público.",
+    shortDescription:
+      "Competição de escrita e argumentação com etapa de apresentação oral (pitch). Perfeita pra quem quer repertório, comunicação e protagonismo.",
+    longDescription:
+      "A OBP (FGV) é uma olimpíada que mistura escrita + cidadania + oratória. Você desenvolve uma redação com proposta de impacto e, se avançar, defende sua ideia em um pitch. É uma vitrine poderosa de repertório, argumentação e comunicação — competências que pesam em vestibulares, entrevistas e na vida.",
+    format: {
+      modalidade: "Online (submissão) + etapa de apresentação (pitch)",
+      estrutura: "Fase 1: redação | Fase 2: pitch (defesa oral)",
+      publico: "Ensino Médio (conforme edital da edição vigente)",
+      participation: "Redação + pitch",
+      observacao:
+        "Participação gratuita (ver regras da edição). Regras de texto e pitch variam por edital anual — consultar portal.",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      calendarStatus: "A confirmar (aguardando publicação no portal oficial)",
+      calendarYearConfirmed: false,
+      calendarNote:
+        "O cronograma oficial 2026 ainda não foi publicado no portal da OBP/FGV. Assim que sair, vamos atualizar aqui.",
+    },
+    historicalSchedule: {
+      year: 2025,
+      note: "Referência do último cronograma publicado (2025). Não usar como data oficial de 2026.",
+      calendarEvents: [
+        { key: "inscricoes", label: "Inscrições", start: "2025-08-11", end: "2025-09-30" },
+        { key: "submissao_redacoes", label: "Submissão de redações", start: "2025-09-08", end: "2025-10-10" },
+        { key: "pitches", label: "Pitches", start: "2025-12-08", end: "2025-12-19" },
+        { key: "medalhistas_ate", label: "Medalhistas (até)", date: "2025-12-23" },
+        { key: "cerimonia_ate", label: "Cerimônia (até)", date: "2026-02-14" },
+      ],
+    },
+    listBadges: ["Calendário 2026: a confirmar"],
+    tags: ["Linguagens", "Redação", "Cidadania", "FGV", "Calendário a confirmar"],
   },
   {
     slug: "obb",

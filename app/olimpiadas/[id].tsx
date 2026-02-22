@@ -85,6 +85,10 @@ async function openExternalUrl(url: string) {
   }
 }
 
+function openContactEmail(email: string) {
+  void openExternalUrl(`mailto:${email}`);
+}
+
 export default function OlimpiadaDetalheScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const olympiadId = Array.isArray(id) ? id[0] : id;
@@ -314,6 +318,7 @@ export default function OlimpiadaDetalheScreen() {
           status={olympiad.status}
           organizer={catalogItem?.organizer}
           mentorTeacher={catalogItem?.mentorTeacher}
+          coMentorTeacher={catalogItem?.coMentorTeacher}
           visualSealLabel={catalogItem?.visualSealLabel}
           startDate={fmtDate(olympiad.start_date)}
           endDate={fmtDate(olympiad.end_date)}
@@ -485,22 +490,24 @@ export default function OlimpiadaDetalheScreen() {
             ) : null}
 
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-              <Pressable
-                onPress={() => {
-                  void openExternalUrl(catalogItem.regulationUrl);
-                }}
-                style={{
-                  height: sizes.buttonHeight,
-                  borderRadius: radii.md,
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: colors.white }} weight="bold">
-                  {catalogItem.regulationCtaLabel ?? "Calendário / Edital"}
-                </Text>
-              </Pressable>
+              {catalogItem.showRegulationCta === false ? null : (
+                <Pressable
+                  onPress={() => {
+                    void openExternalUrl(catalogItem.regulationUrl);
+                  }}
+                  style={{
+                    height: sizes.buttonHeight,
+                    borderRadius: radii.md,
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="bold">
+                    {catalogItem.regulationCtaLabel ?? "Calendário / Edital"}
+                  </Text>
+                </Pressable>
+              )}
               {catalogItem.regulationNote ? (
                 <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
                   {catalogItem.regulationNote}
@@ -519,9 +526,29 @@ export default function OlimpiadaDetalheScreen() {
                 }}
               >
                 <Text style={{ color: colors.white }} weight="bold">
-                  Site oficial
+                    {catalogItem.siteCtaLabel ?? "Site oficial"}
                 </Text>
               </Pressable>
+              {catalogItem.contactEmail ? (
+                <Pressable
+                  onPress={() => {
+                    const contactEmail = catalogItem.contactEmail;
+                    if (!contactEmail) return;
+                    openContactEmail(contactEmail);
+                  }}
+                  style={{
+                    height: sizes.buttonHeight,
+                    borderRadius: radii.md,
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="bold">
+                    {catalogItem.contactCtaLabel ?? "Contato"}
+                  </Text>
+                </Pressable>
+              ) : null}
               {catalogItem.faqUrl ? (
                 <Pressable
                   onPress={() => {

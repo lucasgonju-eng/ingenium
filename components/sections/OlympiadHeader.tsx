@@ -9,6 +9,7 @@ type Props = {
   status: string | null;
   organizer?: string;
   mentorTeacher?: string;
+  coMentorTeacher?: string;
   visualSealLabel?: string;
   startDate: string;
   endDate: string;
@@ -21,6 +22,7 @@ export default function OlympiadHeader({
   status,
   organizer,
   mentorTeacher,
+  coMentorTeacher,
   visualSealLabel,
   startDate,
   endDate,
@@ -63,6 +65,11 @@ export default function OlympiadHeader({
       {(organizer || mentorTeacher) ? (
         <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
           {organizer ? `Organizador: ${organizer}` : ""}{organizer && mentorTeacher ? " • " : ""}{mentorTeacher ? `Mentor: ${mentorTeacher}` : ""}
+        </Text>
+      ) : null}
+      {coMentorTeacher ? (
+        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2, fontSize: typography.small.fontSize }}>
+          Co-mentor: {coMentorTeacher}
         </Text>
       ) : null}
       <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.sm, fontSize: typography.subtitle.fontSize }}>
