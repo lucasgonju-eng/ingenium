@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useNavigation } from "expo-router";
 import React from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Image, Platform, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "../ui/Text";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
@@ -28,6 +28,23 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
     <LinearGradient colors={[colors.bgStart, colors.bgMid, colors.bgEnd]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, alignItems: "center" }}>
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: spacing.xs,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+              zIndex: 20,
+            }}
+          >
+            <Image
+              source={require("../../assets/ingenium-logo.png")}
+              style={{ width: 60, height: 60 }}
+              resizeMode="contain"
+            />
+          </View>
           <View
             style={{
               position: "absolute",
