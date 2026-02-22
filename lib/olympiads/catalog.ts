@@ -47,6 +47,7 @@ export type OlympiadCatalogItem = {
   mentorTeacher: string;
   officialUrl: string;
   regulationUrl: string;
+  faqUrl?: string;
   regulationNote?: string;
   headline: string;
   shortDescription: string;
@@ -203,6 +204,48 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     },
     listBadges: ["Online", "Final presencial"],
     tags: ["Online", "Final presencial", "Humanas", "Geografia", "Equipe"],
+  },
+  {
+    slug: "onhb",
+    name: "ONHB — Olimpíada Nacional em História do Brasil",
+    organizer: "Unicamp (IFCH — Projeto de Extensão)",
+    category: "Humanas / História",
+    mentorTeacher: "Professora Gabi",
+    officialUrl: "https://www.olimpiadadehistoria.com.br/",
+    regulationUrl: "https://www.olimpiadadehistoria.com.br/calendario/index",
+    faqUrl: "https://www.olimpiadadehistoria.com.br/paginas/onhb18/duvidas",
+    headline: "História não é decorar: é investigar. Em equipe.",
+    shortDescription:
+      "A ONHB é uma olimpíada em equipe, com fases online semanais e final presencial. Você aprende História do Brasil analisando fontes, tomando decisões e resolvendo desafios reais.",
+    longDescription:
+      "A ONHB (Unicamp) é uma competição nacional que transforma História do Brasil em investigação: interpretação de documentos, imagens, mapas e textos, com desafios semanais em equipe. É perfeita para quem gosta de humanas, leitura, estratégia e quer repertório forte para redação, debates e formação crítica — representando o Einstein no cenário nacional.",
+    format: {
+      modalidade: "Online (5 fases) + Presencial (final nacional)",
+      estrutura: "5 fases online (tarefas semanais) + final presencial",
+      participation: "Em equipe (3 estudantes) com professor(a) orientador(a)",
+      observacao:
+        "As fases online ocorrem em janelas de alguns dias, com tarefas/questões por fase. Final nacional presencial e cerimônia de premiação em datas definidas no calendário.",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      registrationStart: "2026-02-15",
+      registrationDeadline: "2026-04-24",
+      calendarEvents: [
+        { key: "inscricoes", label: "Inscrições", start: "2026-02-15", end: "2026-04-24" },
+        { key: "fase_1", label: "Fase 1 (online)", start: "2026-05-04", end: "2026-05-09" },
+        { key: "fase_2", label: "Fase 2 (online)", start: "2026-05-11", end: "2026-05-16" },
+        { key: "fase_3", label: "Fase 3 (online)", start: "2026-05-18", end: "2026-05-23" },
+        { key: "fase_4", label: "Fase 4 (online)", start: "2026-05-25", end: "2026-05-30" },
+        { key: "fase_5", label: "Fase 5 (online)", start: "2026-06-08", end: "2026-06-13" },
+        { key: "selecao_final", label: "Seleção para final", date: "2026-06-19" },
+        { key: "medalhistas_estaduais", label: "Medalhistas estaduais", date: "2026-06-26" },
+        { key: "final_presencial", label: "Final presencial", date: "2026-08-29" },
+        { key: "cerimonia_premiacao", label: "Cerimônia de premiação", date: "2026-08-30" },
+      ],
+    },
+    listBadges: ["Em equipe", "Online", "Final presencial"],
+    tags: ["Humanas", "História", "Equipe", "Online", "Final presencial"],
   },
 ];
 

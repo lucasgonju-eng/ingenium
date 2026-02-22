@@ -61,6 +61,16 @@ function fmtDateRange(start: string, end: string) {
   return `${fmtDate(start)} a ${fmtDate(end)}`;
 }
 
+function sortCalendarEvents(
+  events: Array<{ key: string; label: string; date?: string; start?: string; end?: string; note?: string }>,
+) {
+  return [...events].sort((a, b) => {
+    const da = a.start ?? a.date ?? "9999-12-31";
+    const db = b.start ?? b.date ?? "9999-12-31";
+    return da.localeCompare(db);
+  });
+}
+
 async function openExternalUrl(url: string) {
   try {
     const supported = await Linking.canOpenURL(url);
@@ -328,6 +338,17 @@ export default function OlimpiadaDetalheScreen() {
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.8)" }}>{catalogItem.longDescription}</Text>
 
+            {catalogItem.format.participation ? (
+              <View style={{ marginTop: spacing.sm }}>
+                <Text style={{ color: "white" }} weight="bold">
+                  Como funciona
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
+                  {catalogItem.format.participation}
+                </Text>
+              </View>
+            ) : null}
+
             <View style={{ marginTop: spacing.sm }}>
               <Text style={{ color: "white" }} weight="bold">
                 Formato
@@ -369,7 +390,7 @@ export default function OlimpiadaDetalheScreen() {
                 Calendário 2026
               </Text>
               {catalogItem.schedule.calendarEvents?.length ? (
-                catalogItem.schedule.calendarEvents.map((event, index) => (
+                sortCalendarEvents(catalogItem.schedule.calendarEvents).map((event, index) => (
                   <Text key={`${event.key}-${index}`} style={{ color: "rgba(255,255,255,0.78)", marginTop: index === 0 ? 4 : 0 }}>
                     {event.label}:{" "}
                     {event.note
@@ -431,7 +452,7 @@ export default function OlimpiadaDetalheScreen() {
                 }}
               >
                 <Text style={{ color: colors.white }} weight="bold">
-                  Ver regulamento/calendário
+                  Calendário / Edital
                 </Text>
               </Pressable>
               {catalogItem.regulationNote ? (
@@ -455,6 +476,26 @@ export default function OlimpiadaDetalheScreen() {
                   Site oficial
                 </Text>
               </Pressable>
+              {catalogItem.faqUrl ? (
+                <Pressable
+                  onPress={() => {
+                    const faqUrl = catalogItem.faqUrl;
+                    if (!faqUrl) return;
+                    void openExternalUrl(faqUrl);
+                  }}
+                  style={{
+                    height: sizes.buttonHeight,
+                    borderRadius: radii.md,
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="bold">
+                    Dúvidas
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 onPress={() => {
                   void handleParticipate();
