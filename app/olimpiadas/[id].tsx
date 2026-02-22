@@ -62,7 +62,7 @@ function fmtDateRange(start: string, end: string) {
 }
 
 function sortCalendarEvents(
-  events: Array<{ key: string; label: string; date?: string; start?: string; end?: string; note?: string }>,
+  events: Array<{ key: string; label: string; date?: string; start?: string; end?: string; note?: string; timeNote?: string }>,
 ) {
   return [...events].sort((a, b) => {
     const da = a.start ?? a.date ?? "9999-12-31";
@@ -397,13 +397,21 @@ export default function OlimpiadaDetalheScreen() {
               </Text>
               {catalogItem.schedule.calendarEvents?.length ? (
                 sortCalendarEvents(catalogItem.schedule.calendarEvents).map((event, index) => (
-                  <Text key={`${event.key}-${index}`} style={{ color: "rgba(255,255,255,0.78)", marginTop: index === 0 ? 4 : 0 }}>
+                  <Text
+                    key={`${event.key}-${index}`}
+                    style={{
+                      color: event.key === "fase_3" ? colors.einsteinYellow : "rgba(255,255,255,0.78)",
+                      marginTop: index === 0 ? 4 : 0,
+                    }}
+                    weight={event.key === "fase_3" ? "semibold" : "regular"}
+                  >
                     {event.label}:{" "}
                     {event.note
                       ? event.note
                       : event.start && event.end
                         ? fmtDateRange(event.start, event.end)
                         : fmtDate(event.date)}
+                    {event.timeNote ? ` às ${event.timeNote}` : ""}
                   </Text>
                 ))
               ) : (

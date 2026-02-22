@@ -18,6 +18,7 @@ export type OlympiadCalendarEvent = {
   start?: string;
   end?: string;
   note?: string;
+  timeNote?: string;
   dateTbd?: boolean;
 };
 
@@ -266,6 +267,46 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     },
     listBadges: ["Prova única", "Internacional"],
     tags: ["Exatas", "Matemática", "Internacional", "Prova única"],
+  },
+  {
+    slug: "obb",
+    name: "OBB — Olimpíada Brasileira de Biologia",
+    organizer: "Instituto Butantan",
+    category: "Ciências da Natureza / Biologia",
+    mentorTeacher: "Professora Aline",
+    officialUrl: "https://olimpiadasdebiologia.butantan.gov.br/",
+    regulationUrl: "https://olimpiadasdebiologia.butantan.gov.br/cronograma",
+    regulationCtaLabel: "Ver cronograma / edital",
+    visualSealLabel: "BUTANTAN OFICIAL",
+    headline: "Biologia em alto nível: etapas, seleção e reconhecimento nacional.",
+    shortDescription:
+      "A OBB é uma das olimpíadas mais fortes de Biologia do país, com fases eliminatórias e trilha clara de evolução. Ideal pra quem quer aprofundar e competir sério.",
+    longDescription:
+      "A OBB (Butantan) é uma competição de Biologia de alto nível, com etapas eliminatórias e calendário bem definido. É perfeita para alunos que querem aprofundamento real, rotina de estudo e performance — além de ser uma vitrine acadêmica forte para o Einstein no cenário nacional.",
+    format: {
+      modalidade: "Online (fases) + etapas avançadas",
+      estrutura: "3 fases + capacitação/seletiva (virtual e presencial)",
+      tipo: "Fases com datas definidas (inclui horário fixo na Fase 3)",
+      participation: "3 fases + capacitação/seletiva",
+      observacao: "A escola tem tarefas operacionais (confirmações/inserções) entre fases.",
+    },
+    schedule: {
+      timezone: "America/Sao_Paulo",
+      displayTimezoneLabel: "horário de Brasília",
+      registrationStart: "2026-01-15",
+      registrationDeadline: "2026-02-25",
+      examDate: "2026-03-03",
+      calendarEvents: [
+        { key: "inscricoes", label: "Inscrições", start: "2026-01-15", end: "2026-02-25" },
+        { key: "fase_1", label: "Fase 1", date: "2026-03-03" },
+        { key: "fase_2", label: "Fase 2", date: "2026-03-18" },
+        { key: "fase_3", label: "Fase 3", date: "2026-04-14", timeNote: "10:00 (horário de Brasília)" },
+        { key: "capacitacao_seletiva_virtual", label: "Capacitação/Seletiva (virtual)", start: "2026-05-07", end: "2026-05-08" },
+        { key: "capacitacao_seletiva_presencial", label: "Capacitação/Seletiva (presencial)", start: "2026-05-11", end: "2026-05-16" },
+      ],
+    },
+    listBadges: ["Alto nível", "Etapas"],
+    tags: ["Biologia", "Ciências da Natureza", "Alto nível", "Etapas"],
   },
   {
     slug: "onhb",
