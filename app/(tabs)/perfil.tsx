@@ -45,6 +45,12 @@ function normalizeFileExt(ext: string | undefined) {
   return "jpg";
 }
 
+function contentTypeFromExt(ext: string) {
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
 export default function PerfilScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -121,36 +127,54 @@ export default function PerfilScreen() {
       return;
     }
     try {
-      if (Platform.OS !== "web") {
+      setSaving(true);
+      const formData = new FormData();
+      formData.append("user_id", userId);
+
+      if (Platform.OS === "web") {
+        const selectedFile = await new Promise<File | null>((resolve) => {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = "image/*";
+          input.onchange = () => resolve(input.files?.[0] ?? null);
+          input.oncancel = () => resolve(null);
+          input.click();
+        });
+        if (!selectedFile) {
+          setSaving(false);
+          return;
+        }
+
+        const ext = normalizeFileExt(selectedFile.name.split(".").pop());
+        formData.append("ext", ext);
+        formData.append("avatar", selectedFile, `avatar.${ext}`);
+      } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
+          setSaving(false);
           Alert.alert("Permissão necessária", "Permita acesso à galeria para alterar sua foto.");
           return;
         }
-      }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.9,
-      });
-      if (result.canceled || !result.assets[0]?.uri) return;
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.9,
+        });
+        if (result.canceled || !result.assets[0]?.uri) {
+          setSaving(false);
+          return;
+        }
 
-      setSaving(true);
-      const asset = result.assets[0];
-      const uri = asset.uri;
-      const ext = normalizeFileExt(uri.split(".").pop());
-      const contentType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-
-      const formData = new FormData();
-      formData.append("user_id", userId);
-      formData.append("ext", ext);
-
-      if (Platform.OS === "web" && "file" in asset && asset.file) {
-        formData.append("avatar", asset.file, `avatar.${ext}`);
-      } else {
-        formData.append("avatar", { uri, name: `avatar.${ext}`, type: contentType } as unknown as Blob);
+        const asset = result.assets[0];
+        const uri = asset.uri;
+        const ext = normalizeFileExt(uri.split(".").pop());
+        formData.append("ext", ext);
+        formData.append(
+          "avatar",
+          { uri, name: `avatar.${ext}`, type: contentTypeFromExt(ext) } as unknown as Blob,
+        );
       }
 
       const uploadEndpoint = `${getPublicSiteUrl()}/upload-avatar.php`;
