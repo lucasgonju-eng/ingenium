@@ -1,0 +1,134 @@
+import React from "react";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
+import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
+
+type Props = {
+  label: string;
+  accent: string;
+  points: number;
+  rankText: string;
+  progressPct: number;
+  progressNext: string;
+  progressText: string;
+  eligibilityText: string;
+};
+
+export default function DashboardHero({
+  label,
+  accent,
+  points,
+  rankText,
+  progressPct,
+  progressNext,
+  progressText,
+  eligibilityText,
+}: Props) {
+  return (
+    <View>
+      <View
+        style={{
+          borderRadius: radii.xl,
+          padding: sizes.cardPadding,
+          backgroundColor: colors.surfaceCard,
+          borderWidth: 1,
+          borderColor: colors.borderStrong,
+          ...shadows.hero,
+        }}
+      >
+        <View style={{ alignItems: "center" }}>
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 42,
+              borderWidth: 2,
+              borderColor: accent,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.3)",
+            }}
+          >
+            <Text style={{ color: accent, fontSize: 34 }}>🐺</Text>
+          </View>
+          <Text style={{ color: accent, fontSize: 20, marginTop: spacing.xs }} weight="bold">
+            {label}
+          </Text>
+        </View>
+
+        <View style={{ marginTop: spacing.sm }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.small.fontSize }}>XP Atual</Text>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.small.fontSize }}>
+              Próximo: {progressNext}
+            </Text>
+          </View>
+          <View
+            style={{
+              marginTop: spacing.xs - 2,
+              height: 8,
+              borderRadius: radii.pill,
+              backgroundColor: "rgba(255,255,255,0.1)",
+              overflow: "hidden",
+            }}
+          >
+            <View style={{ width: `${progressPct}%`, height: "100%", backgroundColor: colors.einsteinBlue }} />
+          </View>
+          <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: spacing.xs - 2, fontSize: 12 }}>
+            {progressText}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: spacing.sm - 2, marginTop: spacing.sm }}>
+        <View
+          style={{
+            flex: 1,
+            borderRadius: radii.lg,
+            padding: sizes.compactCardPadding,
+            backgroundColor: colors.surfacePanel,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            ...shadows.soft,
+          }}
+        >
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.small.fontSize }}>Total de Pontos</Text>
+          <Text style={{ color: "white", fontSize: typography.metric.fontSize, marginTop: 4 }} weight="bold">
+            {points}
+          </Text>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            borderRadius: radii.lg,
+            padding: sizes.compactCardPadding,
+            backgroundColor: colors.surfacePanel,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            ...shadows.soft,
+          }}
+        >
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.small.fontSize }}>
+            Ranking Geral
+          </Text>
+          <Text style={{ color: "white", fontSize: typography.metric.fontSize, marginTop: 4 }} weight="bold">
+            {rankText}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={{
+          marginTop: spacing.sm,
+          borderRadius: radii.lg,
+          padding: sizes.compactCardPadding,
+          backgroundColor: colors.surfacePanel,
+          borderWidth: 1,
+          borderColor: colors.borderSoft,
+        }}
+      >
+        <Text style={{ color: "rgba(255,255,255,0.86)" }}>{eligibilityText}</Text>
+      </View>
+    </View>
+  );
+}

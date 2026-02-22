@@ -1,10 +1,34 @@
 import { supabase } from "./client";
 
+type Olympiad = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  status: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  registration_deadline: string | null;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
     .select("rank,user_id,full_name,grade,class_name,total_points,lobo_class")
     .order("rank", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchRankingGeralMediaPublic(limit = 50) {
+  const { data, error } = await supabase
+    .from("v_ranking_geral_media_public")
+    .select(
+      "position_geral_media,user_id,full_name,avatar_url,avg_points,olympiads_count,total_points_sum,lobo_class,total_points",
+    )
+    .order("position_geral_media", { ascending: true })
     .limit(limit);
 
   if (error) throw error;
@@ -22,7 +46,7 @@ export async function fetchMyPoints() {
     .from("points")
     .select("total_points,lobo_class")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;
@@ -43,4 +67,183 @@ export async function fetchMyRank() {
 
   if (error) throw error;
   return data;
+}
+
+export async function fetchRankingTeaser(limit = 10) {
+  const { data, error } = await supabase.rpc("get_public_ranking_teaser", {
+    p_limit: limit,
+  });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchPublicRankingTeaser(limit = 10) {
+  const { data, error } = await supabase.rpc("get_public_ranking_teaser", {
+    p_limit: limit,
+  });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchRankingOlympiad(olympiadId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("v_ranking_olympiad")
+    .select(
+      "position_in_olympiad,user_id,points_in_olympiad,gold_count,silver_count,bronze_count,none_count",
+    )
+    .eq("olympiad_id", olympiadId)
+    .order("position_in_olympiad", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchRankingOlympiadPublic(olympiadId: string, limit = 50) {
+  const { data, error } = await supabase
+    .from("v_ranking_olympiad_public")
+    .select(
+      "position_in_olympiad,user_id,full_name,avatar_url,points_in_olympiad,gold_count,silver_count,bronze_count,none_count,lobo_class",
+    )
+    .eq("olympiad_id", olympiadId)
+    .order("position_in_olympiad", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchPublicRankingOlympiadTeaser(olympiadId: string, limit = 10) {
+  const { data, error } = await supabase.rpc("get_public_ranking_olympiad_teaser", {
+    p_olympiad_id: olympiadId,
+    p_limit: limit,
+  });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchMyRankInOlympiad(olympiadId: string) {
+  const { data, error } = await supabase.rpc("get_my_rank_in_olympiad", {
+    p_olympiad_id: olympiadId,
+  });
+
+  if (error) throw error;
+  return data?.[0] ?? null;
+}
+
+export type MyRankGeralMedia = {
+  user_id: string;
+  is_eligible: boolean;
+  min_olympiads_required: number;
+  olympiads_count: number;
+  avg_points: number | null;
+  total_points_sum: number | null;
+  position: number | null;
+  missing_olympiads: number;
+};
+
+export async function fetchMyRankGeralMedia() {
+  const { data, error } = await supabase.rpc("get_my_rank_geral_media");
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+
+  const minReq = Number(row.min_olympiads_required ?? 2);
+  const count = Number(row.olympiads_count ?? 0);
+
+  return {
+    user_id: String(row.user_id),
+    is_eligible: Boolean(row.is_eligible),
+    min_olympiads_required: minReq,
+    olympiads_count: count,
+    avg_points: row.avg_points === null ? null : Number(row.avg_points),
+    total_points_sum: row.total_points_sum === null ? null : Number(row.total_points_sum),
+    position: row.position === null ? null : Number(row.position),
+    missing_olympiads: Math.max(0, minReq - count),
+  } as MyRankGeralMedia;
+}
+
+export async function fetchOlympiads() {
+  const { data, error } = await supabase
+    .from("olympiads")
+    .select("id,title,description,category,status,start_date,end_date,registration_deadline")
+    .order("start_date", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as Olympiad[];
+}
+
+export async function fetchOlympiadById(olympiadId: string) {
+  const { data, error } = await supabase
+    .from("olympiads")
+    .select("id,title,description,category,status,start_date,end_date,registration_deadline")
+    .eq("id", olympiadId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Olympiad | null;
+}
+
+export async function fetchMyEnrollment(olympiadId: string) {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session) return { enrolled: false };
+
+  const { data, error } = await supabase
+    .from("enrollments")
+    .select("id")
+    .eq("user_id", session.user.id)
+    .eq("olympiad_id", olympiadId)
+    .limit(1);
+
+  if (error) throw error;
+  return { enrolled: (data?.length ?? 0) > 0 };
+}
+
+export async function enrollInOlympiad(olympiadId: string) {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("enrollments")
+    .insert({ user_id: session.user.id, olympiad_id: olympiadId });
+
+  if (error) {
+    const err = error as { code?: string; message?: string };
+    if (err.code === "23505" || err.message?.toLowerCase().includes("duplicate")) {
+      return { ok: true, already: true };
+    }
+    throw error;
+  }
+
+  return { ok: true, already: false };
+}
+
+export type FeedPost = {
+  id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+};
+
+export async function fetchFeedPosts(limit = 30) {
+  const { data, error } = await supabase
+    .from("wall_posts")
+    .select("id,author_id,content,created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return { data: (data ?? []) as FeedPost[], error };
 }

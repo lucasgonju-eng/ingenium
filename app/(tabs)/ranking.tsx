@@ -1,48 +1,62 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Pressable, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, TextInput, View } from "react-native";
+import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
+import RankingList from "../../components/ranking/RankingList";
+import RankingItem from "../../components/sections/RankingItem";
+import RankingEligibilityCard from "../../components/sections/RankingEligibilityCard";
+import RankingTopPodium from "../../components/sections/RankingTopPodium";
+import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { fetchRankingGeral } from "../../lib/supabase/queries";
-import { colors } from "../../lib/theme/tokens";
+import { supabase } from "../../lib/supabase/client";
+import { fetchMyRankGeralMedia, fetchRankingGeralMediaPublic, MyRankGeralMedia } from "../../lib/supabase/queries";
+import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
 
 type RankingRow = {
-  rank: number;
+  position_geral_media: number;
   user_id: string;
   full_name: string | null;
-  grade: string | null;
-  class_name: string | null;
-  total_points: number;
+  avatar_url: string | null;
+  avg_points: number;
+  olympiads_count: number;
+  total_points_sum: number;
+  total_points: number | null;
   lobo_class: "bronze" | "silver" | "gold";
 };
-
-function LoboBadge({ cls }: { cls: "bronze" | "silver" | "gold" }) {
-  const label =
-    cls === "gold" ? "Lobo de Ouro" : cls === "silver" ? "Lobo de Prata" : "Lobo de Bronze";
-  const bg =
-    cls === "gold"
-      ? colors.einsteinYellow
-      : cls === "silver"
-        ? "rgba(0,0,0,0.08)"
-        : "rgba(176, 110, 60, 0.18)";
-  const fg = cls === "gold" ? colors.einsteinBlue : colors.black;
-
-  return (
-    <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: bg }}>
-      <Text style={{ fontSize: 12, color: fg }} weight="semibold">
-        {label}
-      </Text>
-    </View>
-  );
-}
 
 export default function RankingScreen() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<RankingRow[]>([]);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [myRankInfo, setMyRankInfo] = useState<MyRankGeralMedia | null>(null);
+  const [search, setSearch] = useState("");
+  const top3 = useMemo(() => rows.slice(0, 3), [rows]);
+  const restRows = useMemo(() => rows.slice(3), [rows]);
+  const adjustedRestRows = useMemo(() => {
+    if (!myUserId) return restRows;
+
+    const myIndex = restRows.findIndex((row) => row.user_id === myUserId);
+    if (myIndex === -1) return restRows;
+
+    const myRow = restRows[myIndex];
+    const withoutMe = [...restRows.slice(0, myIndex), ...restRows.slice(myIndex + 1)];
+    return [myRow, ...withoutMe];
+  }, [restRows, myUserId]);
+  const myRow = useMemo(
+    () => rows.find((row) => row.user_id === myUserId) ?? null,
+    [rows, myUserId],
+  );
 
   async function load() {
     try {
       setLoading(true);
-      const data = await fetchRankingGeral(50);
+      const [{ data: sessionData }, data] = await Promise.all([
+        supabase.auth.getSession(),
+        fetchRankingGeralMediaPublic(50),
+      ]);
+      setMyUserId(sessionData.session?.user?.id ?? null);
       setRows(data as RankingRow[]);
+      const mine = await fetchMyRankGeralMedia();
+      setMyRankInfo(mine);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar ranking";
       Alert.alert("Erro", message);
@@ -55,92 +69,175 @@ export default function RankingScreen() {
     void load();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-        <Text style={{ marginTop: 8 }} tone="muted">
-          Carregando ranking...
-        </Text>
-      </View>
-    );
-  }
+  const filteredRestRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return adjustedRestRows;
+    return adjustedRestRows.filter((row) => (row.full_name ?? "").toLowerCase().includes(q));
+  }, [adjustedRestRows, search]);
 
-  return (
-    <View style={{ flex: 1, backgroundColor: "#fff", padding: 16 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-      >
-        <Text style={{ fontSize: 22 }} weight="bold">
-          Ranking Geral
-        </Text>
-        <Pressable
-          onPress={() => {
-            void load();
-          }}
+  const headerComponent = (
+    <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+      <StitchHeader
+        title="Leaderboard Geral"
+        rightSlot={
+          <Pressable
+            onPress={() => {
+              void load();
+            }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: radii.pill,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255,255,255,0.08)",
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: 18 }}>⋮</Text>
+          </Pressable>
+        }
+      />
+
+      <View style={{ marginTop: spacing.sm }}>
+        <View
           style={{
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 12,
-            backgroundColor: colors.einsteinBlue,
+            height: sizes.inputHeight,
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+            backgroundColor: colors.surfacePanel,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: spacing.sm,
           }}
         >
-          <Text style={{ color: colors.einsteinYellow }} weight="semibold">
-            Atualizar
+          <Text style={{ color: "rgba(255,255,255,0.6)", marginRight: spacing.xs }}>⌕</Text>
+          <TextInput
+            placeholder="Search student..."
+            placeholderTextColor="rgba(255,255,255,0.5)"
+            value={search}
+            onChangeText={setSearch}
+            style={{
+              flex: 1,
+              color: colors.white,
+              fontFamily: typography.fontFamily.base,
+              fontSize: typography.subtitle.fontSize,
+            }}
+          />
+        </View>
+      </View>
+
+      <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs }}>
+        <Pressable
+          style={{
+            borderRadius: radii.pill,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 6,
+            backgroundColor: colors.einsteinBlue,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.22)",
+          }}
+        >
+          <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+            All
+          </Text>
+        </Pressable>
+        <Pressable
+          style={{
+            borderRadius: radii.pill,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 6,
+            backgroundColor: colors.surfacePanel,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+          }}
+        >
+          <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
+            12th Grade
+          </Text>
+        </Pressable>
+        <Pressable
+          style={{
+            borderRadius: radii.pill,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 6,
+            backgroundColor: colors.surfacePanel,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+          }}
+        >
+          <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
+            Math
           </Text>
         </Pressable>
       </View>
 
-      <FlatList
-        data={rows}
-        keyExtractor={(item) => item.user_id}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => (
-          <View
-            style={{
-              padding: 14,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "rgba(0,0,0,0.08)",
-              backgroundColor: "white",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 18 }} weight="bold">
-                #{item.rank}
-              </Text>
-              <LoboBadge cls={item.lobo_class} />
-            </View>
+      <RankingEligibilityCard rankInfo={myRankInfo} />
 
-            <Text style={{ marginTop: 8, fontSize: 16 }} weight="semibold">
-              {item.full_name ?? "Sem nome"}
-            </Text>
-            <Text tone="muted" style={{ marginTop: 2 }}>
-              {item.grade ? `${item.grade}` : ""}
-              {item.class_name ? ` • ${item.class_name}` : ""}
-            </Text>
-
-            <View
-              style={{
-                marginTop: 10,
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Text tone="muted">Pontos</Text>
-              <Text weight="bold" style={{ fontSize: 18 }}>
-                {item.total_points}
-              </Text>
-            </View>
-          </View>
-        )}
-      />
+      <View style={{ marginTop: spacing.sm }}>
+        <RankingTopPodium
+          variant="geral"
+          top3={top3.map((row) => ({
+            position: row.position_geral_media,
+            user_id: row.user_id,
+            full_name: row.full_name,
+            avatar_url: row.avatar_url,
+            lobo_class: row.lobo_class,
+            avg_points: Number(row.avg_points),
+            olympiads_count: row.olympiads_count,
+          }))}
+        />
+      </View>
     </View>
+  );
+
+  if (loading) {
+    return (
+      <StitchScreenFrame>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator />
+          <Text style={{ marginTop: 8, color: "rgba(255,255,255,0.75)" }}>Carregando ranking...</Text>
+        </View>
+      </StitchScreenFrame>
+    );
+  }
+
+  return (
+    <StitchScreenFrame>
+      <RankingList
+        rows={filteredRestRows}
+        myUserId={myUserId}
+        headerComponent={headerComponent}
+      />
+
+      {myRow ? (
+        <View
+          style={{
+            position: "absolute",
+            left: spacing.md,
+            right: spacing.md,
+            bottom: spacing.md,
+            borderRadius: radii.xl,
+            borderWidth: 1,
+            borderColor: colors.borderStrong,
+            backgroundColor: colors.surfaceCard,
+            padding: spacing.sm,
+            ...shadows.soft,
+          }}
+        >
+          <RankingItem
+            position={myRow.position_geral_media}
+            fullName={myRow.full_name}
+            avatarUrl={myRow.avatar_url}
+            loboClass={myRow.lobo_class}
+            avgPoints={Number(myRow.avg_points)}
+            olympiadsCount={myRow.olympiads_count}
+            rightLabel={Number(myRow.avg_points).toFixed(2)}
+            isMe
+            compact
+          />
+        </View>
+      ) : null}
+    </StitchScreenFrame>
   );
 }
