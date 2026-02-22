@@ -69,8 +69,8 @@ export default function DashboardScreen() {
 
       const fullName =
         profile?.full_name?.trim() ||
-        sessionData.session?.user?.user_metadata?.full_name ??
-        sessionData.session?.user?.email?.split("@")[0] ??
+        sessionData.session?.user?.user_metadata?.full_name ||
+        sessionData.session?.user?.email?.split("@")[0] ||
         "Estudante";
 
       setName(fullName);
