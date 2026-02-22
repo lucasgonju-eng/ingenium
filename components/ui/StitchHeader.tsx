@@ -21,23 +21,7 @@ export default function StitchHeader({
   variant = "default",
 }: Props) {
   const bg = variant === "transparent" ? "transparent" : "rgba(255,255,255,0.02)";
-  const defaultRightSlot =
-    variant === "feed" ? (
-      <View
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: radii.pill,
-          borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.14)",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "rgba(255,255,255,0.10)",
-        }}
-      >
-        <Text style={{ color: colors.einsteinYellow, fontSize: 14 }}>👤</Text>
-      </View>
-    ) : null;
+  const defaultRightSlot = null;
 
   return (
     <View
