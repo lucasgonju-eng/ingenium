@@ -15,7 +15,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Campos obrigatórios", "Preencha email e senha.");
+      Alert.alert("Campos obrigatórios", "Preencha e-mail e senha.");
       return;
     }
 
@@ -63,11 +63,11 @@ export default function LoginScreen() {
             }}
           >
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-              Login com email
+              Entrar com e-mail
             </Text>
 
             <TextInput
-              placeholder="Email"
+              placeholder="E-mail"
               placeholderTextColor="rgba(255,255,255,0.45)"
               keyboardType="email-address"
               autoCapitalize="none"

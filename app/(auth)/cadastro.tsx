@@ -15,7 +15,7 @@ export default function CadastroScreen() {
 
   const handleSignUp = async () => {
     if (!nome || !email || !password) {
-      Alert.alert("Campos obrigatórios", "Preencha nome, email e senha.");
+      Alert.alert("Campos obrigatórios", "Preencha nome, e-mail e senha.");
       return;
     }
 
@@ -87,7 +87,7 @@ export default function CadastroScreen() {
               }}
             />
             <TextInput
-              placeholder="Email"
+              placeholder="E-mail"
               placeholderTextColor="rgba(255,255,255,0.45)"
               keyboardType="email-address"
               autoCapitalize="none"

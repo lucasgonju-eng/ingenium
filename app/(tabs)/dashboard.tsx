@@ -116,7 +116,7 @@ export default function DashboardScreen() {
     <StitchScreenFrame>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <StitchHeader
-          title="Dashboard"
+          title="Painel"
           rightSlot={
             <Pressable
               onPress={() => {
