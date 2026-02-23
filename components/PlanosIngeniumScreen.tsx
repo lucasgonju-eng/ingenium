@@ -8,6 +8,15 @@ import StitchScreenFrame from "./layout/StitchScreenFrame";
 import StitchHeader from "./ui/StitchHeader";
 import { Text } from "./ui/Text";
 import { colors, radii, spacing, typography } from "../lib/theme/tokens";
+import { supabase } from "../lib/supabase/client";
+import { fetchMyProfile } from "../lib/supabase/queries";
+
+function getPublicSiteUrl() {
+  const raw =
+    process.env.EXPO_PUBLIC_SITE_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+  return raw.replace(/\/+$/, "");
+}
 
 export default function PlanosIngeniumScreen() {
   const params = useLocalSearchParams<{
@@ -22,10 +31,64 @@ export default function PlanosIngeniumScreen() {
   const signupUrl = Array.isArray(params.signupUrl) ? params.signupUrl[0] : params.signupUrl;
   const originContext: "olympiad" | "menu" = source === "olympiad" ? "olympiad" : "menu";
   const cameFromOlympiad = originContext === "olympiad";
+  const [creatingProCheckout, setCreatingProCheckout] = React.useState(false);
+
+  async function handleProCheckout() {
+    if (creatingProCheckout) return;
+    try {
+      setCreatingProCheckout(true);
+      const [{ data: userData }, profile] = await Promise.all([supabase.auth.getUser(), fetchMyProfile().catch(() => null)]);
+      const user = userData.user;
+      if (!user) {
+        Alert.alert("Sessão expirada", "Faça login novamente para continuar.");
+        return;
+      }
+
+      const payload = {
+        userId: user.id,
+        userName:
+          profile?.full_name?.trim() ||
+          String(user.user_metadata?.full_name ?? "").trim() ||
+          user.email?.split("@")[0] ||
+          "Aluno",
+        userEmail: user.email ?? "",
+        originContext,
+        olympiadId: olympiadId ?? "",
+        olympiadTitle: olympiadTitle ?? "",
+      };
+
+      const response = await fetch(`${getPublicSiteUrl()}/asaas-create-checkout.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const raw = await response.text();
+      let parsed: { ok?: boolean; checkoutUrl?: string; error?: string } = {};
+      try {
+        parsed = JSON.parse(raw) as { ok?: boolean; checkoutUrl?: string; error?: string };
+      } catch {
+        parsed = {};
+      }
+      if (!response.ok || !parsed.ok || !parsed.checkoutUrl) {
+        throw new Error(parsed.error || raw.slice(0, 200) || "Não foi possível iniciar checkout no Asaas.");
+      }
+
+      const canOpen = await Linking.canOpenURL(parsed.checkoutUrl);
+      if (!canOpen) {
+        throw new Error("Checkout criado, mas a URL retornada pelo Asaas não pôde ser aberta.");
+      }
+      await Linking.openURL(parsed.checkoutUrl);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao abrir checkout do Plano PRO.";
+      Alert.alert("Erro no checkout", message);
+    } finally {
+      setCreatingProCheckout(false);
+    }
+  }
 
   async function handleSelectPlan(planId: "free" | "pro") {
     if (planId === "pro") {
-      Alert.alert("Plano PRO", "Link de pagamento do Asaas será conectado em breve.");
+      await handleProCheckout();
       return;
     }
 
@@ -136,7 +199,9 @@ export default function PlanosIngeniumScreen() {
                   ? cameFromOlympiad
                     ? "Continuar no Plano Free"
                     : "Continuar com Plano Free"
-                  : "Selecionar Plano PRO"
+                  : creatingProCheckout
+                    ? "Abrindo checkout..."
+                    : "Selecionar Plano PRO"
               }
               onPress={(selectedPlan) => {
                 void handleSelectPlan(selectedPlan.id);
