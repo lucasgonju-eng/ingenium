@@ -165,12 +165,12 @@ if ($olympiadTitle !== "") {
   $name .= " - " . $olympiadTitle;
 }
 
-$description = "Plano PRO InGenium (R$5,00 em até 12x no cartão).";
+$description = "Plano PRO InGenium (R$324,00 em até 12x no cartão).";
 if ($userName !== "") {
   $description .= " Aluno: " . $userName . ".";
 }
-$planValue = 5.00;
-$maxInstallmentCount = $planValue < 20 ? 1 : 12;
+$planValue = 324.00;
+$maxInstallmentCount = 12;
 
 $primaryPayload = [
   "name" => $name,
