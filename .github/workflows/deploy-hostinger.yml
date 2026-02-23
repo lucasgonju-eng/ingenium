@@ -13,9 +13,6 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_FEED_MOCK: "0"
-      ASAAS_API_KEY_SANDBOX: ${{ secrets.ASAAS_API_KEY_SANDBOX }}
-      ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN }}
-      ASAAS_BASE_URL: ${{ secrets.ASAAS_BASE_URL }}
 
     steps:
       - name: Checkout
@@ -68,10 +65,7 @@ jobs:
           cp hostinger/upload-avatar.php dist/upload-avatar.php
           cp hostinger/asaas-create-checkout.php dist/asaas-create-checkout.php
           cp hostinger/asaas-webhook.php dist/asaas-webhook.php
-          ASAAS_BASE_URL_VALUE="${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}"
-          cat > dist/asaas-config.json <<EOF
-          {"apiKey":"${ASAAS_API_KEY_SANDBOX}","baseUrl":"${ASAAS_BASE_URL_VALUE}","webhookToken":"${ASAAS_WEBHOOK_TOKEN}"}
-          EOF
+          cp hostinger/asaas-config.json dist/asaas-config.json
 
       - name: Deploy to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
