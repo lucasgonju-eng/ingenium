@@ -46,6 +46,7 @@ function sendToAsaas(string $baseUrl, string $apiKey, array $payload): array {
   curl_setopt($ch, CURLOPT_HTTPHEADER, [
     "Content-Type: application/json",
     "Accept: application/json",
+    "User-Agent: InGeniumHostingerCheckout/1.0",
     "access_token: " . $apiKey,
   ]);
   curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
@@ -70,6 +71,7 @@ function sendToAsaas(string $baseUrl, string $apiKey, array $payload): array {
   $headers = [
     "Content-Type: application/json",
     "Accept: application/json",
+    "User-Agent: InGeniumHostingerCheckout/1.0",
     "access_token: " . $apiKey,
   ];
   $context = stream_context_create([
