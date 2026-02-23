@@ -91,7 +91,7 @@ jobs:
           cp hostinger/upload-avatar.php dist/upload-avatar.php
           cp hostinger/asaas-create-checkout.php dist/asaas-create-checkout.php
           cp hostinger/asaas-webhook.php dist/asaas-webhook.php
-          cat > dist/asaas-config.json <<EOF
+          cat > dist/asaas-config.json <<'EOF'
           {
             "apiKey": "${{ secrets.ASAAS_API_KEY }}",
             "baseUrl": "${{ secrets.ASAAS_BASE_URL }}",
