@@ -34,6 +34,8 @@ export default function LoginScreen() {
         return;
       }
 
+      // Garante leitura do usuário autenticado mais recente antes de navegar.
+      await supabase.auth.getUser();
       router.replace("/(tabs)/dashboard");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha de conexão ao tentar entrar.";

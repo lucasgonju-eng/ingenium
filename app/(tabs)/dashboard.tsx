@@ -65,16 +65,13 @@ export default function DashboardScreen() {
   async function load() {
     try {
       setLoading(true);
-      const [{ data: userData, error: userError }, { data: sessionData }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.auth.getSession(),
-      ]);
+      const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
-      const sessionUser = sessionData.session?.user ?? null;
+      const user = userData.user ?? null;
 
       let profileName = "";
       try {
-        const profile = await fetchMyProfile();
+        const profile = await fetchMyProfile(user?.id);
         profileName = profile?.full_name?.trim() ?? "";
       } catch {
         // Se o Data API falhar temporariamente, ainda mostramos o nome pelo metadata do Auth.
@@ -82,10 +79,8 @@ export default function DashboardScreen() {
 
       const fullName =
         profileName ||
-        String(sessionUser?.user_metadata?.full_name ?? "").trim() ||
-        String(userData.user?.user_metadata?.full_name ?? "").trim() ||
-        sessionUser?.email?.split("@")[0] ||
-        userData.user?.email?.split("@")[0] ||
+        String(user?.user_metadata?.full_name ?? "").trim() ||
+        user?.email?.split("@")[0] ||
         "Aluno";
 
       setName(getFirstName(fullName));

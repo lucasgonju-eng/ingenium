@@ -271,18 +271,22 @@ export async function enrollInOlympiad(olympiadId: string) {
   return { ok: true, already: false };
 }
 
-export async function fetchMyProfile() {
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-  if (sessionError) throw sessionError;
-  if (!session) throw new Error("Sessão inválida. Faça login novamente.");
+export async function fetchMyProfile(userIdOverride?: string) {
+  let userId = userIdOverride?.trim() ?? "";
+  if (!userId) {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+    userId = user.id;
+  }
 
   const { data, error } = await supabase
     .from("profiles")
     .select("id,full_name,grade,class_name,avatar_url")
-    .eq("id", session.user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   if (error) throw error;

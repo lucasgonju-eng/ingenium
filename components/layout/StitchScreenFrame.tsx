@@ -29,11 +29,9 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
     let mounted = true;
     async function loadProfile() {
       try {
-        const [{ data: sessionData }, { data: userData }] = await Promise.all([
-          supabase.auth.getSession(),
-          supabase.auth.getUser(),
-        ]);
-        const user = sessionData.session?.user ?? userData.user ?? null;
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const user = userData.user ?? null;
         if (!mounted) return;
 
         if (!user) {
@@ -51,7 +49,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
         setFullName(fallbackName);
 
         try {
-          const profile = await fetchMyProfile();
+          const profile = await fetchMyProfile(user.id);
           if (!mounted) return;
           setFullName(profile?.full_name?.trim() || fallbackName);
           setAvatarUrl(profile?.avatar_url ?? null);
