@@ -134,6 +134,7 @@ if (!is_array($config)) {
 
 $apiKey = (string) ($config["apiKey"] ?? "");
 $baseUrl = (string) ($config["baseUrl"] ?? "https://api-sandbox.asaas.com/v3");
+$checkoutSuccessUrl = (string) ($config["checkoutSuccessUrl"] ?? "https://ingenium.einsteinhub.co/?checkout=success&plan=pro");
 if ($apiKey === "") {
   respondJson(500, ["ok" => false, "error" => "API key do Asaas não configurada.", "requestId" => $requestId]);
 }
@@ -177,6 +178,10 @@ $primaryPayload = [
   "maxInstallmentCount" => 12,
   "notificationEnabled" => true,
   "externalReference" => "ingenium-pro-" . $userId,
+  "callback" => [
+    "successUrl" => $checkoutSuccessUrl,
+    "autoRedirect" => true,
+  ],
 ];
 
 $attempt = sendToAsaas($baseUrl, $apiKey, $primaryPayload);
@@ -214,6 +219,10 @@ if ($httpCode < 200 || $httpCode >= 300) {
     "chargeType" => "DETACHED",
     "notificationEnabled" => true,
     "externalReference" => "ingenium-pro-" . $userId,
+    "callback" => [
+      "successUrl" => $checkoutSuccessUrl,
+      "autoRedirect" => true,
+    ],
   ];
 
   // Se a combinação de parcelamento for rejeitada, tenta um formato alternativo aceito em alguns ambientes.
