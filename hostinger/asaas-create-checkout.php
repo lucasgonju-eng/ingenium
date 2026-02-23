@@ -169,14 +169,16 @@ $description = "Plano PRO InGenium (R$5,00 em até 12x no cartão).";
 if ($userName !== "") {
   $description .= " Aluno: " . $userName . ".";
 }
+$planValue = 5.00;
+$maxInstallmentCount = $planValue < 20 ? 1 : 12;
 
 $primaryPayload = [
   "name" => $name,
   "description" => $description,
-  "value" => 5.00,
+  "value" => $planValue,
   "billingType" => "CREDIT_CARD",
   "chargeType" => "INSTALLMENT",
-  "maxInstallmentCount" => 12,
+  "maxInstallmentCount" => $maxInstallmentCount,
   "notificationEnabled" => true,
   "externalReference" => "ingenium-pro-" . $userId,
 ];
@@ -217,7 +219,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
   $fallbackPayload = [
     "name" => $name,
     "description" => $description,
-    "value" => 5.00,
+    "value" => $planValue,
     "billingType" => "CREDIT_CARD",
     "chargeType" => "DETACHED",
     "notificationEnabled" => true,
@@ -247,8 +249,8 @@ if ($httpCode < 200 || $httpCode >= 300) {
             "checkoutUrl" => $checkoutUrl,
             "paymentLinkId" => (string) ($retryJson["id"] ?? ""),
             "billingType" => "CREDIT_CARD",
-            "installments" => 12,
-            "value" => 5.00,
+            "installments" => $maxInstallmentCount,
+            "value" => $planValue,
             "requestId" => $requestId,
             "fallbackApplied" => true,
           ]);
@@ -286,7 +288,7 @@ respondJson(200, [
   "checkoutUrl" => $checkoutUrl,
   "paymentLinkId" => (string) ($responseJson["id"] ?? ""),
   "billingType" => "CREDIT_CARD",
-  "installments" => 12,
-  "value" => 5.00,
+  "installments" => $maxInstallmentCount,
+  "value" => $planValue,
   "requestId" => $requestId,
 ]);
