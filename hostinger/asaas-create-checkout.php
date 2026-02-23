@@ -165,7 +165,7 @@ if ($olympiadTitle !== "") {
   $name .= " - " . $olympiadTitle;
 }
 
-$description = "Plano PRO InGenium (R$324,00 em até 12x no cartão).";
+$description = "Plano PRO InGenium (R$5,00 em até 12x no cartão).";
 if ($userName !== "") {
   $description .= " Aluno: " . $userName . ".";
 }
@@ -173,7 +173,7 @@ if ($userName !== "") {
 $primaryPayload = [
   "name" => $name,
   "description" => $description,
-  "value" => 324.00,
+  "value" => 5.00,
   "billingType" => "CREDIT_CARD",
   "chargeType" => "INSTALLMENT",
   "maxInstallmentCount" => 12,
@@ -217,7 +217,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
   $fallbackPayload = [
     "name" => $name,
     "description" => $description,
-    "value" => 324.00,
+    "value" => 5.00,
     "billingType" => "CREDIT_CARD",
     "chargeType" => "DETACHED",
     "notificationEnabled" => true,
@@ -248,7 +248,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
             "paymentLinkId" => (string) ($retryJson["id"] ?? ""),
             "billingType" => "CREDIT_CARD",
             "installments" => 12,
-            "value" => 324.00,
+            "value" => 5.00,
             "requestId" => $requestId,
             "fallbackApplied" => true,
           ]);
@@ -287,6 +287,6 @@ respondJson(200, [
   "paymentLinkId" => (string) ($responseJson["id"] ?? ""),
   "billingType" => "CREDIT_CARD",
   "installments" => 12,
-  "value" => 324.00,
+  "value" => 5.00,
   "requestId" => $requestId,
 ]);
