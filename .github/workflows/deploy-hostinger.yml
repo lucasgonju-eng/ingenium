@@ -27,7 +27,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate required Expo public env vars
+      - name: Validate required env vars and Asaas secrets
+        env:
+          ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY }}
+          ASAAS_BASE_URL: ${{ secrets.ASAAS_BASE_URL }}
+          ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN }}
+          ASAAS_ENABLE_CHECKOUT_CALLBACK: ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }}
+          ASAAS_CHECKOUT_SUCCESS_URL: ${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}
         run: |
           if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
             echo "::error::Missing EXPO_PUBLIC_SUPABASE_URL (GitHub Secret)."
@@ -35,6 +41,26 @@ jobs:
           fi
           if [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
             echo "::error::Missing EXPO_PUBLIC_SUPABASE_ANON_KEY (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$ASAAS_API_KEY" ]; then
+            echo "::error::Missing ASAAS_API_KEY (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$ASAAS_BASE_URL" ]; then
+            echo "::error::Missing ASAAS_BASE_URL (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$ASAAS_WEBHOOK_TOKEN" ]; then
+            echo "::error::Missing ASAAS_WEBHOOK_TOKEN (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$ASAAS_ENABLE_CHECKOUT_CALLBACK" ]; then
+            echo "::error::Missing ASAAS_ENABLE_CHECKOUT_CALLBACK (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$ASAAS_CHECKOUT_SUCCESS_URL" ]; then
+            echo "::error::Missing ASAAS_CHECKOUT_SUCCESS_URL (GitHub Secret)."
             exit 1
           fi
 
@@ -65,7 +91,15 @@ jobs:
           cp hostinger/upload-avatar.php dist/upload-avatar.php
           cp hostinger/asaas-create-checkout.php dist/asaas-create-checkout.php
           cp hostinger/asaas-webhook.php dist/asaas-webhook.php
-          cp hostinger/asaas-config.json dist/asaas-config.json
+          cat > dist/asaas-config.json <<EOF
+          {
+            "apiKey": "${{ secrets.ASAAS_API_KEY }}",
+            "baseUrl": "${{ secrets.ASAAS_BASE_URL }}",
+            "webhookToken": "${{ secrets.ASAAS_WEBHOOK_TOKEN }}",
+            "enableCheckoutCallback": ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }},
+            "checkoutSuccessUrl": "${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}"
+          }
+          EOF
 
       - name: Deploy to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
