@@ -3,5 +3,5 @@
   "baseUrl": "https://api-sandbox.asaas.com/v3",
   "webhookToken": "whsec_PGByt5ahzeNpW_NS-ll1YQlFW9FfZhggjoN47VzhFgo",
   "enableCheckoutCallback": true,
-  "checkoutSuccessUrl": "https://ingenium.einsteinhub.co/?checkout=success&plan=pro"
+  "checkoutSuccessUrl": "https://ingenium.einsteinhub.co/planos?checkout=success&plan=pro"
 }
