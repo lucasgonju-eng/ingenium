@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import FAQAccordion from "./FAQAccordion";
 import PlanCard from "./PlanCard";
 import { planosContent } from "../content/planos";
@@ -12,13 +12,16 @@ import { colors, radii, spacing, typography } from "../lib/theme/tokens";
 export default function PlanosIngeniumScreen() {
   const params = useLocalSearchParams<{
     source?: string | string[];
+    olympiadId?: string | string[];
     olympiadTitle?: string | string[];
     signupUrl?: string | string[];
   }>();
   const source = Array.isArray(params.source) ? params.source[0] : params.source;
+  const olympiadId = Array.isArray(params.olympiadId) ? params.olympiadId[0] : params.olympiadId;
   const olympiadTitle = Array.isArray(params.olympiadTitle) ? params.olympiadTitle[0] : params.olympiadTitle;
   const signupUrl = Array.isArray(params.signupUrl) ? params.signupUrl[0] : params.signupUrl;
-  const cameFromOlympiad = source === "olympiad";
+  const originContext: "olympiad" | "menu" = source === "olympiad" ? "olympiad" : "menu";
+  const cameFromOlympiad = originContext === "olympiad";
 
   async function handleSelectPlan(planId: "free" | "pro") {
     if (planId === "pro") {
@@ -36,7 +39,12 @@ export default function PlanosIngeniumScreen() {
       return;
     }
 
-    Alert.alert("Plano FREE", "No Plano Free, escolha uma olimpíada e clique em Inscrever-se para abrir o link oficial.");
+    if (cameFromOlympiad && olympiadId) {
+      router.push(`/olimpiadas/${olympiadId}`);
+      return;
+    }
+
+    router.replace("/(marketing)");
   }
 
   return (
@@ -127,7 +135,7 @@ export default function PlanosIngeniumScreen() {
                 plan.id === "free"
                   ? cameFromOlympiad
                     ? "Continuar no Plano Free"
-                    : "Usar Plano Free"
+                    : "Continuar com Plano Free"
                   : "Selecionar Plano PRO"
               }
               onPress={(selectedPlan) => {

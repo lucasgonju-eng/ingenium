@@ -234,6 +234,7 @@ export default function OlimpiadaDetalheScreen() {
       pathname: "/(tabs)/planos",
       params: {
         source: "olympiad",
+        olympiadId,
         olympiadTitle: olympiad?.title ?? "",
         signupUrl,
       },
