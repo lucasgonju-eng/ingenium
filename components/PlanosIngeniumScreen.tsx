@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import FAQAccordion from "./FAQAccordion";
 import PlanCard from "./PlanCard";
@@ -71,6 +71,11 @@ export default function PlanosIngeniumScreen() {
       }
       if (!response.ok || !parsed.ok || !parsed.checkoutUrl) {
         throw new Error(parsed.error || raw.slice(0, 200) || "Não foi possível iniciar checkout no Asaas.");
+      }
+
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.location.assign(parsed.checkoutUrl);
+        return;
       }
 
       const canOpen = await Linking.canOpenURL(parsed.checkoutUrl);
