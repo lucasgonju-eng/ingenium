@@ -214,33 +214,6 @@ if (!is_array($responseJson)) {
 
 if ($httpCode < 200 || $httpCode >= 300) {
   $errorMsg = (string) ($responseJson["errors"][0]["description"] ?? $responseJson["message"] ?? "Erro ao criar checkout no Asaas.");
-
-  // Algumas contas sandbox rejeitam callback enquanto o domínio não está efetivamente validado no Asaas.
-  if ($httpCode >= 400 && $httpCode < 500 && isset($primaryPayload["callback"]) && stripos($errorMsg, "domínio") !== false) {
-    $retryNoCallbackPayload = $primaryPayload;
-    unset($retryNoCallbackPayload["callback"]);
-    $retryNoCallback = sendToAsaas($baseUrl, $apiKey, $retryNoCallbackPayload);
-    if ($retryNoCallback["ok"]) {
-      $retryCode = $retryNoCallback["httpCode"];
-      $retryJson = json_decode($retryNoCallback["responseBody"], true);
-      if ($retryCode >= 200 && $retryCode < 300 && is_array($retryJson)) {
-        $checkoutUrl = (string) ($retryJson["url"] ?? "");
-        if ($checkoutUrl !== "") {
-          respondJson(200, [
-            "ok" => true,
-            "checkoutUrl" => $checkoutUrl,
-            "paymentLinkId" => (string) ($retryJson["id"] ?? ""),
-            "billingType" => "CREDIT_CARD",
-            "installments" => 12,
-            "value" => 324.00,
-            "requestId" => $requestId,
-            "callbackBypassed" => true,
-          ]);
-        }
-      }
-    }
-  }
-
   $fallbackPayload = [
     "name" => $name,
     "description" => $description,
