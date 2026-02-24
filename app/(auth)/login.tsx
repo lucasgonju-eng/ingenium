@@ -10,7 +10,9 @@ import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const handleLogin = async () => {
@@ -43,6 +45,34 @@ export default function LoginScreen() {
       Alert.alert("Erro no login", message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert("Informe seu e-mail", "Digite seu e-mail para receber o link de redefinição de senha.");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+      const siteUrl =
+        process.env.EXPO_PUBLIC_SITE_URL ??
+        (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+      const redirectTo = `${siteUrl.replace(/\/+$/, "")}/login`;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (error) {
+        Alert.alert("Erro ao enviar e-mail", error.message);
+        return;
+      }
+
+      Alert.alert("E-mail enviado", "Verifique sua caixa de entrada para redefinir sua senha.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível solicitar redefinição de senha.";
+      Alert.alert("Erro", message);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -90,15 +120,7 @@ export default function LoginScreen() {
                 fontFamily: typography.fontFamily.base,
               }}
             />
-            <TextInput
-              placeholder="Senha"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              onSubmitEditing={() => {
-                void handleLogin();
-              }}
+            <View
               style={{
                 marginTop: spacing.xs,
                 height: 46,
@@ -106,11 +128,44 @@ export default function LoginScreen() {
                 borderWidth: 1,
                 borderColor: colors.borderSoft,
                 backgroundColor: "rgba(255,255,255,0.03)",
-                color: colors.white,
-                paddingHorizontal: spacing.sm,
-                fontFamily: typography.fontFamily.base,
+                flexDirection: "row",
+                alignItems: "center",
               }}
-            />
+            >
+              <TextInput
+                placeholder="Senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                onSubmitEditing={() => {
+                  void handleLogin();
+                }}
+                style={{
+                  flex: 1,
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+              <Pressable
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={{ paddingHorizontal: spacing.sm, height: "100%", justifyContent: "center" }}
+              >
+                <Text style={{ color: colors.einsteinYellow, fontSize: 16 }}>{showPassword ? "🙈" : "👁"}</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              onPress={() => {
+                void handleForgotPassword();
+              }}
+              disabled={resetLoading}
+              style={{ marginTop: spacing.xs, alignSelf: "flex-end" }}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="semibold">
+                {resetLoading ? "Enviando..." : "Esqueci minha senha"}
+              </Text>
+            </Pressable>
             {errorText ? (
               <Text style={{ color: "#fca5a5", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
                 {errorText}

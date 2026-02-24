@@ -36,6 +36,7 @@ export default function CadastroScreen() {
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [showSeries, setShowSeries] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -224,12 +225,7 @@ export default function CadastroScreen() {
                 fontFamily: typography.fontFamily.base,
               }}
             />
-            <TextInput
-              placeholder="Senha"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
+            <View
               style={{
                 marginTop: spacing.xs,
                 height: 46,
@@ -237,11 +233,30 @@ export default function CadastroScreen() {
                 borderWidth: 1,
                 borderColor: colors.borderSoft,
                 backgroundColor: "rgba(255,255,255,0.03)",
-                color: colors.white,
-                paddingHorizontal: spacing.sm,
-                fontFamily: typography.fontFamily.base,
+                flexDirection: "row",
+                alignItems: "center",
               }}
-            />
+            >
+              <TextInput
+                placeholder="Senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                style={{
+                  flex: 1,
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+              <Pressable
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={{ paddingHorizontal: spacing.sm, height: "100%", justifyContent: "center" }}
+              >
+                <Text style={{ color: colors.einsteinYellow, fontSize: 16 }}>{showPassword ? "🙈" : "👁"}</Text>
+              </Pressable>
+            </View>
             <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.sm, lineHeight: 20 }}>
               Você receberá um e-mail de confirmação. Confirme sua inscrição para fazer o primeiro login.
             </Text>
