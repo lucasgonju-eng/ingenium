@@ -55,33 +55,50 @@ export default function CadastroScreen() {
       (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
     const emailRedirectTo = `${siteUrl.replace(/\/+$/, "")}/login`;
 
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        emailRedirectTo,
-        data: {
-          full_name: nome.trim(),
-          grade: serie,
-          cpf: onlyDigits(cpf),
-          whatsapp: onlyDigits(whatsapp) || null,
-          role: "student",
+    try {
+      setLoading(true);
+      // Evita conflito com token local antigo quando usuários foram apagados para reteste.
+      await supabase.auth.signOut({ scope: "local" });
+
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo,
+          data: {
+            full_name: nome.trim(),
+            grade: serie,
+            cpf: onlyDigits(cpf),
+            whatsapp: onlyDigits(whatsapp) || null,
+            role: "student",
+          },
         },
-      },
-    });
-    setLoading(false);
+      });
 
-    if (error) {
-      Alert.alert("Erro no cadastro", error.message);
-      return;
+      if (error) {
+        const msg = String(error.message ?? "").toLowerCase();
+        if (msg.includes("rate limit") || msg.includes("over_email_send_rate_limit") || msg.includes("too many requests")) {
+          Alert.alert(
+            "Aguarde para reenviar",
+            "Você atingiu o limite temporário de envio de e-mails de confirmação. Aguarde alguns minutos e tente novamente.",
+          );
+          return;
+        }
+        Alert.alert("Erro no cadastro", error.message);
+        return;
+      }
+
+      Alert.alert(
+        "Confirme sua inscrição",
+        "Enviamos um e-mail de confirmação. Confirme o link para liberar seu primeiro login.",
+      );
+      router.replace("/(auth)/login");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao criar conta.";
+      Alert.alert("Erro no cadastro", message);
+    } finally {
+      setLoading(false);
     }
-
-    Alert.alert(
-      "Confirme sua inscrição",
-      "Enviamos um e-mail de confirmação. Confirme o link para liberar seu primeiro login.",
-    );
-    router.replace("/(auth)/login");
   };
 
   return (

@@ -30,7 +30,18 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
     async function loadProfile() {
       try {
         const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
+        if (userError) {
+          const message = String(userError.message ?? "").toLowerCase();
+          if (message.includes("user from sub claim in jwt does not exist")) {
+            await supabase.auth.signOut({ scope: "local" });
+            if (!mounted) return;
+            setIsAuthenticated(false);
+            setFullName("Aluno");
+            setAvatarUrl(null);
+            return;
+          }
+          throw userError;
+        }
         const user = userData.user ?? null;
         if (!mounted) return;
 
