@@ -98,12 +98,14 @@ export const planosContent = {
   ] as PlanItem[],
   faq: [
     {
-      question: "Como funciona o cancelamento?",
-      answer: "O cancelamento pode ser solicitado pela família conforme regras do contrato vigente.",
+      question: "Posso cancelar?",
+      answer:
+        "Não. O valor pago é sobre o serviço anual da taxa de conveniência de todas as olimpíadas oferecidas no Plano PRO. Caso não seja usado, o valor pago não é ressarcido.",
     },
     {
       question: "Qual o período de fidelidade?",
-      answer: "O plano segue ciclo anual com pagamento mensal. Consulte condições no termo de adesão.",
+      answer:
+        "O período vai até 31 de dezembro das Olimpíadas inscritas no ano corrente. Exemplo: se uma Olimpíada nacional teve a inscrição em 2026 e a última etapa em 2027, ela está inclusa no Plano PRO. Caso a Olimpíada seja referente ao ano seguinte (2027, por exemplo), ela só estará inclusa na renovação da assinatura do Plano PRO.",
     },
     {
       question: "Quais provas estão inclusas no PRO?",
@@ -111,7 +113,8 @@ export const planosContent = {
     },
     {
       question: "Posso migrar do FREE para o PRO?",
-      answer: "Sim. A migração pode ser feita durante o período letivo, com ajuste proporcional quando aplicável.",
+      answer:
+        "Sim, porém ele se encerrará em 31 de dezembro do ano corrente da assinatura. Não há diminuição do valor sobre o serviço de conveniência.",
     },
   ] as FaqItem[],
 };
