@@ -50,6 +50,17 @@ function normalizeForRules(string $text): string {
   return is_string($compact) ? trim($compact) : trim($clean);
 }
 
+function parseLooseBoolean(mixed $value): bool {
+  if (is_bool($value)) return $value;
+  if (is_int($value) || is_float($value)) return ((float) $value) !== 0.0;
+  if (is_string($value)) {
+    $v = trim(mb_strtolower($value, "UTF-8"));
+    if ($v === "true" || $v === "1" || $v === "sim" || $v === "yes") return true;
+    if ($v === "false" || $v === "0" || $v === "nao" || $v === "não" || $v === "no") return false;
+  }
+  return false;
+}
+
 /**
  * @return array{approved:bool,reason:string,category:string,score:float}|null
  */
@@ -211,7 +222,7 @@ if (!is_array($parsed)) {
 $category = (string) ($parsed["category"] ?? "other");
 $score = (float) ($parsed["score"] ?? 0.5);
 $score = max(0, min(1, $score));
-$approvedFromModel = (($parsed["approved"] ?? false) === true);
+$approvedFromModel = parseLooseBoolean($parsed["approved"] ?? false);
 $approved = $approvedFromModel && $category === "safe" && $score <= 0.3;
 
 if (!$approved) {
