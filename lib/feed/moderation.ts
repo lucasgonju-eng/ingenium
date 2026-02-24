@@ -9,6 +9,15 @@ function normalize(input: string) {
   return input
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[@]/g, "a")
+    .replace(/[0]/g, "o")
+    .replace(/[1!]/g, "i")
+    .replace(/[3]/g, "e")
+    .replace(/[4]/g, "a")
+    .replace(/[5$]/g, "s")
+    .replace(/[7]/g, "t")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
     .toLowerCase();
 }
 
@@ -46,7 +55,7 @@ const RULES: Array<{ category: FeedAIAuditResult["category"]; reason: string; re
   {
     category: "profanity",
     reason: "Palavras ofensivas não são permitidas no mural escolar.",
-    regex: /\b(porra|caralho|foda-se|fdp|pqp|puta\b|merda)\b/i,
+    regex: /\b(porra|caralho|foda\s*se|foder|fudid|fdp|pqp|puta\b|merda|bosta|otario|idiota|babaca|arrombado|desgraca)\b/i,
     score: 0.88,
   },
 ];
