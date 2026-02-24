@@ -34,6 +34,7 @@ jobs:
           ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN }}
           ASAAS_ENABLE_CHECKOUT_CALLBACK: ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }}
           ASAAS_CHECKOUT_SUCCESS_URL: ${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
             echo "::error::Missing EXPO_PUBLIC_SUPABASE_URL (GitHub Secret)."
@@ -63,6 +64,10 @@ jobs:
             echo "::error::Missing ASAAS_CHECKOUT_SUCCESS_URL (GitHub Secret)."
             exit 1
           fi
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::Missing OPENAI_API_KEY (GitHub Secret)."
+            exit 1
+          fi
 
       - name: Build Expo Web (static export)
         env:
@@ -77,6 +82,7 @@ jobs:
           RewriteEngine On
           RewriteBase /
           RewriteRule ^asaas-config\.json$ - [F,L]
+          RewriteRule ^ai-audit-config\.json$ - [F,L]
           RewriteRule ^logs/ - [F,L]
           RewriteCond %{REQUEST_FILENAME} -f [OR]
           RewriteCond %{REQUEST_FILENAME} -d
@@ -91,6 +97,7 @@ jobs:
           cp hostinger/upload-avatar.php dist/upload-avatar.php
           cp hostinger/asaas-create-checkout.php dist/asaas-create-checkout.php
           cp hostinger/asaas-webhook.php dist/asaas-webhook.php
+          cp hostinger/ai-feed-audit.php dist/ai-feed-audit.php
           cat > dist/asaas-config.json <<'EOF'
           {
             "apiKey": "${{ secrets.ASAAS_API_KEY }}",
@@ -98,6 +105,11 @@ jobs:
             "webhookToken": "${{ secrets.ASAAS_WEBHOOK_TOKEN }}",
             "enableCheckoutCallback": ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }},
             "checkoutSuccessUrl": "${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}"
+          }
+          EOF
+          cat > dist/ai-audit-config.json <<'EOF'
+          {
+            "openAiApiKey": "${{ secrets.OPENAI_API_KEY }}"
           }
           EOF
 
