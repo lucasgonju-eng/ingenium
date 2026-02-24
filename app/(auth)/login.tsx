@@ -13,6 +13,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const handleLogin = async () => {
@@ -73,6 +74,38 @@ export default function LoginScreen() {
       Alert.alert("Erro", message);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) {
+      Alert.alert("Informe seu e-mail", "Digite seu e-mail para reenviar a confirmação de cadastro.");
+      return;
+    }
+
+    try {
+      setResendLoading(true);
+      const siteUrl =
+        process.env.EXPO_PUBLIC_SITE_URL ??
+        (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+      const emailRedirectTo = `${siteUrl.replace(/\/+$/, "")}/login`;
+
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: { emailRedirectTo },
+      });
+      if (error) {
+        Alert.alert("Erro ao reenviar", error.message);
+        return;
+      }
+
+      Alert.alert("Confirmação reenviada", "Verifique seu e-mail e clique no link para liberar o login.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível reenviar a confirmação.";
+      Alert.alert("Erro", message);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -179,6 +212,17 @@ export default function LoginScreen() {
             >
               <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="semibold">
                 {resetLoading ? "Enviando..." : "Esqueci minha senha"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                void handleResendConfirmation();
+              }}
+              disabled={resendLoading}
+              style={{ marginTop: 6, alignSelf: "flex-end" }}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="semibold">
+                {resendLoading ? "Reenviando..." : "Reenviar e-mail de confirmação"}
               </Text>
             </Pressable>
             {errorText ? (
