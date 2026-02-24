@@ -25,6 +25,7 @@ export default function MuralScreen() {
   const [lastError, setLastError] = useState<string | null>(null);
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
+  const [postFeedback, setPostFeedback] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
   const FEED_MOCK_ENABLED = __DEV__ && process.env.EXPO_PUBLIC_FEED_MOCK === "1";
 
   async function load() {
@@ -85,32 +86,40 @@ export default function MuralScreen() {
   }, []);
 
   async function handleCreatePost() {
+    setPostFeedback(null);
+
     if (!hasUser) {
       Alert.alert("Sessão necessária", "Faça login para publicar no mural.");
+      setPostFeedback({ kind: "error", message: "Faça login para publicar no mural." });
       return;
     }
 
     const message = newPost.trim();
     if (!message) {
       Alert.alert("Post vazio", "Digite uma mensagem para publicar.");
-      return;
-    }
-
-    const audit = await runFeedAIAudit(message);
-    if (!audit.approved) {
-      Alert.alert("Conteúdo bloqueado", `${audit.reason}\n\nCategoria: ${audit.category} • Score: ${audit.score.toFixed(2)}`);
+      setPostFeedback({ kind: "error", message: "Digite uma mensagem para publicar." });
       return;
     }
 
     try {
       setPosting(true);
+      const audit = await runFeedAIAudit(message);
+      if (!audit.approved) {
+        const feedback = `${audit.reason} (categoria: ${audit.category})`;
+        Alert.alert("Conteúdo bloqueado", `${audit.reason}\n\nCategoria: ${audit.category} • Score: ${audit.score.toFixed(2)}`);
+        setPostFeedback({ kind: "error", message: feedback });
+        return;
+      }
+
       const created = await createFeedPost(message);
       setRows((prev) => [created, ...prev]);
       setNewPost("");
       setState("READY");
+      setPostFeedback({ kind: "ok", message: "Post publicado com sucesso." });
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : "Falha ao publicar no mural.";
       Alert.alert("Erro ao publicar", errMsg);
+      setPostFeedback({ kind: "error", message: errMsg });
     } finally {
       setPosting(false);
     }
@@ -218,6 +227,17 @@ export default function MuralScreen() {
                   </Text>
                 </Pressable>
               </View>
+              {postFeedback ? (
+                <Text
+                  style={{
+                    marginTop: spacing.xs,
+                    color: postFeedback.kind === "ok" ? "#9EE6B8" : "#FFB4B4",
+                    fontSize: 12,
+                  }}
+                >
+                  {postFeedback.message}
+                </Text>
+              ) : null}
             </View>
           </View>
         }
