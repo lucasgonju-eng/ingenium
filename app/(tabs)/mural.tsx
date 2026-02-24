@@ -11,7 +11,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { createFeedPost, fetchFeedPosts, FeedPost } from "../../lib/supabase/queries";
-import { runFeedAIAudit } from "../../lib/feed/moderation";
+import { runFeedAIAudit } from "../../lib/feed/aiAudit";
 import { getSessionUser } from "../../lib/supabase/session";
 import { colors, radii, spacing } from "../../lib/theme/tokens";
 import { router } from "expo-router";
@@ -96,7 +96,7 @@ export default function MuralScreen() {
       return;
     }
 
-    const audit = runFeedAIAudit(message);
+    const audit = await runFeedAIAudit(message);
     if (!audit.approved) {
       Alert.alert("Conteúdo bloqueado", `${audit.reason}\n\nCategoria: ${audit.category} • Score: ${audit.score.toFixed(2)}`);
       return;
