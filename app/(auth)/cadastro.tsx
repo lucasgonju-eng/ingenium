@@ -57,9 +57,6 @@ export default function CadastroScreen() {
 
     try {
       setLoading(true);
-      // Evita conflito com token local antigo quando usuários foram apagados para reteste.
-      await supabase.auth.signOut({ scope: "local" });
-
       const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -79,8 +76,8 @@ export default function CadastroScreen() {
         const msg = String(error.message ?? "").toLowerCase();
         if (msg.includes("rate limit") || msg.includes("over_email_send_rate_limit") || msg.includes("too many requests")) {
           Alert.alert(
-            "Aguarde para reenviar",
-            "Você atingiu o limite temporário de envio de e-mails de confirmação. Aguarde alguns minutos e tente novamente.",
+            "Limite de envio atingido",
+            "Muitas confirmações foram solicitadas em pouco tempo. Aguarde alguns minutos e tente novamente ou use outro horário.",
           );
           return;
         }
