@@ -223,7 +223,12 @@ $category = (string) ($parsed["category"] ?? "other");
 $score = (float) ($parsed["score"] ?? 0.5);
 $score = max(0, min(1, $score));
 $approvedFromModel = parseLooseBoolean($parsed["approved"] ?? false);
-$approved = $approvedFromModel && $category === "safe" && $score <= 0.3;
+$categorySafe = (mb_strtolower(trim($category), "UTF-8") === "safe");
+$reasonText = mb_strtolower(trim((string) ($parsed["reason"] ?? "")), "UTF-8");
+$reasonSuggestsSafe = (strpos($reasonText, "adequad") !== false || strpos($reasonText, "seguro") !== false);
+
+// Gate menos rígido: se vier "safe", aceitamos score moderado.
+$approved = $categorySafe && ($approvedFromModel || $score <= 0.7 || $reasonSuggestsSafe);
 
 if (!$approved) {
   respondJson(200, [
