@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, View } from "react-native";
+import { Alert, FlatList, Pressable, TextInput, View } from "react-native";
 import FeedEmptyState from "../../components/feed/FeedEmptyState";
 import FeedNoPermissionState from "../../components/feed/FeedNoPermissionState";
 import FeedNoSessionState from "../../components/feed/FeedNoSessionState";
@@ -10,7 +10,8 @@ import { getMockFeedPosts } from "../../components/feed/mockFeed";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { fetchFeedPosts, FeedPost } from "../../lib/supabase/queries";
+import { createFeedPost, fetchFeedPosts, FeedPost } from "../../lib/supabase/queries";
+import { runFeedAIAudit } from "../../lib/feed/moderation";
 import { getSessionUser } from "../../lib/supabase/session";
 import { colors, radii, spacing } from "../../lib/theme/tokens";
 import { router } from "expo-router";
@@ -22,6 +23,8 @@ export default function MuralScreen() {
   const [rows, setRows] = useState<FeedPost[]>([]);
   const [hasUser, setHasUser] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [newPost, setNewPost] = useState("");
+  const [posting, setPosting] = useState(false);
   const FEED_MOCK_ENABLED = __DEV__ && process.env.EXPO_PUBLIC_FEED_MOCK === "1";
 
   async function load() {
@@ -81,6 +84,38 @@ export default function MuralScreen() {
     void load();
   }, []);
 
+  async function handleCreatePost() {
+    if (!hasUser) {
+      Alert.alert("Sessão necessária", "Faça login para publicar no mural.");
+      return;
+    }
+
+    const message = newPost.trim();
+    if (!message) {
+      Alert.alert("Post vazio", "Digite uma mensagem para publicar.");
+      return;
+    }
+
+    const audit = runFeedAIAudit(message);
+    if (!audit.approved) {
+      Alert.alert("Conteúdo bloqueado", `${audit.reason}\n\nCategoria: ${audit.category} • Score: ${audit.score.toFixed(2)}`);
+      return;
+    }
+
+    try {
+      setPosting(true);
+      const created = await createFeedPost(message);
+      setRows((prev) => [created, ...prev]);
+      setNewPost("");
+      setState("READY");
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : "Falha ao publicar no mural.";
+      Alert.alert("Erro ao publicar", errMsg);
+    } finally {
+      setPosting(false);
+    }
+  }
+
   const filteredRows = useMemo(() => {
     return rows;
   }, [rows]);
@@ -124,12 +159,73 @@ export default function MuralScreen() {
             {devStrip}
 
             <FeedTabs />
+
+            <View
+              style={{
+                marginTop: spacing.sm,
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.sm,
+              }}
+            >
+              <Text style={{ color: colors.white, marginBottom: spacing.xs }} weight="semibold">
+                Compartilhar no mural
+              </Text>
+              <TextInput
+                value={newPost}
+                onChangeText={setNewPost}
+                editable={!posting && hasUser}
+                multiline
+                numberOfLines={4}
+                maxLength={400}
+                placeholder={hasUser ? "Escreva sua postagem..." : "Faça login para publicar no mural"}
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                style={{
+                  minHeight: 92,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.xs,
+                  textAlignVertical: "top",
+                }}
+              />
+              <View style={{ marginTop: spacing.xs, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+                  Auditoria IA ativa para conteúdo adequado a menores de 12 anos.
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    void handleCreatePost();
+                  }}
+                  disabled={posting || !hasUser}
+                  style={{
+                    height: 36,
+                    borderRadius: radii.md,
+                    paddingHorizontal: spacing.sm,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: colors.einsteinYellow,
+                    opacity: posting || !hasUser ? 0.6 : 1,
+                  }}
+                >
+                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                    {posting ? "Publicando..." : "Postar"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
         }
         renderItem={({ item }) => (
           <View style={{ marginHorizontal: spacing.md }}>
             <FeedPostCard
-              authorName="Comunidade InGenium"
+              authorName={item.author_name?.trim() || "Comunidade InGenium"}
+              authorAvatar={item.author_avatar}
               body={item.content}
               createdAt={item.created_at}
               kind={(item as FeedPost & { kind?: "announcement" | "highlight" | "tip" }).kind}

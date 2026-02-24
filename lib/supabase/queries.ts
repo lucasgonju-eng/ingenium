@@ -325,13 +325,71 @@ export type FeedPost = {
   author_id: string;
   content: string;
   created_at: string;
+  author_name: string | null;
+  author_avatar: string | null;
 };
 
 export async function fetchFeedPosts(limit = 30) {
   const { data, error } = await supabase
     .from("wall_posts")
-    .select("id,author_id,content,created_at")
+    .select("id,author_id,content,created_at,profiles:author_id(full_name,avatar_url)")
     .order("created_at", { ascending: false })
     .limit(limit);
-  return { data: (data ?? []) as FeedPost[], error };
+
+  const mapped = ((data ?? []) as Array<{
+    id: string;
+    author_id: string;
+    content: string;
+    created_at: string;
+    profiles?: { full_name?: string | null; avatar_url?: string | null } | null;
+  }>).map((row) => ({
+    id: row.id,
+    author_id: row.author_id,
+    content: row.content,
+    created_at: row.created_at,
+    author_name: row.profiles?.full_name ?? null,
+    author_avatar: row.profiles?.avatar_url ?? null,
+  }));
+
+  return { data: mapped as FeedPost[], error };
+}
+
+export async function createFeedPost(content: string) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login para publicar no mural.");
+
+  const cleanContent = content.trim();
+  if (!cleanContent) throw new Error("Digite uma mensagem antes de publicar.");
+
+  const { data, error } = await supabase
+    .from("wall_posts")
+    .insert({
+      author_id: user.id,
+      content: cleanContent,
+    })
+    .select("id,author_id,content,created_at,profiles:author_id(full_name,avatar_url)")
+    .single();
+
+  if (error) throw error;
+
+  const row = data as {
+    id: string;
+    author_id: string;
+    content: string;
+    created_at: string;
+    profiles?: { full_name?: string | null; avatar_url?: string | null } | null;
+  };
+
+  return {
+    id: row.id,
+    author_id: row.author_id,
+    content: row.content,
+    created_at: row.created_at,
+    author_name: row.profiles?.full_name ?? null,
+    author_avatar: row.profiles?.avatar_url ?? null,
+  } as FeedPost;
 }
