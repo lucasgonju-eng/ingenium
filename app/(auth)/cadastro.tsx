@@ -258,8 +258,26 @@ export default function CadastroScreen() {
               </Pressable>
             </View>
             <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.sm, lineHeight: 20 }}>
-              Você receberá um e-mail de confirmação. Confirme sua inscrição para fazer o primeiro login.
+              Você receberá um e-mail de confirmação logo após criar sua conta.
             </Text>
+            <View
+              style={{
+                marginTop: spacing.xs,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: "rgba(255,199,0,0.10)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow, lineHeight: 20 }} weight="bold">
+                Importante: abra seu e-mail e clique no link de confirmação.
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2, lineHeight: 18 }}>
+                Sem essa confirmação, seu primeiro login fica bloqueado.
+              </Text>
+            </View>
 
             <Pressable
               onPress={handleSignUp}

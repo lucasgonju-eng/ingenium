@@ -97,9 +97,24 @@ export default function LoginScreen() {
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
               Entrar com e-mail
             </Text>
-            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
-              Já confirmou sua inscrição no e-mail? Isso acontece apenas no primeiro acesso.
-            </Text>
+            <View
+              style={{
+                marginTop: spacing.xs,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: "rgba(255,199,0,0.10)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow, lineHeight: 20 }} weight="bold">
+                Importante: confirme seu cadastro no e-mail antes de tentar entrar.
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2, lineHeight: 18 }}>
+                Sem clicar no link de confirmação, o login não será liberado.
+              </Text>
+            </View>
 
             <TextInput
               placeholder="E-mail"
