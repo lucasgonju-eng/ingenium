@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
+import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import { fetchPublicRankingTeaser } from "../../lib/supabase/queries";
@@ -11,6 +12,7 @@ import { copy } from "../../content/copy";
 type TeaserRow = {
   rank: number;
   full_name: string | null;
+  avatar_url: string | null;
   total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
 };
@@ -43,8 +45,7 @@ export default function MarketingLandingScreen() {
   }, []);
 
   const rankingRows = rows;
-  const podium = rankingRows.slice(0, 3);
-  const teaserList = rankingRows.slice(3, 6);
+  const teaserList = rankingRows.slice(0, 6);
 
   return (
     <StitchScreenFrame>
@@ -99,39 +100,7 @@ export default function MarketingLandingScreen() {
             </View>
           ) : (
             <View style={{ marginTop: spacing.sm }}>
-              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-                {podium.map((r) => {
-                  const scale = r.rank === 1 ? 1 : 0.88;
-                  return (
-                    <View key={`${r.rank}-${r.full_name ?? "sem-nome"}`} style={{ alignItems: "center", flex: 1 }}>
-                      <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11 }} weight="semibold">
-                        {r.rank}º
-                      </Text>
-                      <View
-                        style={{
-                          marginTop: 6,
-                          width: 74 * scale,
-                          borderRadius: radii.md,
-                          paddingVertical: 10,
-                          backgroundColor: r.rank === 1 ? "rgba(255,199,0,0.18)" : "rgba(255,255,255,0.08)",
-                          borderWidth: 1,
-                          borderColor: r.rank === 1 ? "rgba(255,199,0,0.35)" : colors.borderSoft,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text style={{ color: colors.white, fontSize: 12 }} weight="bold">
-                          {r.full_name ?? "Sem nome"}
-                        </Text>
-                        <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: 10, marginTop: 2 }} weight="semibold">
-                          {r.total_points.toLocaleString("pt-BR")}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-
-              <View style={{ marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderSoft, paddingTop: spacing.sm }}>
+              <View style={{ marginTop: spacing.xs }}>
                 {teaserList.map((r) => (
                   <View
                     key={`${r.rank}-${r.full_name ?? "sem-nome"}-list`}
@@ -142,12 +111,20 @@ export default function MarketingLandingScreen() {
                       paddingVertical: 8,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.76)", width: 24 }} weight="bold">
-                      {r.rank}
-                    </Text>
-                    <Text style={{ color: colors.white, flex: 1 }} weight="semibold">
-                      {r.full_name ?? "Sem nome"}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.xs }}>
+                      <Text style={{ color: "rgba(255,255,255,0.76)", width: 24 }} weight="bold">
+                        {r.rank}
+                      </Text>
+                      <AvatarWithFallback fullName={r.full_name} avatarUrl={r.avatar_url} size={34} />
+                      <Text
+                        style={{ color: colors.white, flex: 1 }}
+                        weight="semibold"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {r.full_name ?? "Sem nome"}
+                      </Text>
+                    </View>
                     <Text style={{ color: "rgba(255,255,255,0.8)" }} weight="bold">
                       {r.total_points.toLocaleString("pt-BR")} pts
                     </Text>

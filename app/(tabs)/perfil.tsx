@@ -167,6 +167,7 @@ export default function PerfilScreen() {
       Alert.alert("Erro", "Usuário não identificado para upload da foto.");
       return;
     }
+    const hadAvatarBeforeUpload = Boolean((avatarUrl ?? "").trim());
     try {
       setSaving(true);
       const formData = new FormData();
@@ -237,6 +238,15 @@ export default function PerfilScreen() {
 
       const publicUrl = uploadJson.url;
       setAvatarUrl(publicUrl);
+
+      // Concede XP apenas na primeira foto de perfil para evitar duplicidade.
+      if (!hadAvatarBeforeUpload) {
+        const { error: xpError } = await supabase.rpc("award_profile_photo_xp_once");
+        if (xpError) {
+          console.warn("[perfil] Falha ao conceder XP por foto de perfil:", xpError.message);
+        }
+      }
+
       Alert.alert("Foto atualizada", "Sua nova foto foi carregada.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível enviar a foto.";

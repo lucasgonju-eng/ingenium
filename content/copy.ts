@@ -16,6 +16,12 @@ export const copy = {
       "No InGenium, o XP é acumulado por participação, resultado e constância. A classificação é definida exclusivamente pelo desempenho acumulado.",
     xpRules: [
       {
+        key: "profile-photo-upload",
+        label: "Inserir foto de perfil",
+        criteria: "Adicionar uma foto válida no perfil do aluno.",
+        xp: 50,
+      },
+      {
         key: "top10-school-mock",
         label: "Top 10 no Simulado da Escola",
         criteria: "Estar entre os 10 primeiros do simulado interno da escola.",

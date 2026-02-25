@@ -1,5 +1,6 @@
 -- Atualização institucional do sistema de XP (InGenium 2026)
 -- Regras oficiais:
+-- - Inserir foto de perfil: +50 XP
 -- - Top 10 no Simulado da Escola: +500 XP
 -- - Grupo de estudo semanal (>=75% no mês): +800 XP
 -- - Monitoria voluntária para Lobo de Bronze: +2000 XP
@@ -19,7 +20,8 @@ create table if not exists public.xp_events (
       'top10_school_simulado',
       'weekly_study_group_75_presence',
       'volunteer_mentorship_bronze',
-      'perfect_quarter_attendance'
+      'perfect_quarter_attendance',
+      'profile_photo_upload'
     )
   ),
   xp_amount integer not null check (xp_amount > 0),
@@ -73,6 +75,8 @@ immutable
 as $$
 begin
   case p_event_type
+    when 'profile_photo_upload' then
+      return 50;
     when 'top10_school_simulado' then
       return 500;
     when 'weekly_study_group_75_presence' then
