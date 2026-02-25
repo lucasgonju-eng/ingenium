@@ -42,16 +42,7 @@ export default function MarketingLandingScreen() {
     void load();
   }, []);
 
-  const rankingRows = rows.length > 0
-    ? rows
-    : [
-        { rank: 1, full_name: "Ana S.", total_points: 9800, lobo_class: "gold" as const },
-        { rank: 2, full_name: "João M.", total_points: 9750, lobo_class: "gold" as const },
-        { rank: 3, full_name: "Beatriz L.", total_points: 9600, lobo_class: "silver" as const },
-        { rank: 4, full_name: "Pedro H.", total_points: 9450, lobo_class: "silver" as const },
-        { rank: 5, full_name: "Luiza M.", total_points: 9320, lobo_class: "silver" as const },
-        { rank: 6, full_name: "Carlos E.", total_points: 9100, lobo_class: "bronze" as const },
-      ];
+  const rankingRows = rows;
   const podium = rankingRows.slice(0, 3);
   const teaserList = rankingRows.slice(3, 6);
 
@@ -99,6 +90,12 @@ export default function MarketingLandingScreen() {
           {loading ? (
             <View style={{ marginTop: spacing.md, alignItems: "center" }}>
               <ActivityIndicator color={colors.einsteinYellow} />
+            </View>
+          ) : rankingRows.length === 0 ? (
+            <View style={{ marginTop: spacing.sm }}>
+              <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                Sem dados de ranking ao vivo no momento.
+              </Text>
             </View>
           ) : (
             <View style={{ marginTop: spacing.sm }}>
