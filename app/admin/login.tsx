@@ -178,11 +178,7 @@ export default function AdminLoginScreen() {
               <Text style={{ color: "#fca5a5", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
                 {errorText}
               </Text>
-            ) : (
-              <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
-                Use `admin` ou `lucasgonju@gmail.com` no campo Login.
-              </Text>
-            )}
+            ) : null}
           </View>
         </View>
       </ScrollView>
