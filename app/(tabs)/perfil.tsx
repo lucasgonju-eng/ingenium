@@ -7,7 +7,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
-import { fetchMyProfile, upsertMyProfile } from "../../lib/supabase/queries";
+import { fetchMyAccessRole, fetchMyProfile, upsertMyProfile } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 const SERIES_OPTIONS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
@@ -63,11 +63,19 @@ export default function PerfilScreen() {
   const [whatsapp, setWhatsapp] = useState("");
   const [className, setClassName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isAdminAccount, setIsAdminAccount] = useState(false);
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
+  const [savingAdminPassword, setSavingAdminPassword] = useState(false);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const [{ data: userData }, profile] = await Promise.all([supabase.auth.getUser(), fetchMyProfile()]);
+      const [{ data: userData }, profile, accessRole] = await Promise.all([
+        supabase.auth.getUser(),
+        fetchMyProfile(),
+        fetchMyAccessRole(),
+      ]);
       const metadata = userData.user?.user_metadata ?? {};
       setUserId(userData.user?.id ?? null);
 
@@ -78,11 +86,44 @@ export default function PerfilScreen() {
       setEmail(userData.user?.email ?? "");
       setClassName(profile?.class_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
+      setIsAdminAccount(accessRole === "admin" || accessRole === "coord");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível carregar seu perfil.";
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdminPasswordChange = async () => {
+    if (!newAdminPassword || !confirmAdminPassword) {
+      Alert.alert("Campos obrigatórios", "Preencha nova senha e confirmação.");
+      return;
+    }
+    if (newAdminPassword.length < 8) {
+      Alert.alert("Senha fraca", "Use pelo menos 8 caracteres.");
+      return;
+    }
+    if (newAdminPassword !== confirmAdminPassword) {
+      Alert.alert("Confirmação inválida", "A confirmação da senha não confere.");
+      return;
+    }
+
+    try {
+      setSavingAdminPassword(true);
+      const { error } = await supabase.auth.updateUser({
+        password: newAdminPassword,
+        data: { admin_must_change_password: false },
+      });
+      if (error) throw error;
+      setNewAdminPassword("");
+      setConfirmAdminPassword("");
+      Alert.alert("Senha atualizada", "A senha do admin foi atualizada com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível atualizar a senha.";
+      Alert.alert("Erro", message);
+    } finally {
+      setSavingAdminPassword(false);
     }
   };
 
@@ -448,6 +489,84 @@ export default function PerfilScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {isAdminAccount ? (
+            <View
+              style={{
+                marginTop: spacing.md,
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+              }}
+            >
+              <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+                Segurança do admin
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
+                Troque a senha da conta administrativa.
+              </Text>
+
+              <TextInput
+                placeholder="Nova senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={newAdminPassword}
+                onChangeText={setNewAdminPassword}
+                style={{
+                  marginTop: spacing.sm,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <TextInput
+                placeholder="Confirmar senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={confirmAdminPassword}
+                onChangeText={setConfirmAdminPassword}
+                style={{
+                  marginTop: spacing.xs,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <Pressable
+                onPress={() => {
+                  void handleAdminPasswordChange();
+                }}
+                disabled={savingAdminPassword}
+                style={{
+                  marginTop: spacing.md,
+                  height: 46,
+                  borderRadius: radii.md,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: colors.einsteinYellow,
+                  opacity: savingAdminPassword ? 0.7 : 1,
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  {savingAdminPassword ? "Atualizando..." : "Atualizar senha"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <Pressable onPress={handleSignOut} style={{ marginTop: spacing.md }}>
             <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
