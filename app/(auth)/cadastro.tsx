@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { clearLocalSignupTermsAcceptance, getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
+import { getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -107,7 +107,6 @@ export default function CadastroScreen() {
         "Confirme sua inscrição",
         "Enviamos um e-mail de confirmação. Confirme o link para liberar seu primeiro login.",
       );
-      clearLocalSignupTermsAcceptance();
       router.replace("/(auth)/login");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao criar conta.";
