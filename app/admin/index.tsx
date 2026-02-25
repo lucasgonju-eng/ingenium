@@ -41,7 +41,7 @@ export default function AdminDashboardScreen() {
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) {
-          router.replace("/(auth)/login");
+          router.replace("/admin/login");
           return;
         }
 
@@ -166,7 +166,7 @@ export default function AdminDashboardScreen() {
                 {errorText ?? "Faça login com usuário admin/coordenador para acessar este painel."}
               </Text>
               <Pressable
-                onPress={() => router.replace("/(auth)/login")}
+                onPress={() => router.replace("/admin/login")}
                 style={{
                   marginTop: spacing.sm,
                   height: 44,

@@ -149,7 +149,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
             >
               {isMarketingHome ? (
                 <Pressable
-                  onPress={() => router.push("/admin")}
+                  onPress={() => router.push("/admin/login")}
                   style={{
                     height: 34,
                     paddingHorizontal: spacing.sm,
