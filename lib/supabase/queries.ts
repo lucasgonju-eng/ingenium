@@ -362,19 +362,27 @@ export async function upsertMyProfile(input: Omit<ProfileRow, "id">) {
 export async function fetchRegisteredStudents() {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,full_name,grade,avatar_url")
-    .not("full_name", "is", null)
+    .select("id,full_name,grade,avatar_url,role")
+    .neq("role", "admin")
+    .neq("role", "coord")
     .order("full_name", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as RegisteredStudentRow[];
+  return ((data ?? []) as Array<RegisteredStudentRow & { role?: string | null }>)
+    .map((row) => ({
+      id: row.id,
+      full_name: row.full_name ?? "Aluno",
+      grade: row.grade ?? null,
+      avatar_url: row.avatar_url ?? null,
+    }));
 }
 
 export async function fetchRankingAllRegisteredStudents(limit = 500) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,full_name,avatar_url,grade,points(total_points,lobo_class)")
-    .not("full_name", "is", null)
+    .select("id,full_name,avatar_url,grade,role,points(total_points,lobo_class)")
+    .neq("role", "admin")
+    .neq("role", "coord")
     .order("full_name", { ascending: true })
     .limit(limit);
 
@@ -385,6 +393,7 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
     full_name: string | null;
     avatar_url: string | null;
     grade: string | null;
+    role?: string | null;
     points?:
       | { total_points?: number | null; lobo_class?: string | null }
       | Array<{ total_points?: number | null; lobo_class?: string | null }>
@@ -393,7 +402,7 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
     const pointsData = Array.isArray(row.points) ? row.points[0] ?? null : row.points ?? null;
     return {
       user_id: row.id,
-      full_name: row.full_name,
+      full_name: row.full_name ?? "Aluno",
       avatar_url: row.avatar_url,
       grade: row.grade ?? null,
       total_points: Number(pointsData?.total_points ?? 0),
@@ -410,6 +419,39 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
     position: idx + 1,
     ...row,
   })) as RankingStudentRow[];
+}
+
+export async function ensureCurrentUserProfileFromAuthMetadata() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) return null;
+
+  const metadata = user.user_metadata ?? {};
+  const fullName = String(metadata.full_name ?? "").trim() || (user.email?.split("@")[0] ?? "Aluno");
+  const grade = String(metadata.grade ?? "").trim() || null;
+  const roleRaw = String(metadata.role ?? "").trim().toLowerCase();
+  const role = roleRaw === "admin" || roleRaw === "coord" || roleRaw === "student" ? roleRaw : "student";
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: user.id,
+        full_name: fullName,
+        grade,
+        role,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    )
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 export type FeedPost = {

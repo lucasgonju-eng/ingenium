@@ -7,6 +7,7 @@ import { Text } from "../../components/ui/Text";
 import { acceptLatestTerms, hasAcceptedLatestTerms } from "../../lib/legal/consent";
 import { clearLocalSignupTermsAcceptance, getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
 import { supabase } from "../../lib/supabase/client";
+import { ensureCurrentUserProfileFromAuthMetadata } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 export default function LoginScreen() {
@@ -41,6 +42,7 @@ export default function LoginScreen() {
 
       // Garante leitura do usuário autenticado mais recente antes de navegar.
       await supabase.auth.getUser();
+      await ensureCurrentUserProfileFromAuthMetadata();
 
       const pendingTerms = getLocalSignupTermsAcceptance();
       if (pendingTerms?.accepted && pendingTerms.termsVersionId) {
