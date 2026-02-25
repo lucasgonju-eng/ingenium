@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
@@ -26,6 +26,10 @@ const GRADE_ORDER = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "
 export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [students, setStudents] = useState<RegisteredStudentRow[]>([]);
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
@@ -44,6 +48,9 @@ export default function AdminDashboardScreen() {
           router.replace("/admin/login");
           return;
         }
+
+        const mustChange = Boolean(user.user_metadata?.admin_must_change_password);
+        setMustChangePassword(mustChange);
 
         const role = await fetchMyAccessRole();
         if (role !== "admin" && role !== "coord") {
@@ -74,6 +81,42 @@ export default function AdminDashboardScreen() {
       mounted = false;
     };
   }, []);
+
+  async function handleChangePasswordNow() {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert("Campos obrigatórios", "Preencha senha e confirmação.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert("Senha fraca", "Use pelo menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Confirmação inválida", "A confirmação da senha não confere.");
+      return;
+    }
+
+    try {
+      setSavingPassword(true);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: { admin_must_change_password: false },
+      });
+      if (error) {
+        Alert.alert("Erro", error.message);
+        return;
+      }
+      setMustChangePassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      Alert.alert("Senha atualizada", "A nova senha foi salva com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao atualizar senha.";
+      Alert.alert("Erro", message);
+    } finally {
+      setSavingPassword(false);
+    }
+  }
 
   const kpis = useMemo(() => {
     const totalStudents = students.length;
@@ -178,6 +221,81 @@ export default function AdminDashboardScreen() {
               >
                 <Text style={{ color: colors.einsteinBlue }} weight="bold">
                   Entrar como admin
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : mustChangePassword ? (
+          <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.md }}>
+            <View
+              style={{
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+              }}
+            >
+              <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+                Primeiro acesso do admin
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: spacing.xs, lineHeight: 20 }}>
+                Defina sua senha agora para liberar o dashboard administrativo.
+              </Text>
+
+              <TextInput
+                placeholder="Nova senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+                style={{
+                  marginTop: spacing.sm,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+              <TextInput
+                placeholder="Confirmar senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                style={{
+                  marginTop: spacing.xs,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+              <Pressable
+                onPress={() => {
+                  void handleChangePasswordNow();
+                }}
+                disabled={savingPassword}
+                style={{
+                  marginTop: spacing.md,
+                  height: 46,
+                  borderRadius: radii.md,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: colors.einsteinYellow,
+                  opacity: savingPassword ? 0.7 : 1,
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  {savingPassword ? "Salvando..." : "Salvar senha e continuar"}
                 </Text>
               </Pressable>
             </View>
