@@ -351,64 +351,6 @@ export default function DashboardScreen() {
           }}
         >
           <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-            Alunos cadastrados
-          </Text>
-          {gradesOrder.map((grade) => {
-            const students = studentsByGrade[grade] ?? [];
-            return (
-              <View key={grade} style={{ marginTop: spacing.sm }}>
-                <Text style={{ color: colors.einsteinYellow }} weight="semibold">
-                  {grade}
-                </Text>
-                {students.length === 0 ? (
-                  <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 4, fontSize: typography.small.fontSize }}>
-                    Nenhum aluno cadastrado.
-                  </Text>
-                ) : (
-                  <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
-                    {students.map((student) => (
-                      <View
-                        key={student.id}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: spacing.xs,
-                          borderRadius: radii.md,
-                          borderWidth: 1,
-                          borderColor: colors.borderSoft,
-                          backgroundColor: "rgba(255,255,255,0.03)",
-                          paddingHorizontal: spacing.sm,
-                          paddingVertical: spacing.xs,
-                        }}
-                      >
-                        <AvatarWithFallback
-                          fullName={student.full_name ?? "Aluno"}
-                          avatarUrl={student.avatar_url}
-                          size={32}
-                        />
-                        <Text style={{ color: "white", flex: 1 }} weight="semibold">
-                          {student.full_name?.trim() || "Aluno sem nome"}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        <View
-          style={{
-            marginTop: spacing.xl,
-            borderRadius: radii.md,
-            padding: sizes.compactCardPadding,
-            backgroundColor: colors.surfaceCard,
-            borderWidth: 1,
-            borderColor: colors.borderSoft,
-          }}
-        >
-          <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
             Ranking Geral
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
@@ -493,6 +435,64 @@ export default function DashboardScreen() {
               </>
             )}
           </View>
+        </View>
+
+        <View
+          style={{
+            marginTop: spacing.xl,
+            borderRadius: radii.md,
+            padding: sizes.compactCardPadding,
+            backgroundColor: colors.surfaceCard,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+          }}
+        >
+          <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
+            Alunos cadastrados
+          </Text>
+          {gradesOrder.map((grade) => {
+            const students = studentsByGrade[grade] ?? [];
+            return (
+              <View key={grade} style={{ marginTop: spacing.sm }}>
+                <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                  {grade}
+                </Text>
+                {students.length === 0 ? (
+                  <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 4, fontSize: typography.small.fontSize }}>
+                    Nenhum aluno cadastrado.
+                  </Text>
+                ) : (
+                  <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                    {students.map((student) => (
+                      <View
+                        key={student.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: spacing.xs,
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: spacing.xs,
+                        }}
+                      >
+                        <AvatarWithFallback
+                          fullName={student.full_name ?? "Aluno"}
+                          avatarUrl={student.avatar_url}
+                          size={32}
+                        />
+                        <Text style={{ color: "white", flex: 1 }} weight="semibold">
+                          {student.full_name?.trim() || "Aluno sem nome"}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
       </ScrollView>
