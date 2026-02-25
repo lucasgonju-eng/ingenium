@@ -14,11 +14,12 @@ import {
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
-type AdminTab = "dashboard" | "alunos" | "gtm";
+type AdminTab = "dashboard" | "alunos" | "gtm" | "perfil";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   { key: "dashboard", label: "Visão geral" },
   { key: "alunos", label: "Alunos" },
   { key: "gtm", label: "GTM" },
+  { key: "perfil", label: "Perfil" },
 ];
 
 const GRADE_ORDER = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
@@ -488,6 +489,81 @@ export default function AdminDashboardScreen() {
                     </View>
                   ))}
                 </View>
+              </View>
+            ) : null}
+
+            {activeTab === "perfil" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Segurança da conta admin
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: spacing.xs, lineHeight: 20 }}>
+                  Atualize sua senha do painel administrativo.
+                </Text>
+
+                <TextInput
+                  placeholder="Nova senha"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  secureTextEntry
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  style={{
+                    marginTop: spacing.sm,
+                    height: 46,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+                <TextInput
+                  placeholder="Confirmar senha"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  secureTextEntry
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  style={{
+                    marginTop: spacing.xs,
+                    height: 46,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+                <Pressable
+                  onPress={() => {
+                    void handleChangePasswordNow();
+                  }}
+                  disabled={savingPassword}
+                  style={{
+                    marginTop: spacing.md,
+                    height: 46,
+                    borderRadius: radii.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: colors.einsteinYellow,
+                    opacity: savingPassword ? 0.7 : 1,
+                  }}
+                >
+                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                    {savingPassword ? "Salvando..." : "Atualizar senha"}
+                  </Text>
+                </Pressable>
               </View>
             ) : null}
           </View>
