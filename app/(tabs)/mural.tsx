@@ -10,7 +10,7 @@ import { getMockFeedPosts } from "../../components/feed/mockFeed";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { createFeedPost, fetchFeedPosts, FeedPost } from "../../lib/supabase/queries";
+import { createFeedPost, deleteFeedPost, fetchFeedPosts, FeedPost } from "../../lib/supabase/queries";
 import { runFeedAIAudit } from "../../lib/feed/aiAudit";
 import { getSessionUser } from "../../lib/supabase/session";
 import { colors, radii, spacing } from "../../lib/theme/tokens";
@@ -22,9 +22,11 @@ export default function MuralScreen() {
   const [state, setState] = useState<FeedUiState>("LOADING");
   const [rows, setRows] = useState<FeedPost[]>([]);
   const [hasUser, setHasUser] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [newPost, setNewPost] = useState("");
   const [posting, setPosting] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [postFeedback, setPostFeedback] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
   const FEED_MOCK_ENABLED = __DEV__ && process.env.EXPO_PUBLIC_FEED_MOCK === "1";
 
@@ -35,6 +37,7 @@ export default function MuralScreen() {
 
       const { user, error: userError } = await getSessionUser();
       setHasUser(Boolean(user));
+      setCurrentUserId(user?.id ?? null);
 
       if (userError && !FEED_MOCK_ENABLED) {
         setLastError(userError.message ?? "Erro ao validar sessão");
@@ -123,6 +126,38 @@ export default function MuralScreen() {
     } finally {
       setPosting(false);
     }
+  }
+
+  async function confirmDeletePost(postId: string) {
+    try {
+      setDeletingPostId(postId);
+      await deleteFeedPost(postId);
+      setRows((prev) => prev.filter((row) => row.id !== postId));
+      setPostFeedback({ kind: "ok", message: "Postagem excluída com sucesso." });
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : "Não foi possível excluir a postagem.";
+      Alert.alert("Erro ao excluir", errMsg);
+      setPostFeedback({ kind: "error", message: errMsg });
+    } finally {
+      setDeletingPostId(null);
+    }
+  }
+
+  function handleDeletePress(post: FeedPost) {
+    Alert.alert(
+      "Excluir postagem",
+      "Tem certeza que deseja apagar esta mensagem do mural?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => {
+            void confirmDeletePost(post.id);
+          },
+        },
+      ],
+    );
   }
 
   const filteredRows = useMemo(() => {
@@ -253,6 +288,27 @@ export default function MuralScreen() {
               ctaLabel={(item as FeedPost & { ctaLabel?: string }).ctaLabel}
               badge={(item as FeedPost & { badge?: string }).badge}
             />
+            {currentUserId && item.author_id === currentUserId ? (
+              <View style={{ marginTop: spacing.xs, alignItems: "flex-end" }}>
+                <Pressable
+                  disabled={deletingPostId === item.id}
+                  onPress={() => handleDeletePress(item)}
+                  style={{
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.25)",
+                    backgroundColor: "rgba(255,255,255,0.06)",
+                    opacity: deletingPostId === item.id ? 0.6 : 1,
+                  }}
+                >
+                  <Text style={{ color: "#FFB4B4", fontSize: 12 }} weight="semibold">
+                    {deletingPostId === item.id ? "Excluindo..." : "Excluir minha postagem"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         )}
         ListEmptyComponent={

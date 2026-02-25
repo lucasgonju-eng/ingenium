@@ -393,3 +393,23 @@ export async function createFeedPost(content: string) {
     author_avatar: row.profiles?.avatar_url ?? null,
   } as FeedPost;
 }
+
+export async function deleteFeedPost(postId: string) {
+  const cleanPostId = postId.trim();
+  if (!cleanPostId) throw new Error("Post inválido para exclusão.");
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { error } = await supabase
+    .from("wall_posts")
+    .delete()
+    .eq("id", cleanPostId)
+    .eq("author_id", user.id);
+
+  if (error) throw error;
+}
