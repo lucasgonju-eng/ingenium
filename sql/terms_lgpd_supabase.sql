@@ -79,6 +79,16 @@ begin
   end if;
 
   if not exists (
+    select 1 from pg_policies where schemaname='public' and tablename='terms_versions' and policyname='terms_versions_read_anon'
+  ) then
+    create policy terms_versions_read_anon
+      on public.terms_versions
+      for select
+      to anon
+      using (effective_at <= now());
+  end if;
+
+  if not exists (
     select 1 from pg_policies where schemaname='public' and tablename='terms_versions' and policyname='terms_versions_admin_write'
   ) then
     create policy terms_versions_admin_write
@@ -125,6 +135,9 @@ begin
       using (user_id = auth.uid());
   end if;
 end $$;
+
+grant select on public.terms_versions to anon;
+grant select on public.terms_versions to authenticated;
 
 create or replace function public.fn_consent_audit_append(
   p_user_id uuid,
@@ -330,6 +343,29 @@ $$;
 
 revoke all on function public.has_accepted_latest_terms() from public;
 grant execute on function public.has_accepted_latest_terms() to authenticated;
+
+create or replace function public.get_latest_terms_version()
+returns table (
+  id uuid,
+  version_text text,
+  effective_at timestamptz,
+  content text,
+  content_sha256 text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select tv.id, tv.version_text, tv.effective_at, tv.content, tv.content_sha256
+  from public.terms_versions tv
+  where tv.effective_at <= now()
+  order by tv.effective_at desc
+  limit 1;
+$$;
+
+revoke all on function public.get_latest_terms_version() from public;
+grant execute on function public.get_latest_terms_version() to anon;
+grant execute on function public.get_latest_terms_version() to authenticated;
 
 create or replace view public.v_user_latest_terms_status as
 select

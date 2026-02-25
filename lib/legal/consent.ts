@@ -64,16 +64,11 @@ export async function buildConsentClientContext(): Promise<ConsentClientContext>
 }
 
 export async function fetchLatestTermsVersion(): Promise<TermsVersion> {
-  const { data, error } = await supabase
-    .from("terms_versions")
-    .select("id,version_text,effective_at,content,content_sha256")
-    .lte("effective_at", new Date().toISOString())
-    .order("effective_at", { ascending: false })
-    .limit(1)
-    .single();
-
+  const { data, error } = await supabase.rpc("get_latest_terms_version");
   if (error) throw error;
-  return data as TermsVersion;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("Nenhuma versão vigente de termos foi encontrada.");
+  return row as TermsVersion;
 }
 
 export async function hasAcceptedLatestTerms() {

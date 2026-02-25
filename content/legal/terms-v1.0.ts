@@ -1,132 +1,136 @@
 export const TERMS_VERSION_TEXT = "1.0";
 export const TERMS_EFFECTIVE_DATE = "24/02/2026";
 
-export const TERMS_TITLE = "TERMOS DE USO E POLITICA DE PRIVACIDADE - INGENIUM EINSTEIN";
+export const TERMS_TITLE = "TERMOS DE USO E POLÍTICA DE PRIVACIDADE - INGENIUM EINSTEIN";
 
 export const TERMS_CONTENT = `
-Versao: 1.0
-Data de vigencia: 24/02/2026
+Versão: 1.0
+Data de vigência: 24/02/2026
 
-TERMOS DE USO E POLITICA DE PRIVACIDADE - INGENIUM EINSTEIN
+TERMOS DE USO E POLÍTICA DE PRIVACIDADE - INGENIUM EINSTEIN
 
-CLAUSULA 1 - DEFINICOES
-1.1. Para os fins deste instrumento, aplicam-se as seguintes definicoes:
-a) Controlador: a pessoa juridica responsavel pelas decisoes referentes ao tratamento de dados pessoais no ambito da plataforma InGenium Einstein;
+CLÁUSULA 1 - DEFINIÇÕES
+1.1. Para os fins deste instrumento, aplicam-se as seguintes definições:
+a) Controlador: a pessoa jurídica responsável pelas decisões referentes ao tratamento de dados pessoais no âmbito da plataforma InGenium Einstein;
 b) Titular: pessoa natural a quem se referem os dados pessoais tratados;
-c) Dados Pessoais: informacoes relacionadas a pessoa natural identificada ou identificavel;
-d) Operador: pessoa natural ou juridica que realiza o tratamento de dados pessoais em nome do Controlador;
-e) Plataforma: ambiente digital InGenium Einstein, incluindo app, web, servicos auxiliares e integracoes;
-f) Conta: credencial individual de acesso vinculada ao usuario;
-g) Conteudo: qualquer informacao, texto, imagem, comentario, registro academico ou metrica inserida ou gerada na plataforma;
-h) Responsavel Legal: pessoa que representa legalmente o aluno menor de idade;
-i) Aluno: usuario cadastrado para fins de participacao em atividades educacionais, olimpiadas e ranking academico;
-j) Responsavel Financeiro: pessoa responsavel por pagamentos, contratacao e obrigacoes financeiras quando aplicavel;
-k) Consentimento: manifestacao livre, informada e inequivoca do titular e/ou responsavel legal para tratamento de dados pessoais quando esta for a base legal adequada;
-l) Tratamento: toda operacao realizada com dados pessoais, incluindo coleta, producao, recepcao, classificacao, utilizacao, acesso, reproducao, transmissao, distribuicao, processamento, arquivamento, armazenamento, eliminacao e avaliacao;
-m) Cookies/Identificadores: tecnologias de identificacao de sessao, dispositivo, navegacao e seguranca.
+c) Dados Pessoais: informações relacionadas a pessoa natural identificada ou identificável;
+d) Operador: pessoa natural ou jurídica que realiza o tratamento de dados pessoais em nome do Controlador;
+e) Plataforma: ambiente digital InGenium Einstein, incluindo app, web, serviços auxiliares e integrações;
+f) Conta: credencial individual de acesso vinculada ao usuário;
+g) Conteúdo: qualquer informação, texto, imagem, comentário, registro acadêmico ou métrica inserida ou gerada na plataforma;
+h) Responsável Legal: pessoa que representa legalmente o aluno menor de idade;
+i) Aluno: usuário cadastrado para fins de participação em atividades educacionais, olimpíadas e ranking acadêmico;
+j) Responsável Financeiro: pessoa responsável por pagamentos, contratação e obrigações financeiras quando aplicável;
+k) Consentimento: manifestação livre, informada e inequívoca do titular e/ou responsável legal para tratamento de dados pessoais quando esta for a base legal adequada;
+l) Tratamento: toda operação realizada com dados pessoais, incluindo coleta, produção, recepção, classificação, utilização, acesso, reprodução, transmissão, distribuição, processamento, arquivamento, armazenamento, eliminação e avaliação;
+m) Cookies/Identificadores: tecnologias de identificação de sessão, dispositivo, navegação e segurança.
 
-CLAUSULA 2 - OBJETO E ACEITE ELETRONICO
+CLÁUSULA 2 - OBJETO E ACEITE ELETRÔNICO
 2.1. O presente instrumento regula o acesso e uso da plataforma InGenium Einstein, bem como estabelece regras de privacidade, tratamento de dados pessoais e responsabilidades das partes.
-2.2. O aceite deste termo ocorre por meio de acao eletronica positiva e verificavel na interface da plataforma.
-2.3. O aceite eletronico constitui assinatura valida para todos os fins de direito.
-2.4. O usuario declara ter lido integralmente o presente instrumento, compreendido suas disposicoes e concordado de forma livre, informada e inequivoca com o tratamento de seus dados pessoais para as finalidades aqui descritas.
-2.5. Para fins de prova e auditoria, o aceite e registrado com data e hora (UTC), versao do termo, hash do conteudo, IP e identificadores tecnicos do dispositivo/navegador.
-2.6. O registro de aceite possui rastreabilidade, integridade e vinculo com a conta autenticada, podendo ser apresentado para fins de conformidade regulatoria, defesa de direitos e auditoria.
+2.2. O aceite deste termo ocorre por meio de ação eletrônica positiva e verificável na interface da plataforma.
+2.3. O aceite eletrônico constitui assinatura válida para todos os fins de direito.
+2.4. O usuário declara ter lido integralmente o presente instrumento, compreendido suas disposições e concordado de forma livre, informada e inequívoca com o tratamento de seus dados pessoais para as finalidades aqui descritas.
+2.5. Para fins de prova e auditoria, o aceite é registrado com data e hora (UTC), versão do termo, hash do conteúdo, IP e identificadores técnicos do dispositivo/navegador.
+2.6. O registro de aceite possui rastreabilidade, integridade e vínculo com a conta autenticada, podendo ser apresentado para fins de conformidade regulatória, defesa de direitos e auditoria.
 
-CLAUSULA 3 - ELEGIBILIDADE E DECLARACOES
-3.1. O cadastro pressupoe capacidade civil, observada a legislacao vigente.
-3.2. Para alunos menores de idade, e obrigatorio que o cadastro e aceite sejam realizados com ciencia e autorizacao do Responsavel Legal.
-3.3. O usuario declara que os dados fornecidos sao verdadeiros, completos e atualizados.
-3.4. O usuario compromete-se a manter seu cadastro atualizado, inclusive dados de contato e identificacao.
-3.5. A plataforma podera solicitar comprovacoes adicionais em caso de inconsistencias cadastrais.
+CLÁUSULA 3 - ELEGIBILIDADE E DECLARAÇÕES
+3.1. O cadastro pressupõe capacidade civil, observada a legislação vigente.
+3.2. Para alunos menores de idade, é obrigatório que o cadastro e aceite sejam realizados com ciência e autorização do Responsável Legal.
+3.3. O usuário declara que os dados fornecidos são verdadeiros, completos e atualizados.
+3.4. O usuário compromete-se a manter seu cadastro atualizado, inclusive dados de contato e identificação.
+3.5. A plataforma poderá solicitar comprovações adicionais em caso de inconsistências cadastrais.
 
-CLAUSULA 4 - FINALIDADES DO TRATAMENTO
-4.1. Os dados pessoais sao tratados para:
-a) criacao e manutencao de conta;
-b) autenticacao e seguranca de acesso;
-c) participacao em olimpiadas e atividades academicas;
-d) composicao de ranking, metricas de desempenho e trilhas pedagogicas;
-e) comunicacoes academicas, operacionais e institucionais;
-f) suporte tecnico e atendimento ao usuario;
-g) prevencao a fraude, abuso e uso indevido;
-h) cumprimento de obrigacoes legais e regulatorias.
+CLÁUSULA 4 - FINALIDADES DO TRATAMENTO
+4.1. Os dados pessoais são tratados para:
+a) criação e manutenção de conta;
+b) autenticação e segurança de acesso;
+c) participação em olimpíadas e atividades acadêmicas;
+d) composição de ranking, métricas de desempenho e trilhas pedagógicas;
+e) comunicações acadêmicas, operacionais e institucionais;
+f) suporte técnico e atendimento ao usuário;
+g) prevenção a fraude, abuso e uso indevido;
+h) cumprimento de obrigações legais e regulatórias.
 
-CLAUSULA 5 - BASES LEGAIS
+CLÁUSULA 5 - BASES LEGAIS
 5.1. O tratamento de dados pessoais fundamenta-se, conforme o caso, em:
-a) execucao de contrato e procedimentos preliminares;
-b) cumprimento de obrigacao legal ou regulatoria;
-c) legitimo interesse do Controlador, com avaliacao de necessidade, adequacao e proporcionalidade;
-d) consentimento, quando exigido pela legislacao;
-e) exercicio regular de direitos e, quando aplicavel, protecao do credito.
+a) execução de contrato e procedimentos preliminares;
+b) cumprimento de obrigação legal ou regulatória;
+c) legítimo interesse do Controlador, com avaliação de necessidade, adequação e proporcionalidade;
+d) consentimento, quando exigido pela legislação;
+e) exercício regular de direitos e, quando aplicável, proteção do crédito.
 
-CLAUSULA 6 - DADOS TRATADOS
+CLÁUSULA 6 - DADOS TRATADOS
 6.1. Podem ser tratados:
-a) dados de identificacao e contato (nome, e-mail, serie, dados de responsavel quando aplicavel);
-b) credenciais de acesso e metadados de autenticacao;
-c) dados academicos e de performance (pontuacao, classe, historico de participacao);
-d) logs tecnicos (IP, user-agent, identificadores de dispositivo, data/hora, eventos);
-e) dados de navegacao e telemetria;
-f) anexos e conteudos enviados pelo usuario.
+a) dados de identificação e contato (nome, e-mail, série, dados de responsável quando aplicável);
+b) credenciais de acesso e metadados de autenticação;
+c) dados acadêmicos e de performance (pontuação, classe, histórico de participação);
+d) logs técnicos (IP, user-agent, identificadores de dispositivo, data/hora, eventos);
+e) dados de navegação e telemetria;
+f) anexos e conteúdos enviados pelo usuário.
 
-CLAUSULA 7 - DADOS DE MENORES E RESPONSAVEL LEGAL
-7.1. O tratamento de dados de menores observa o melhor interesse da crianca e do adolescente, com cautelas reforcadas.
-7.2. O Responsavel Legal declara estar ciente e concordar com as regras aqui previstas.
-7.3. Em caso de divergencia de informacoes, ausencia de autorizacao valida ou indicios de irregularidade, o Controlador podera restringir, suspender ou encerrar a conta ate regularizacao.
+CLÁUSULA 7 - DADOS DE MENORES E RESPONSÁVEL LEGAL
+7.1. O tratamento de dados de menores observa o melhor interesse da criança e do adolescente, com cautelas reforçadas.
+7.2. O Responsável Legal declara estar ciente e concordar com as regras aqui previstas.
+7.3. Em caso de divergência de informações, ausência de autorização válida ou indícios de irregularidade, o Controlador poderá restringir, suspender ou encerrar a conta até regularização.
 
-CLAUSULA 8 - COMPARTILHAMENTO E OPERADORES
-8.1. O Controlador podera compartilhar dados com operadores e parceiros estritamente necessarios para execucao dos servicos, incluindo hospedagem, autenticacao, banco de dados, envio de e-mails, analytics, antifraude e backup.
-8.2. Todos os operadores devem observar obrigacoes de confidencialidade, seguranca e uso limitado a finalidades contratadas.
-8.3. Transferencias internacionais de dados poderao ocorrer quando necessarias, observados os mecanismos legais de protecao de dados aplicaveis.
+CLÁUSULA 8 - COMPARTILHAMENTO E OPERADORES
+8.1. O Controlador poderá compartilhar dados com operadores e parceiros estritamente necessários para execução dos serviços, incluindo hospedagem, autenticação, banco de dados, envio de e-mails, analytics, antifraude e backup.
+8.2. Todos os operadores devem observar obrigações de confidencialidade, segurança e uso limitado a finalidades contratadas.
+8.3. Transferências internacionais de dados poderão ocorrer quando necessárias, observados os mecanismos legais de proteção de dados aplicáveis.
 
-CLAUSULA 9 - ARMAZENAMENTO, PRAZOS E RETENCAO
-9.1. Os dados serao armazenados durante a relacao ativa com a plataforma e pelo periodo adicional necessario ao cumprimento de obrigacoes legais, regulatorias e exercicio regular de direitos.
-9.2. Logs de seguranca e trilhas de auditoria poderao ser mantidos por periodo razoavel e proporcional.
-9.3. Dados em backup poderao permanecer ate o ciclo tecnico de substituicao segura.
+CLÁUSULA 9 - ARMAZENAMENTO, PRAZOS E RETENÇÃO
+9.1. Os dados serão armazenados durante a relação ativa com a plataforma e pelo período adicional necessário ao cumprimento de obrigações legais, regulatórias e exercício regular de direitos.
+9.2. Logs de segurança e trilhas de auditoria poderão ser mantidos por período razoável e proporcional.
+9.3. Dados em backup poderão permanecer até o ciclo técnico de substituição segura.
 
-CLAUSULA 10 - SEGURANCA DA INFORMACAO
-10.1. O Controlador adota medidas tecnicas e administrativas aptas a proteger dados pessoais contra acesso nao autorizado, destruicao, perda, alteracao, comunicacao ou difusao indevida.
-10.2. As medidas incluem, entre outras, criptografia em transito, controle de acesso e trilha de auditoria.
-10.3. O usuario e responsavel por manter sigilo de senha e protecao do dispositivo.
-10.4. Nenhum ambiente conectado a internet e absolutamente inviolavel, motivo pelo qual o usuario declara ciencia de riscos residuais razoaveis.
+CLÁUSULA 10 - SEGURANÇA DA INFORMAÇÃO
+10.1. O Controlador adota medidas técnicas e administrativas aptas a proteger dados pessoais contra acesso não autorizado, destruição, perda, alteração, comunicação ou difusão indevida.
+10.2. As medidas incluem, entre outras, criptografia em trânsito, controle de acesso e trilha de auditoria.
+10.3. O usuário é responsável por manter sigilo de senha e proteção do dispositivo.
+10.4. Nenhum ambiente conectado à internet é absolutamente inviolável, motivo pelo qual o usuário declara ciência de riscos residuais razoáveis.
 
-CLAUSULA 11 - DIREITOS DO TITULAR E CANAL LGPD
-11.1. O titular podera exercer, nos termos da legislacao, direitos de confirmacao de tratamento, acesso, correcao, anonimização, portabilidade quando cabivel, oposicao e revisao de decisoes automatizadas quando aplicavel.
-11.2. Solicitacoes poderao ser encaminhadas ao canal institucional de privacidade: privacidade@ingenium.einsteinhub.co.
-11.3. O Controlador respondera nos prazos legais e podera solicitar informacoes adicionais para confirmacao de identidade.
+CLÁUSULA 11 - DIREITOS DO TITULAR E CANAL LGPD
+11.1. O titular poderá exercer, nos termos da legislação, direitos de confirmação de tratamento, acesso, correção, anonimização, portabilidade quando cabível, oposição e revisão de decisões automatizadas quando aplicável.
+11.2. Solicitações poderão ser encaminhadas ao canal institucional de privacidade: privacidade@ingenium.einsteinhub.co.
+11.3. O Controlador responderá nos prazos legais e poderá solicitar informações adicionais para confirmação de identidade.
 
-CLAUSULA 12 - COMUNICACOES INSTITUCIONAIS
-12.1. Comunicacoes essenciais ao funcionamento academico, operacional e de seguranca poderao ser enviadas sem opt-out.
-12.2. Comunicacoes promocionais e de marketing observarao preferencias do usuario e mecanismos de descadastro quando aplicavel.
-12.3. Newsletter e conteudos opcionais dependerao de base legal apropriada, inclusive consentimento quando necessario.
+CLÁUSULA 12 - COMUNICAÇÕES INSTITUCIONAIS
+12.1. Comunicações essenciais ao funcionamento acadêmico, operacional e de segurança poderão ser enviadas sem opt-out.
+12.2. Comunicações promocionais e de marketing observarão preferências do usuário e mecanismos de descadastro quando aplicável.
+12.3. Newsletter e conteúdos opcionais dependerão de base legal apropriada, inclusive consentimento quando necessário.
 
-CLAUSULA 13 - CONDUTA DO USUARIO E USO ADEQUADO
-13.1. E vedado utilizar a plataforma para fraude, assedio, discriminacao, violacao de direitos de terceiros, disseminacao de conteudo ilicito ou manipulação indevida de resultados.
-13.2. O usuario deve respeitar regras de integridade academica e convivio.
-13.3. O descumprimento podera resultar em advertencia, suspensao, bloqueio ou cancelamento da conta, sem prejuizo de medidas legais cabiveis.
+CLÁUSULA 13 - CONDUTA DO USUÁRIO E USO ADEQUADO
+13.1. É vedado utilizar a plataforma para fraude, assédio, discriminação, violação de direitos de terceiros, disseminação de conteúdo ilícito ou manipulação indevida de resultados.
+13.2. O usuário deve respeitar regras de integridade acadêmica e convívio.
+13.3. O descumprimento poderá resultar em advertência, suspensão, bloqueio ou cancelamento da conta, sem prejuízo de medidas legais cabíveis.
 
-CLAUSULA 14 - PROPRIEDADE INTELECTUAL
-14.1. O conteudo institucional, marcas, layout, software e elementos visuais da plataforma pertencem aos respectivos titulares.
-14.2. Concede-se ao usuario licenca limitada, nao exclusiva, revogavel e intransferivel para uso estritamente pessoal e educacional.
-14.3. E proibida engenharia reversa, copia nao autorizada, distribuicao indevida ou exploracao comercial sem autorizacao expressa.
+CLÁUSULA 14 - PROPRIEDADE INTELECTUAL
+14.1. O conteúdo institucional, marcas, layout, software e elementos visuais da plataforma pertencem aos respectivos titulares.
+14.2. Concede-se ao usuário licença limitada, não exclusiva, revogável e intransferível para uso estritamente pessoal e educacional.
+14.3. É proibida engenharia reversa, cópia não autorizada, distribuição indevida ou exploração comercial sem autorização expressa.
 
-CLAUSULA 15 - LIMITACAO DE RESPONSABILIDADE
-15.1. A plataforma podera apresentar indisponibilidades temporarias, manutencoes programadas ou falhas de terceiros (provedores, telecom, energia, internet).
-15.2. O Controlador nao garante resultado academico especifico, sendo rankings e metricas instrumentos informativos e de apoio.
-15.3. O Controlador nao responde por danos decorrentes de culpa exclusiva do usuario, de terceiros ou de caso fortuito/forca maior.
+CLÁUSULA 15 - LIMITAÇÃO DE RESPONSABILIDADE
+15.1. A plataforma poderá apresentar indisponibilidades temporárias, manutenções programadas ou falhas de terceiros (provedores, telecom, energia, internet).
+15.2. O Controlador não garante resultado acadêmico específico, sendo rankings e métricas instrumentos informativos e de apoio.
+15.3. O Controlador não responde por danos decorrentes de culpa exclusiva do usuário, de terceiros ou de caso fortuito/força maior.
 
-CLAUSULA 16 - ATUALIZACOES DO TERMO
-16.1. Este termo podera ser atualizado a qualquer tempo, mediante nova versao e data de vigencia.
-16.2. Quando houver mudanca relevante, o usuario podera ser solicitado a realizar novo aceite.
-16.3. A continuidade de uso da plataforma apos comunicacao adequada caracteriza ciencia das atualizacoes, sem prejuizo de aceite formal quando exigido.
-16.4. O historico de versoes e os logs de aceite sao mantidos para fins de auditoria e prova.
+CLÁUSULA 16 - ATUALIZAÇÕES DO TERMO
+16.1. Este termo poderá ser atualizado a qualquer tempo, mediante nova versão e data de vigência.
+16.2. Quando houver mudança relevante, o usuário poderá ser solicitado a realizar novo aceite.
+16.3. A continuidade de uso da plataforma após comunicação adequada caracteriza ciência das atualizações, sem prejuízo de aceite formal quando exigido.
+16.4. O histórico de versões e os logs de aceite são mantidos para fins de auditoria e prova.
 
-CLAUSULA 17 - FORO E LEI APLICAVEL
-17.1. Este instrumento e regido pelas leis da Republica Federativa do Brasil.
-17.2. Fica eleito o foro da comarca da sede da instituicao mantenedora, com renuncia a qualquer outro, por mais privilegiado que seja, para dirimir controversias decorrentes deste instrumento.
+CLÁUSULA 17 - FORO E LEI APLICÁVEL
+17.1. Este instrumento é regido pelas leis da República Federativa do Brasil.
+17.2. Fica eleito o foro da comarca da sede da instituição mantenedora, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir controvérsias decorrentes deste instrumento.
 
-CLAUSULA 18 - DISPOSICOES FINAIS
-18.1. A eventual nulidade de clausula nao invalida as demais disposicoes.
-18.2. A tolerancia de uma parte quanto ao descumprimento da outra nao implica novacao ou renuncia de direitos.
-18.3. Comunicacoes eletronicas possuem validade para os fins deste instrumento.
-18.4. Em caso de conflito interpretativo, prevalece a versao oficial deste termo publicada pela plataforma.
+CLÁUSULA 18 - DISPOSIÇÕES FINAIS
+18.1. A eventual nulidade de cláusula não invalida as demais disposições.
+18.2. A tolerância de uma parte quanto ao descumprimento da outra não implica novação ou renúncia de direitos.
+18.3. Comunicações eletrônicas possuem validade para os fins deste instrumento.
+18.4. Em caso de conflito interpretativo, prevalece a versão oficial deste termo publicada pela plataforma.
+
+"O usuário declara ter lido integralmente o presente instrumento, compreendido suas disposições e concordado de forma livre, informada e inequívoca com o tratamento de seus dados pessoais para as finalidades aqui descritas."
+"O aceite eletrônico constitui assinatura válida para todos os fins de direito."
+"Para fins de prova e auditoria, o aceite é registrado com data e hora (UTC), versão do termo, hash do conteúdo, IP e identificadores técnicos do dispositivo/navegador."
 `;

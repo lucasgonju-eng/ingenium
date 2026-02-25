@@ -48,7 +48,7 @@ export default function TermsLgpdScreen() {
       });
       router.replace("/(auth)/cadastro");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Nao foi possivel carregar a versao vigente dos termos.";
+      const message = e instanceof Error ? e.message : "Não foi possível carregar a versão vigente dos termos.";
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
@@ -75,7 +75,7 @@ export default function TermsLgpdScreen() {
             {TERMS_TITLE}
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 4 }}>
-            Versao: {TERMS_VERSION_TEXT} • Vigencia: {TERMS_EFFECTIVE_DATE}
+            Versão: {TERMS_VERSION_TEXT} • Vigência: {TERMS_EFFECTIVE_DATE}
           </Text>
 
           <ScrollView
@@ -98,7 +98,7 @@ export default function TermsLgpdScreen() {
           </ScrollView>
 
           <Text style={{ color: colors.einsteinYellow, marginTop: spacing.sm }}>
-            Para habilitar o aceite, role ate o final.
+            Para habilitar o aceite, role até o final.
           </Text>
 
           <Pressable
@@ -130,7 +130,7 @@ export default function TermsLgpdScreen() {
               {checked ? <Text style={{ color: colors.einsteinBlue }}>✓</Text> : null}
             </View>
             <Text style={{ color: colors.white }}>
-              Declaro que li e aceito os Termos de Uso, Politica de Privacidade e LGPD.
+              Declaro que li e aceito os Termos de Uso, Política de Privacidade e LGPD.
             </Text>
           </Pressable>
 
