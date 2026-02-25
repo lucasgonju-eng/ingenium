@@ -283,7 +283,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable onPress={() => router.push("/(auth)/termos-lgpd")} style={{ marginTop: spacing.md }}>
+          <Pressable onPress={() => router.push("/(auth)/cadastro")} style={{ marginTop: spacing.md }}>
             <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
               Ainda não tem conta? Criar conta
             </Text>

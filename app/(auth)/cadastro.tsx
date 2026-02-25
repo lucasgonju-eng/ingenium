@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
@@ -40,6 +40,16 @@ export default function CadastroScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSeries, setShowSeries] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [termsReady, setTermsReady] = useState(false);
+
+  useEffect(() => {
+    const termsState = getLocalSignupTermsAcceptance();
+    if (!termsState?.accepted || !termsState.termsVersionId || !termsState.termsHash) {
+      router.replace("/(auth)/termos-lgpd");
+      return;
+    }
+    setTermsReady(true);
+  }, []);
 
   const handleSignUp = async () => {
     if (!nome || !serie || !cpf || !email || !password) {
@@ -106,6 +116,18 @@ export default function CadastroScreen() {
       setLoading(false);
     }
   };
+
+  if (!termsReady) {
+    return (
+      <StitchScreenFrame>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.md }}>
+          <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center" }}>
+            Validando aceite dos Termos e LGPD...
+          </Text>
+        </View>
+      </StitchScreenFrame>
+    );
+  }
 
   return (
     <StitchScreenFrame>
