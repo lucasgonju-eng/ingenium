@@ -1,10 +1,11 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useNavigation } from "expo-router";
+import { router, useNavigation, usePathname } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Image, Platform, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AvatarWithFallback from "../ui/AvatarWithFallback";
 import { Text } from "../ui/Text";
+import { hasAcceptedLatestTerms } from "../../lib/legal/consent";
 import { supabase } from "../../lib/supabase/client";
 import { fetchMyProfile } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
@@ -18,6 +19,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   const navigation = useNavigation();
   const contentWidthStyle = Platform.OS === "web" ? { width: "100%" as const, maxWidth, flex: 1 } : { width: "100%" as const, flex: 1 };
   const canGoBack = navigation.canGoBack();
+  const pathname = usePathname();
   const logoSize = 92;
   const logoBottomSpacing = 4;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,6 +55,11 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
         }
 
         setIsAuthenticated(true);
+        const acceptedLatest = await hasAcceptedLatestTerms();
+        if (!acceptedLatest && pathname !== "/(auth)/termos-lgpd") {
+          router.replace("/(auth)/termos-lgpd");
+          return;
+        }
         const fallbackName =
           String(user.user_metadata?.full_name ?? "").trim() ||
           user.email?.split("@")[0] ||

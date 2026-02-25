@@ -4,6 +4,8 @@ import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
+import { acceptLatestTerms, hasAcceptedLatestTerms } from "../../lib/legal/consent";
+import { clearLocalSignupTermsAcceptance, getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -39,6 +41,37 @@ export default function LoginScreen() {
 
       // Garante leitura do usuário autenticado mais recente antes de navegar.
       await supabase.auth.getUser();
+
+      const pendingTerms = getLocalSignupTermsAcceptance();
+      if (pendingTerms?.accepted && pendingTerms.termsVersionId) {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            await acceptLatestTerms({
+              termsVersionId: pendingTerms.termsVersionId,
+              evidenceJson: {
+                consent_checkbox: true,
+                scrolled_to_end: true,
+                local_terms_hash: pendingTerms.termsHash,
+                local_accepted_at: pendingTerms.acceptedAtIso,
+                login_email: email.trim().toLowerCase(),
+                attempt: attempt + 1,
+              },
+            });
+            clearLocalSignupTermsAcceptance();
+            break;
+          } catch (consentErr) {
+            if (attempt === 2) throw consentErr;
+            await new Promise((resolve) => setTimeout(resolve, 450 * (attempt + 1)));
+          }
+        }
+      }
+
+      const acceptedLatest = await hasAcceptedLatestTerms();
+      if (!acceptedLatest) {
+        router.replace("/(auth)/termos-lgpd");
+        return;
+      }
+
       router.replace("/(tabs)/dashboard");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha de conexão ao tentar entrar.";
@@ -250,7 +283,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable onPress={() => router.push("/(auth)/cadastro")} style={{ marginTop: spacing.md }}>
+          <Pressable onPress={() => router.push("/(auth)/termos-lgpd")} style={{ marginTop: spacing.md }}>
             <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
               Ainda não tem conta? Criar conta
             </Text>
