@@ -143,7 +143,7 @@ export default function FeedScreen() {
       if (!canPostOwnFeed) throw new Error("Você só pode excluir postagens do seu próprio feed.");
       setDeletingPostId(postId);
       await deleteProfileFeedPost(postId);
-      setRows((prev) => prev.filter((row) => row.id !== postId));
+      await load();
       setPostFeedback({ kind: "ok", message: "Postagem excluída com sucesso." });
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : "Não foi possível excluir a postagem.";

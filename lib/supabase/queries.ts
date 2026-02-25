@@ -439,13 +439,18 @@ export async function deleteMuralPost(postId: string) {
   if (userError) throw userError;
   if (!user) throw new Error("Sessão inválida. Faça login novamente.");
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("wall_posts")
     .delete()
     .eq("id", cleanPostId)
-    .eq("author_id", user.id);
+    .eq("author_id", user.id)
+    .select("id")
+    .limit(1);
 
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Não foi possível excluir a postagem. Ela pode já ter sido removida ou não pertence ao seu usuário.");
+  }
 }
 
 export async function deleteProfileFeedPost(postId: string) {
@@ -459,12 +464,17 @@ export async function deleteProfileFeedPost(postId: string) {
   if (userError) throw userError;
   if (!user) throw new Error("Sessão inválida. Faça login novamente.");
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("feed_posts")
     .delete()
     .eq("id", cleanPostId)
     .eq("author_id", user.id)
-    .eq("feed_owner_id", user.id);
+    .eq("feed_owner_id", user.id)
+    .select("id")
+    .limit(1);
 
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Não foi possível excluir a postagem do feed. Ela pode já ter sido removida ou não pertence ao seu usuário.");
+  }
 }
