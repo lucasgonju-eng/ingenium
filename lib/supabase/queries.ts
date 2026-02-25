@@ -20,6 +20,13 @@ export type ProfileRow = {
   avatar_url: string | null;
 };
 
+export type RegisteredStudentRow = {
+  id: string;
+  full_name: string | null;
+  grade: string | null;
+  avatar_url: string | null;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -318,6 +325,17 @@ export async function upsertMyProfile(input: Omit<ProfileRow, "id">) {
 
   if (error) throw error;
   return data as ProfileRow;
+}
+
+export async function fetchRegisteredStudents() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,full_name,grade,avatar_url")
+    .not("full_name", "is", null)
+    .order("full_name", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as RegisteredStudentRow[];
 }
 
 export type FeedPost = {
