@@ -25,6 +25,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   const [fullName, setFullName] = useState("Aluno");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isMarketingHome = pathname === "/" || pathname === "/(marketing)";
 
   useEffect(() => {
     let mounted = true;
@@ -146,23 +147,39 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                 justifyContent: "space-between",
               }}
             >
-              <Pressable
-                onPress={handleBack}
-                style={{
-                  height: 34,
-                  borderRadius: radii.pill,
-                  paddingHorizontal: spacing.sm,
-                  backgroundColor: "rgba(255,255,255,0.10)",
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.14)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
-                  ← Voltar
-                </Text>
-              </Pressable>
+              {isMarketingHome ? (
+                <Pressable
+                  onPress={() => router.push("/admin")}
+                  style={{
+                    height: 34,
+                    paddingHorizontal: spacing.sm,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: "rgba(255,255,255,0.22)", fontSize: typography.small.fontSize }} weight="semibold">
+                    Admin
+                  </Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleBack}
+                  style={{
+                    height: 34,
+                    borderRadius: radii.pill,
+                    paddingHorizontal: spacing.sm,
+                    backgroundColor: "rgba(255,255,255,0.10)",
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.14)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                    ← Voltar
+                  </Text>
+                </Pressable>
+              )}
 
               <View style={{ alignItems: "flex-end" }}>
                 <Pressable

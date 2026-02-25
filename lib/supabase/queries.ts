@@ -20,6 +20,8 @@ export type ProfileRow = {
   avatar_url: string | null;
 };
 
+export type MyAccessRole = "admin" | "coord" | "student" | null;
+
 export type RegisteredStudentRow = {
   id: string;
   full_name: string | null;
@@ -308,6 +310,26 @@ export async function fetchMyProfile(userIdOverride?: string) {
 
   if (error) throw error;
   return (data ?? null) as ProfileRow | null;
+}
+
+export async function fetchMyAccessRole(): Promise<MyAccessRole> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+  const rawRole = String((data as { role?: string } | null)?.role ?? "").trim().toLowerCase();
+  if (rawRole === "admin" || rawRole === "coord" || rawRole === "student") return rawRole;
+  return null;
 }
 
 export async function upsertMyProfile(input: Omit<ProfileRow, "id">) {
