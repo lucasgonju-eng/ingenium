@@ -360,17 +360,9 @@ export async function upsertMyProfile(input: Omit<ProfileRow, "id">) {
 }
 
 export async function fetchRegisteredStudents() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id,full_name,grade,avatar_url,role")
-    .order("full_name", { ascending: true });
-
+  const { data, error } = await supabase.rpc("get_registered_students_admin");
   if (error) throw error;
   return ((data ?? []) as Array<RegisteredStudentRow & { role?: string | null }>)
-    .filter((row) => {
-      const role = String(row.role ?? "").trim().toLowerCase();
-      return role !== "admin" && role !== "coord";
-    })
     .map((row) => ({
       id: row.id,
       full_name: row.full_name ?? "Aluno",
@@ -380,11 +372,9 @@ export async function fetchRegisteredStudents() {
 }
 
 export async function fetchRankingAllRegisteredStudents(limit = 500) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id,full_name,avatar_url,grade,role,points(total_points,lobo_class)")
-    .order("full_name", { ascending: true })
-    .limit(limit);
+  const { data, error } = await supabase.rpc("get_registered_students_ranking_admin", {
+    p_limit: limit,
+  });
 
   if (error) throw error;
 
@@ -394,24 +384,17 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
     avatar_url: string | null;
     grade: string | null;
     role?: string | null;
-    points?:
-      | { total_points?: number | null; lobo_class?: string | null }
-      | Array<{ total_points?: number | null; lobo_class?: string | null }>
-      | null;
+    total_points?: number | null;
+    lobo_class?: string | null;
   }>)
-    .filter((row) => {
-      const role = String(row.role ?? "").trim().toLowerCase();
-      return role !== "admin" && role !== "coord";
-    })
     .map((row) => {
-    const pointsData = Array.isArray(row.points) ? row.points[0] ?? null : row.points ?? null;
     return {
       user_id: row.id,
       full_name: row.full_name ?? "Aluno",
       avatar_url: row.avatar_url,
       grade: row.grade ?? null,
-      total_points: Number(pointsData?.total_points ?? 0),
-      lobo_class: ((pointsData?.lobo_class ?? "bronze") as "bronze" | "silver" | "gold"),
+      total_points: Number(row.total_points ?? 0),
+      lobo_class: ((row.lobo_class ?? "bronze") as "bronze" | "silver" | "gold"),
     };
   });
 
