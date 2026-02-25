@@ -31,13 +31,31 @@ export default function AdminLoginScreen() {
       const type = hash.get("type") ?? query.get("type");
       const accessToken = hash.get("access_token") ?? query.get("access_token");
       const refreshToken = hash.get("refresh_token") ?? query.get("refresh_token");
+      const code = query.get("code");
+      const tokenHash = query.get("token_hash");
 
-      if (type !== "recovery" || !accessToken || !refreshToken) return;
+      if (type !== "recovery") return;
 
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
+      let error: { message?: string } | null = null;
+      if (accessToken && refreshToken) {
+        const result = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        error = result.error;
+      } else if (code) {
+        const result = await supabase.auth.exchangeCodeForSession(code);
+        error = result.error;
+      } else if (tokenHash) {
+        const result = await supabase.auth.verifyOtp({
+          type: "recovery",
+          token_hash: tokenHash,
+        });
+        error = result.error;
+      } else {
+        return;
+      }
+
       if (error) {
         Alert.alert("Link inválido", "O link de recuperação expirou ou já foi utilizado. Solicite um novo e-mail.");
         return;
