@@ -81,6 +81,14 @@ jobs:
           cat > dist/.htaccess <<'EOF'
           RewriteEngine On
           RewriteBase /
+          <IfModule mod_headers.c>
+            # Evita cache agressivo do HTML para garantir que novos bundles sejam referenciados.
+            <FilesMatch "\.(html)$">
+              Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+              Header set Pragma "no-cache"
+              Header set Expires "0"
+            </FilesMatch>
+          </IfModule>
           RewriteRule ^asaas-config\.json$ - [F,L]
           RewriteRule ^ai-audit-config\.json$ - [F,L]
           RewriteRule ^logs/ - [F,L]
