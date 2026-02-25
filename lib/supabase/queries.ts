@@ -363,12 +363,14 @@ export async function fetchRegisteredStudents() {
   const { data, error } = await supabase
     .from("profiles")
     .select("id,full_name,grade,avatar_url,role")
-    .neq("role", "admin")
-    .neq("role", "coord")
     .order("full_name", { ascending: true });
 
   if (error) throw error;
   return ((data ?? []) as Array<RegisteredStudentRow & { role?: string | null }>)
+    .filter((row) => {
+      const role = String(row.role ?? "").trim().toLowerCase();
+      return role !== "admin" && role !== "coord";
+    })
     .map((row) => ({
       id: row.id,
       full_name: row.full_name ?? "Aluno",
@@ -381,8 +383,6 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
   const { data, error } = await supabase
     .from("profiles")
     .select("id,full_name,avatar_url,grade,role,points(total_points,lobo_class)")
-    .neq("role", "admin")
-    .neq("role", "coord")
     .order("full_name", { ascending: true })
     .limit(limit);
 
@@ -398,7 +398,12 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
       | { total_points?: number | null; lobo_class?: string | null }
       | Array<{ total_points?: number | null; lobo_class?: string | null }>
       | null;
-  }>).map((row) => {
+  }>)
+    .filter((row) => {
+      const role = String(row.role ?? "").trim().toLowerCase();
+      return role !== "admin" && role !== "coord";
+    })
+    .map((row) => {
     const pointsData = Array.isArray(row.points) ? row.points[0] ?? null : row.points ?? null;
     return {
       user_id: row.id,
