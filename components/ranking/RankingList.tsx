@@ -5,12 +5,11 @@ import RankingRow from "./RankingRow";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
 
 type Row = {
-  position_geral_media: number;
+  position: number;
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
-  avg_points: number;
-  olympiads_count: number;
+  total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
 };
 
@@ -26,18 +25,17 @@ export default function RankingList({ rows, myUserId, headerComponent }: Props) 
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: spacing.xxl }}
       data={rows}
-      keyExtractor={(item) => `${item.user_id}-${item.position_geral_media}`}
+      keyExtractor={(item) => `${item.user_id}-${item.position}`}
       ListHeaderComponent={headerComponent}
       ItemSeparatorComponent={() => <View style={{ height: spacing.xs }} />}
       renderItem={({ item }) => (
         <RankingRow
-          position={item.position_geral_media}
+          position={item.position}
           userId={item.user_id}
           fullName={item.full_name}
           avatarUrl={item.avatar_url}
           loboClass={item.lobo_class}
-          avgPoints={Number(item.avg_points)}
-          olympiadsCount={item.olympiads_count}
+          totalPoints={Number(item.total_points)}
           isMe={item.user_id === myUserId}
         />
       )}

@@ -13,8 +13,6 @@ type PodiumEntry = {
   avatar_url?: string | null;
   lobo_class?: string | null;
   points?: number | null;
-  avg_points?: number | null;
-  olympiads_count?: number | null;
 };
 
 type Props = {
@@ -29,11 +27,6 @@ function formatLobo(value?: string | null) {
   if (normalized === "bronze") return "Lobo de Bronze";
   if (!normalized) return "-";
   return `Lobo ${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
-}
-
-function fmtAvg(value?: number | null) {
-  if (value === null || value === undefined || Number.isNaN(value)) return "-";
-  return value.toFixed(2);
 }
 
 export default function RankingTopPodium({ top3, variant }: Props) {
@@ -81,10 +74,7 @@ export default function RankingTopPodium({ top3, variant }: Props) {
       );
     }
 
-    const metric =
-      variant === "olympiad"
-        ? `${entry.points ?? 0} pts`
-        : `Media ${fmtAvg(entry.avg_points)} • ${entry.olympiads_count ?? 0}`;
+    const metric = `${entry.points ?? 0} XP`;
 
     const borderColor = label === "1o" ? "#FFC700" : "#00006622";
 

@@ -2,16 +2,19 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
+import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import DashboardActions from "../../components/sections/DashboardActions";
 import DashboardHero from "../../components/sections/DashboardHero";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import {
+  fetchRegisteredStudents,
   fetchMyProfile,
   fetchMyPoints,
   fetchMyRankGeralMedia,
   fetchOlympiads,
+  RegisteredStudentRow,
   MyRankGeralMedia,
 } from "../../lib/supabase/queries";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
@@ -61,6 +64,8 @@ export default function DashboardScreen() {
   const [rankInfo, setRankInfo] = useState<MyRankGeralMedia | null>(null);
   const [name, setName] = useState("Aluno");
   const [olympiads, setOlympiads] = useState<OlympiadRow[]>([]);
+  const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
+  const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
   async function load() {
     try {
@@ -85,15 +90,17 @@ export default function DashboardScreen() {
 
       setName(getFirstName(fullName));
 
-      const [mediaRankRes, pointsRes, olympiadsRes] = await Promise.allSettled([
+      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
         fetchOlympiads(),
+        fetchRegisteredStudents(),
       ]);
 
       const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
       const p = pointsRes.status === "fulfilled" ? pointsRes.value : null;
       const upcoming = olympiadsRes.status === "fulfilled" ? olympiadsRes.value : [];
+      const students = studentsRes.status === "fulfilled" ? studentsRes.value : [];
 
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
@@ -101,6 +108,11 @@ export default function DashboardScreen() {
       setOlympiads(
         upcoming.filter((o) => o.status === "open" || o.status === "upcoming" || o.status === "published").slice(0, 5),
       );
+      const grouped = gradesOrder.reduce<Record<string, RegisteredStudentRow[]>>((acc, grade) => {
+        acc[grade] = students.filter((s) => (s.grade ?? "").trim() === grade);
+        return acc;
+      }, {});
+      setStudentsByGrade(grouped);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar seu desempenho";
       Alert.alert("Erro", message);
@@ -300,6 +312,64 @@ export default function DashboardScreen() {
 
         <View style={{ marginTop: spacing.xl }}>
           <DashboardActions />
+        </View>
+
+        <View
+          style={{
+            marginTop: spacing.xl,
+            borderRadius: radii.md,
+            padding: sizes.compactCardPadding,
+            backgroundColor: colors.surfaceCard,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+          }}
+        >
+          <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
+            Alunos cadastrados
+          </Text>
+          {gradesOrder.map((grade) => {
+            const students = studentsByGrade[grade] ?? [];
+            return (
+              <View key={grade} style={{ marginTop: spacing.sm }}>
+                <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                  {grade}
+                </Text>
+                {students.length === 0 ? (
+                  <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 4, fontSize: typography.small.fontSize }}>
+                    Nenhum aluno cadastrado.
+                  </Text>
+                ) : (
+                  <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                    {students.map((student) => (
+                      <View
+                        key={student.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: spacing.xs,
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: spacing.xs,
+                        }}
+                      >
+                        <AvatarWithFallback
+                          fullName={student.full_name ?? "Aluno"}
+                          avatarUrl={student.avatar_url}
+                          size={32}
+                        />
+                        <Text style={{ color: "white", flex: 1 }} weight="semibold">
+                          {student.full_name?.trim() || "Aluno sem nome"}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
       </ScrollView>

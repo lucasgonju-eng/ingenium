@@ -7,12 +7,10 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
-import { fetchMyProfile, fetchRegisteredStudents, RegisteredStudentRow, upsertMyProfile } from "../../lib/supabase/queries";
+import { fetchMyProfile, upsertMyProfile } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 const SERIES_OPTIONS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
-const PROFILE_TABS = ["MEU_PERFIL", "ALUNOS_CADASTRADOS"] as const;
-type ProfileTab = (typeof PROFILE_TABS)[number];
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
@@ -57,8 +55,6 @@ export default function PerfilScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSeries, setShowSeries] = useState(false);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("MEU_PERFIL");
-  const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [grade, setGrade] = useState<(typeof SERIES_OPTIONS)[number] | "">("");
@@ -71,11 +67,7 @@ export default function PerfilScreen() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const [{ data: userData }, profile, students] = await Promise.all([
-        supabase.auth.getUser(),
-        fetchMyProfile(),
-        fetchRegisteredStudents(),
-      ]);
+      const [{ data: userData }, profile] = await Promise.all([supabase.auth.getUser(), fetchMyProfile()]);
       const metadata = userData.user?.user_metadata ?? {};
       setUserId(userData.user?.id ?? null);
 
@@ -86,12 +78,6 @@ export default function PerfilScreen() {
       setEmail(userData.user?.email ?? "");
       setClassName(profile?.class_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
-
-      const grouped = SERIES_OPTIONS.reduce<Record<string, RegisteredStudentRow[]>>((acc, gradeOption) => {
-        acc[gradeOption] = students.filter((s) => (s.grade ?? "").trim() === gradeOption);
-        return acc;
-      }, {});
-      setStudentsByGrade(grouped);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível carregar seu perfil.";
       Alert.alert("Erro", message);
@@ -247,108 +233,6 @@ export default function PerfilScreen() {
         </View>
 
         <View style={{ paddingHorizontal: spacing.md }}>
-          <View
-            style={{
-              marginTop: spacing.md,
-              borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: colors.borderSoft,
-              backgroundColor: colors.surfacePanel,
-              padding: spacing.xs,
-              flexDirection: "row",
-              gap: spacing.xs,
-            }}
-          >
-            <Pressable
-              onPress={() => setActiveTab("MEU_PERFIL")}
-              style={{
-                flex: 1,
-                borderRadius: radii.md,
-                paddingVertical: 10,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: activeTab === "MEU_PERFIL" ? colors.einsteinBlue : "transparent",
-              }}
-            >
-              <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
-                Meu perfil
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setActiveTab("ALUNOS_CADASTRADOS")}
-              style={{
-                flex: 1,
-                borderRadius: radii.md,
-                paddingVertical: 10,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: activeTab === "ALUNOS_CADASTRADOS" ? colors.einsteinBlue : "transparent",
-              }}
-            >
-              <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
-                Alunos cadastrados
-              </Text>
-            </Pressable>
-          </View>
-
-          {activeTab === "ALUNOS_CADASTRADOS" ? (
-            <View
-              style={{
-                marginTop: spacing.md,
-                borderRadius: radii.lg,
-                borderWidth: 1,
-                borderColor: colors.borderSoft,
-                backgroundColor: colors.surfacePanel,
-                padding: spacing.md,
-              }}
-            >
-              <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-                Alunos cadastrados por série
-              </Text>
-              {SERIES_OPTIONS.map((gradeOption) => {
-                const students = studentsByGrade[gradeOption] ?? [];
-                return (
-                  <View key={gradeOption} style={{ marginTop: spacing.sm }}>
-                    <Text style={{ color: colors.einsteinYellow }} weight="semibold">
-                      {gradeOption}
-                    </Text>
-                    {students.length === 0 ? (
-                      <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 4, fontSize: typography.small.fontSize }}>
-                        Nenhum aluno cadastrado.
-                      </Text>
-                    ) : (
-                      <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
-                        {students.map((student) => (
-                          <View
-                            key={student.id}
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: spacing.xs,
-                              borderRadius: radii.md,
-                              borderWidth: 1,
-                              borderColor: colors.borderSoft,
-                              backgroundColor: "rgba(255,255,255,0.03)",
-                              paddingHorizontal: spacing.sm,
-                              paddingVertical: spacing.xs,
-                            }}
-                          >
-                            <AvatarWithFallback fullName={student.full_name ?? "Aluno"} avatarUrl={student.avatar_url} size={34} />
-                            <Text style={{ color: colors.white, flex: 1 }} weight="semibold">
-                              {student.full_name?.trim() || "Aluno sem nome"}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {activeTab === "MEU_PERFIL" ? (
-          <>
           <View
             style={{
               marginTop: spacing.md,
@@ -570,8 +454,6 @@ export default function PerfilScreen() {
               Sair
             </Text>
           </Pressable>
-          </>
-          ) : null}
         </View>
       </ScrollView>
     </StitchScreenFrame>

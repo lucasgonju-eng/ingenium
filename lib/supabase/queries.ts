@@ -27,6 +27,15 @@ export type RegisteredStudentRow = {
   avatar_url: string | null;
 };
 
+export type RankingStudentRow = {
+  position: number;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  total_points: number;
+  lobo_class: "bronze" | "silver" | "gold";
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -336,6 +345,46 @@ export async function fetchRegisteredStudents() {
 
   if (error) throw error;
   return (data ?? []) as RegisteredStudentRow[];
+}
+
+export async function fetchRankingAllRegisteredStudents(limit = 500) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,full_name,avatar_url,points(total_points,lobo_class)")
+    .not("full_name", "is", null)
+    .order("full_name", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const rows = ((data ?? []) as Array<{
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+    points?:
+      | { total_points?: number | null; lobo_class?: string | null }
+      | Array<{ total_points?: number | null; lobo_class?: string | null }>
+      | null;
+  }>).map((row) => {
+    const pointsData = Array.isArray(row.points) ? row.points[0] ?? null : row.points ?? null;
+    return {
+      user_id: row.id,
+      full_name: row.full_name,
+      avatar_url: row.avatar_url,
+      total_points: Number(pointsData?.total_points ?? 0),
+      lobo_class: ((pointsData?.lobo_class ?? "bronze") as "bronze" | "silver" | "gold"),
+    };
+  });
+
+  rows.sort((a, b) => {
+    if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+    return (a.full_name ?? "").localeCompare(b.full_name ?? "", "pt-BR");
+  });
+
+  return rows.map((row, idx) => ({
+    position: idx + 1,
+    ...row,
+  })) as RankingStudentRow[];
 }
 
 export type FeedPost = {

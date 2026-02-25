@@ -9,8 +9,7 @@ type Props = {
   fullName: string | null;
   avatarUrl: string | null;
   loboClass: "bronze" | "silver" | "gold";
-  avgPoints: number;
-  olympiadsCount: number;
+  totalPoints: number;
   isMe: boolean;
 };
 
@@ -20,8 +19,7 @@ export default function RankingRow({
   fullName,
   avatarUrl,
   loboClass,
-  avgPoints,
-  olympiadsCount,
+  totalPoints,
   isMe,
 }: Props) {
   return (
@@ -42,9 +40,8 @@ export default function RankingRow({
         fullName={fullName}
         avatarUrl={avatarUrl}
         loboClass={loboClass}
-        avgPoints={avgPoints}
-        olympiadsCount={olympiadsCount}
-        rightLabel={avgPoints.toFixed(2)}
+        points={totalPoints}
+        rightLabel={totalPoints.toLocaleString("pt-BR")}
         isMe={isMe}
       />
     </View>

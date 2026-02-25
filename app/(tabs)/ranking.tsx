@@ -8,19 +8,16 @@ import RankingTopPodium from "../../components/sections/RankingTopPodium";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
-import { fetchMyRankGeralMedia, fetchRankingGeralMediaPublic, MyRankGeralMedia } from "../../lib/supabase/queries";
+import { fetchMyRankGeralMedia, fetchRankingAllRegisteredStudents, MyRankGeralMedia } from "../../lib/supabase/queries";
 import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
 import { copy } from "../../content/copy";
 
 type RankingRow = {
-  position_geral_media: number;
+  position: number;
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
-  avg_points: number;
-  olympiads_count: number;
-  total_points_sum: number;
-  total_points: number | null;
+  total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
 };
 
@@ -52,7 +49,7 @@ export default function RankingScreen() {
       setLoading(true);
       const [{ data: sessionData }, data] = await Promise.all([
         supabase.auth.getSession(),
-        fetchRankingGeralMediaPublic(50),
+        fetchRankingAllRegisteredStudents(500),
       ]);
       setMyUserId(sessionData.session?.user?.id ?? null);
       setRows(data as RankingRow[]);
@@ -154,7 +151,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
-            3º Ano
+            Todos os alunos
           </Text>
         </Pressable>
         <Pressable
@@ -168,7 +165,7 @@ export default function RankingScreen() {
           }}
         >
           <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
-            Matemática
+            XP oficial
           </Text>
         </Pressable>
       </View>
@@ -226,13 +223,12 @@ export default function RankingScreen() {
         <RankingTopPodium
           variant="geral"
           top3={top3.map((row) => ({
-            position: row.position_geral_media,
+            position: row.position,
             user_id: row.user_id,
             full_name: row.full_name,
             avatar_url: row.avatar_url,
             lobo_class: row.lobo_class,
-            avg_points: Number(row.avg_points),
-            olympiads_count: row.olympiads_count,
+            points: Number(row.total_points),
           }))}
         />
       </View>
@@ -274,13 +270,12 @@ export default function RankingScreen() {
           }}
         >
           <RankingItem
-            position={myRow.position_geral_media}
+            position={myRow.position}
             fullName={myRow.full_name}
             avatarUrl={myRow.avatar_url}
             loboClass={myRow.lobo_class}
-            avgPoints={Number(myRow.avg_points)}
-            olympiadsCount={myRow.olympiads_count}
-            rightLabel={Number(myRow.avg_points).toFixed(2)}
+            points={Number(myRow.total_points)}
+            rightLabel={Number(myRow.total_points).toLocaleString("pt-BR")}
             isMe
             compact
           />
