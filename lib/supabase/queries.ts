@@ -32,6 +32,7 @@ export type RankingStudentRow = {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
+  grade: string | null;
   total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
 };
@@ -350,7 +351,7 @@ export async function fetchRegisteredStudents() {
 export async function fetchRankingAllRegisteredStudents(limit = 500) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,full_name,avatar_url,points(total_points,lobo_class)")
+    .select("id,full_name,avatar_url,grade,points(total_points,lobo_class)")
     .not("full_name", "is", null)
     .order("full_name", { ascending: true })
     .limit(limit);
@@ -361,6 +362,7 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
     id: string;
     full_name: string | null;
     avatar_url: string | null;
+    grade: string | null;
     points?:
       | { total_points?: number | null; lobo_class?: string | null }
       | Array<{ total_points?: number | null; lobo_class?: string | null }>
@@ -371,6 +373,7 @@ export async function fetchRankingAllRegisteredStudents(limit = 500) {
       user_id: row.id,
       full_name: row.full_name,
       avatar_url: row.avatar_url,
+      grade: row.grade ?? null,
       total_points: Number(pointsData?.total_points ?? 0),
       lobo_class: ((pointsData?.lobo_class ?? "bronze") as "bronze" | "silver" | "gold"),
     };

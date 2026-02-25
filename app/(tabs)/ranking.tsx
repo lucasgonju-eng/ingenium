@@ -12,11 +12,15 @@ import { fetchMyRankGeralMedia, fetchRankingAllRegisteredStudents, MyRankGeralMe
 import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
 import { copy } from "../../content/copy";
 
+const SERIES_FILTERS = ["Todos", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
+type SeriesFilter = (typeof SERIES_FILTERS)[number];
+
 type RankingRow = {
   position: number;
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
+  grade: string | null;
   total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
 };
@@ -27,8 +31,19 @@ export default function RankingScreen() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myRankInfo, setMyRankInfo] = useState<MyRankGeralMedia | null>(null);
   const [search, setSearch] = useState("");
-  const top3 = useMemo(() => rows.slice(0, 3), [rows]);
-  const restRows = useMemo(() => rows.slice(3), [rows]);
+  const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
+  const rankedRows = useMemo(() => {
+    if (seriesFilter === "Todos") return rows;
+
+    const filtered = rows.filter((row) => (row.grade ?? "").trim() === seriesFilter);
+    const sorted = [...filtered].sort((a, b) => {
+      if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+      return (a.full_name ?? "").localeCompare(b.full_name ?? "", "pt-BR");
+    });
+    return sorted.map((row, idx) => ({ ...row, position: idx + 1 }));
+  }, [rows, seriesFilter]);
+  const top3Series = useMemo(() => rankedRows.slice(0, 3), [rankedRows]);
+  const restRows = useMemo(() => rankedRows.slice(3), [rankedRows]);
   const adjustedRestRows = useMemo(() => {
     if (!myUserId) return restRows;
 
@@ -40,8 +55,8 @@ export default function RankingScreen() {
     return [myRow, ...withoutMe];
   }, [restRows, myUserId]);
   const myRow = useMemo(
-    () => rows.find((row) => row.user_id === myUserId) ?? null,
-    [rows, myUserId],
+    () => rankedRows.find((row) => row.user_id === myUserId) ?? null,
+    [rankedRows, myUserId],
   );
 
   async function load() {
@@ -125,49 +140,34 @@ export default function RankingScreen() {
         </View>
       </View>
 
-      <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs }}>
-        <Pressable
-          style={{
-            borderRadius: radii.pill,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 6,
-            backgroundColor: colors.einsteinBlue,
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.22)",
-          }}
-        >
-          <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
-            Todos
-          </Text>
-        </Pressable>
-        <Pressable
-          style={{
-            borderRadius: radii.pill,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 6,
-            backgroundColor: colors.surfacePanel,
-            borderWidth: 1,
-            borderColor: colors.borderSoft,
-          }}
-        >
-          <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
-            Todos os alunos
-          </Text>
-        </Pressable>
-        <Pressable
-          style={{
-            borderRadius: radii.pill,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 6,
-            backgroundColor: colors.surfacePanel,
-            borderWidth: 1,
-            borderColor: colors.borderSoft,
-          }}
-        >
-          <Text style={{ color: "rgba(255,255,255,0.78)", fontSize: typography.small.fontSize }} weight="semibold">
-            XP oficial
-          </Text>
-        </Pressable>
+      <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+        {SERIES_FILTERS.map((filter) => {
+          const selected = seriesFilter === filter;
+          return (
+            <Pressable
+              key={filter}
+              onPress={() => setSeriesFilter(filter)}
+              style={{
+                borderRadius: radii.pill,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 6,
+                backgroundColor: selected ? colors.einsteinBlue : colors.surfacePanel,
+                borderWidth: 1,
+                borderColor: selected ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+              }}
+            >
+              <Text
+                style={{
+                  color: selected ? colors.white : "rgba(255,255,255,0.78)",
+                  fontSize: typography.small.fontSize,
+                }}
+                weight="semibold"
+              >
+                {filter}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View
@@ -222,7 +222,7 @@ export default function RankingScreen() {
       <View style={{ marginTop: spacing.sm }}>
         <RankingTopPodium
           variant="geral"
-          top3={top3.map((row) => ({
+          top3={top3Series.map((row) => ({
             position: row.position,
             user_id: row.user_id,
             full_name: row.full_name,

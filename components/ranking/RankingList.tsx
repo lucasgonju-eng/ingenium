@@ -9,6 +9,7 @@ type Row = {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
+  grade?: string | null;
   total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
 };
