@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, TextInput, View } from "react-native";
+import { Alert, FlatList, Platform, Pressable, TextInput, View } from "react-native";
 import FeedEmptyState from "../../components/feed/FeedEmptyState";
 import FeedNoPermissionState from "../../components/feed/FeedNoPermissionState";
 import FeedNoSessionState from "../../components/feed/FeedNoSessionState";
@@ -144,6 +144,14 @@ export default function MuralScreen() {
   }
 
   function handleDeletePress(post: FeedPost) {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const confirmed = window.confirm("Tem certeza que deseja apagar esta mensagem do mural?");
+      if (confirmed) {
+        void confirmDeletePost(post.id);
+      }
+      return;
+    }
+
     Alert.alert(
       "Excluir postagem",
       "Tem certeza que deseja apagar esta mensagem do mural?",
