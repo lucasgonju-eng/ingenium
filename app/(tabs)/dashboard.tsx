@@ -154,6 +154,13 @@ export default function DashboardScreen() {
     });
     return sorted.map((row, idx) => ({ ...row, position: idx + 1 }));
   }, [rankingRows, seriesFilter]);
+  const rankingRowsByClass = useMemo(() => {
+    return {
+      gold: rankingRowsForPanel.filter((row) => row.lobo_class === "gold"),
+      silver: rankingRowsForPanel.filter((row) => row.lobo_class === "silver"),
+      bronze: rankingRowsForPanel.filter((row) => row.lobo_class === "bronze"),
+    };
+  }, [rankingRowsForPanel]);
 
   if (loading) {
     return (
@@ -402,7 +409,7 @@ export default function DashboardScreen() {
           }}
         >
           <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-            Ranking no Painel
+            Ranking Geral
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
             Geral por padrão. Use os botões para ranking por série.
@@ -442,27 +449,48 @@ export default function DashboardScreen() {
             {rankingRowsForPanel.length === 0 ? (
               <Text style={{ color: "rgba(255,255,255,0.62)" }}>Sem dados de ranking no momento.</Text>
             ) : (
-              rankingRowsForPanel.slice(0, 10).map((row) => (
-                <View
-                  key={`${row.user_id}-${row.position}`}
-                  style={{
-                    borderRadius: radii.md,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: colors.surfacePanel,
-                    padding: spacing.sm,
-                  }}
-                >
-                  <RankingItem
-                    position={row.position}
-                    fullName={row.full_name}
-                    avatarUrl={row.avatar_url}
-                    loboClass={row.lobo_class}
-                    points={row.total_points}
-                    rightLabel={row.total_points.toLocaleString("pt-BR")}
-                  />
-                </View>
-              ))
+              <>
+                {[
+                  { key: "gold", label: "Lobo de Ouro", rows: rankingRowsByClass.gold },
+                  { key: "silver", label: "Lobo de Prata", rows: rankingRowsByClass.silver },
+                  { key: "bronze", label: "Lobo de Bronze", rows: rankingRowsByClass.bronze },
+                ].map((section) => (
+                  <View key={section.key} style={{ marginTop: spacing.xs }}>
+                    <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                      {section.label}
+                    </Text>
+                    {section.rows.length === 0 ? (
+                      <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 4 }}>
+                        Nenhum aluno nesta classe.
+                      </Text>
+                    ) : (
+                      <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                        {section.rows.slice(0, 10).map((row) => (
+                          <View
+                            key={`${section.key}-${row.user_id}-${row.position}`}
+                            style={{
+                              borderRadius: radii.md,
+                              borderWidth: 1,
+                              borderColor: colors.borderSoft,
+                              backgroundColor: colors.surfacePanel,
+                              padding: spacing.sm,
+                            }}
+                          >
+                            <RankingItem
+                              position={row.position}
+                              fullName={row.full_name}
+                              avatarUrl={row.avatar_url}
+                              loboClass={row.lobo_class}
+                              points={row.total_points}
+                              rightLabel={row.total_points.toLocaleString("pt-BR")}
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </>
             )}
           </View>
         </View>
