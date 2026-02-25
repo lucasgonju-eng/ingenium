@@ -16,6 +16,7 @@ export default function AdminLoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
     // Segurança: nunca redirecionar automaticamente para o admin.
@@ -23,12 +24,16 @@ export default function AdminLoginScreen() {
   }, []);
 
   async function handleAdminLogin() {
+    setErrorText(null);
     if (!login.trim() || !password) {
+      setErrorText("Preencha login e senha.");
       Alert.alert("Campos obrigatórios", "Preencha login e senha.");
       return;
     }
 
-    if (login.trim().toLowerCase() !== ADMIN_LOGIN) {
+    const normalizedLogin = login.trim().toLowerCase();
+    if (normalizedLogin !== ADMIN_LOGIN && normalizedLogin !== ADMIN_EMAIL.toLowerCase()) {
+      setErrorText("Use login admin (ou o e-mail admin) para acessar o menu.");
       Alert.alert("Login inválido", "Use o login admin para acessar o menu administrativo.");
       return;
     }
@@ -41,6 +46,7 @@ export default function AdminLoginScreen() {
       });
 
       if (error) {
+        setErrorText(error.message);
         Alert.alert("Erro no login admin", error.message);
         return;
       }
@@ -48,6 +54,7 @@ export default function AdminLoginScreen() {
       const role = await fetchMyAccessRole();
       if (role !== "admin" && role !== "coord") {
         await supabase.auth.signOut();
+        setErrorText("Esta conta não possui permissão de administrador.");
         Alert.alert("Acesso negado", "Esta conta não possui permissão de administrador.");
         return;
       }
@@ -55,6 +62,7 @@ export default function AdminLoginScreen() {
       router.replace("/admin");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao autenticar no menu admin.";
+      setErrorText(message);
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
@@ -87,8 +95,12 @@ export default function AdminLoginScreen() {
               placeholder="Login"
               placeholderTextColor="rgba(255,255,255,0.45)"
               autoCapitalize="none"
+              autoComplete="username"
               value={login}
-              onChangeText={setLogin}
+              onChangeText={(value) => {
+                setLogin(value);
+                if (errorText) setErrorText(null);
+              }}
               style={{
                 marginTop: spacing.sm,
                 height: 46,
@@ -118,8 +130,12 @@ export default function AdminLoginScreen() {
                 placeholder="Senha"
                 placeholderTextColor="rgba(255,255,255,0.45)"
                 secureTextEntry={!showPassword}
+                autoComplete="current-password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  if (errorText) setErrorText(null);
+                }}
                 onSubmitEditing={() => {
                   void handleAdminLogin();
                 }}
@@ -157,6 +173,16 @@ export default function AdminLoginScreen() {
                 {loading ? "Entrando..." : "Entrar no admin"}
               </Text>
             </Pressable>
+
+            {errorText ? (
+              <Text style={{ color: "#fca5a5", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
+                {errorText}
+              </Text>
+            ) : (
+              <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
+                Use `admin` ou `lucasgonju@gmail.com` no campo Login.
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
