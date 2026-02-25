@@ -322,6 +322,7 @@ export async function upsertMyProfile(input: Omit<ProfileRow, "id">) {
 
 export type FeedPost = {
   id: string;
+  feed_owner_id?: string;
   author_id: string;
   content: string;
   created_at: string;
@@ -329,32 +330,55 @@ export type FeedPost = {
   author_avatar: string | null;
 };
 
-export async function fetchFeedPosts(limit = 30) {
+type PostRow = {
+  id: string;
+  feed_owner_id?: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  profiles?: { full_name?: string | null; avatar_url?: string | null } | null;
+};
+
+function mapPostRow(row: PostRow): FeedPost {
+  return {
+    id: row.id,
+    feed_owner_id: row.feed_owner_id,
+    author_id: row.author_id,
+    content: row.content,
+    created_at: row.created_at,
+    author_name: row.profiles?.full_name ?? null,
+    author_avatar: row.profiles?.avatar_url ?? null,
+  };
+}
+
+export async function fetchMuralPosts(limit = 30) {
   const { data, error } = await supabase
     .from("wall_posts")
     .select("id,author_id,content,created_at,profiles:author_id(full_name,avatar_url)")
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  const mapped = ((data ?? []) as Array<{
-    id: string;
-    author_id: string;
-    content: string;
-    created_at: string;
-    profiles?: { full_name?: string | null; avatar_url?: string | null } | null;
-  }>).map((row) => ({
-    id: row.id,
-    author_id: row.author_id,
-    content: row.content,
-    created_at: row.created_at,
-    author_name: row.profiles?.full_name ?? null,
-    author_avatar: row.profiles?.avatar_url ?? null,
-  }));
+  const mapped = ((data ?? []) as PostRow[]).map(mapPostRow);
 
   return { data: mapped as FeedPost[], error };
 }
 
-export async function createFeedPost(content: string) {
+export async function fetchProfileFeedPosts(feedOwnerId: string, limit = 30) {
+  const ownerId = feedOwnerId.trim();
+  if (!ownerId) throw new Error("Feed do aluno inválido.");
+
+  const { data, error } = await supabase
+    .from("feed_posts")
+    .select("id,feed_owner_id,author_id,content,created_at,profiles:author_id(full_name,avatar_url)")
+    .eq("feed_owner_id", ownerId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const mapped = ((data ?? []) as PostRow[]).map(mapPostRow);
+  return { data: mapped as FeedPost[], error };
+}
+
+export async function createMuralPost(content: string) {
   const {
     data: { user },
     error: userError,
@@ -376,25 +400,35 @@ export async function createFeedPost(content: string) {
 
   if (error) throw error;
 
-  const row = data as {
-    id: string;
-    author_id: string;
-    content: string;
-    created_at: string;
-    profiles?: { full_name?: string | null; avatar_url?: string | null } | null;
-  };
-
-  return {
-    id: row.id,
-    author_id: row.author_id,
-    content: row.content,
-    created_at: row.created_at,
-    author_name: row.profiles?.full_name ?? null,
-    author_avatar: row.profiles?.avatar_url ?? null,
-  } as FeedPost;
+  return mapPostRow(data as PostRow);
 }
 
-export async function deleteFeedPost(postId: string) {
+export async function createProfileFeedPost(content: string) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login para publicar no feed.");
+
+  const cleanContent = content.trim();
+  if (!cleanContent) throw new Error("Digite uma mensagem antes de publicar.");
+
+  const { data, error } = await supabase
+    .from("feed_posts")
+    .insert({
+      feed_owner_id: user.id,
+      author_id: user.id,
+      content: cleanContent,
+    })
+    .select("id,feed_owner_id,author_id,content,created_at,profiles:author_id(full_name,avatar_url)")
+    .single();
+
+  if (error) throw error;
+  return mapPostRow(data as PostRow);
+}
+
+export async function deleteMuralPost(postId: string) {
   const cleanPostId = postId.trim();
   if (!cleanPostId) throw new Error("Post inválido para exclusão.");
 
@@ -410,6 +444,27 @@ export async function deleteFeedPost(postId: string) {
     .delete()
     .eq("id", cleanPostId)
     .eq("author_id", user.id);
+
+  if (error) throw error;
+}
+
+export async function deleteProfileFeedPost(postId: string) {
+  const cleanPostId = postId.trim();
+  if (!cleanPostId) throw new Error("Post inválido para exclusão.");
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { error } = await supabase
+    .from("feed_posts")
+    .delete()
+    .eq("id", cleanPostId)
+    .eq("author_id", user.id)
+    .eq("feed_owner_id", user.id);
 
   if (error) throw error;
 }

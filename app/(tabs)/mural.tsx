@@ -10,7 +10,7 @@ import { getMockFeedPosts } from "../../components/feed/mockFeed";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { createFeedPost, deleteFeedPost, fetchFeedPosts, FeedPost } from "../../lib/supabase/queries";
+import { createMuralPost, deleteMuralPost, fetchMuralPosts, FeedPost } from "../../lib/supabase/queries";
 import { runFeedAIAudit } from "../../lib/feed/aiAudit";
 import { getSessionUser } from "../../lib/supabase/session";
 import { colors, radii, spacing } from "../../lib/theme/tokens";
@@ -49,7 +49,7 @@ export default function MuralScreen() {
         return;
       }
 
-      const { data, error } = await fetchFeedPosts(30);
+      const { data, error } = await fetchMuralPosts(30);
       const msg = (error as { message?: string } | null)?.message ?? null;
       if (msg) setLastError(msg);
 
@@ -114,7 +114,7 @@ export default function MuralScreen() {
         return;
       }
 
-      const created = await createFeedPost(message);
+      const created = await createMuralPost(message);
       setRows((prev) => [created, ...prev]);
       setNewPost("");
       setState("READY");
@@ -131,7 +131,7 @@ export default function MuralScreen() {
   async function confirmDeletePost(postId: string) {
     try {
       setDeletingPostId(postId);
-      await deleteFeedPost(postId);
+      await deleteMuralPost(postId);
       setRows((prev) => prev.filter((row) => row.id !== postId));
       setPostFeedback({ kind: "ok", message: "Postagem excluída com sucesso." });
     } catch (e: unknown) {
