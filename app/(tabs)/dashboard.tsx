@@ -1,20 +1,23 @@
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import DashboardActions from "../../components/sections/DashboardActions";
 import DashboardHero from "../../components/sections/DashboardHero";
+import RankingItem from "../../components/sections/RankingItem";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import {
+  fetchRankingAllRegisteredStudents,
   fetchRegisteredStudents,
   fetchMyProfile,
   fetchMyPoints,
   fetchMyRankGeralMedia,
   fetchOlympiads,
   RegisteredStudentRow,
+  RankingStudentRow,
   MyRankGeralMedia,
 } from "../../lib/supabase/queries";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
@@ -28,6 +31,8 @@ type OlympiadRow = {
   start_date: string | null;
   status: string | null;
 };
+const SERIES_FILTERS = ["Todos", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
+type SeriesFilter = (typeof SERIES_FILTERS)[number];
 
 function getClassLabel(cls: LoboClass) {
   if (cls === "gold") return "Lobo de Ouro";
@@ -65,6 +70,8 @@ export default function DashboardScreen() {
   const [name, setName] = useState("Aluno");
   const [olympiads, setOlympiads] = useState<OlympiadRow[]>([]);
   const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
+  const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
+  const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
   async function load() {
@@ -90,17 +97,19 @@ export default function DashboardScreen() {
 
       setName(getFirstName(fullName));
 
-      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes] = await Promise.allSettled([
+      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
         fetchOlympiads(),
         fetchRegisteredStudents(),
+        fetchRankingAllRegisteredStudents(500),
       ]);
 
       const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
       const p = pointsRes.status === "fulfilled" ? pointsRes.value : null;
       const upcoming = olympiadsRes.status === "fulfilled" ? olympiadsRes.value : [];
       const students = studentsRes.status === "fulfilled" ? studentsRes.value : [];
+      const rankingData = rankingRes.status === "fulfilled" ? rankingRes.value : [];
 
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
@@ -113,6 +122,7 @@ export default function DashboardScreen() {
         return acc;
       }, {});
       setStudentsByGrade(grouped);
+      setRankingRows(rankingData);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar seu desempenho";
       Alert.alert("Erro", message);
@@ -135,6 +145,15 @@ export default function DashboardScreen() {
       : rankInfo.is_eligible
         ? `Elegível: Sim • Média ${rankInfo.avg_points?.toFixed(2) ?? "-"} • Olimpíadas ${rankInfo.olympiads_count}`
         : `Elegível: Não • Faltam ${rankInfo.missing_olympiads} olimpíada(s) para entrar no ranking geral.`;
+  const rankingRowsForPanel = useMemo(() => {
+    if (seriesFilter === "Todos") return rankingRows;
+    const filtered = rankingRows.filter((row) => (row.grade ?? "").trim() === seriesFilter);
+    const sorted = [...filtered].sort((a, b) => {
+      if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+      return (a.full_name ?? "").localeCompare(b.full_name ?? "", "pt-BR");
+    });
+    return sorted.map((row, idx) => ({ ...row, position: idx + 1 }));
+  }, [rankingRows, seriesFilter]);
 
   if (loading) {
     return (
@@ -370,6 +389,82 @@ export default function DashboardScreen() {
               </View>
             );
           })}
+        </View>
+
+        <View
+          style={{
+            marginTop: spacing.xl,
+            borderRadius: radii.md,
+            padding: sizes.compactCardPadding,
+            backgroundColor: colors.surfaceCard,
+            borderWidth: 1,
+            borderColor: colors.borderSoft,
+          }}
+        >
+          <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
+            Ranking no Painel
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
+            Geral por padrão. Use os botões para ranking por série.
+          </Text>
+
+          <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+            {SERIES_FILTERS.map((filter) => {
+              const selected = seriesFilter === filter;
+              return (
+                <Pressable
+                  key={filter}
+                  onPress={() => setSeriesFilter(filter)}
+                  style={{
+                    borderRadius: radii.pill,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                    backgroundColor: selected ? colors.einsteinBlue : colors.surfacePanel,
+                    borderWidth: 1,
+                    borderColor: selected ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? colors.white : "rgba(255,255,255,0.78)",
+                      fontSize: typography.small.fontSize,
+                    }}
+                    weight="semibold"
+                  >
+                    {filter}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+            {rankingRowsForPanel.length === 0 ? (
+              <Text style={{ color: "rgba(255,255,255,0.62)" }}>Sem dados de ranking no momento.</Text>
+            ) : (
+              rankingRowsForPanel.slice(0, 10).map((row) => (
+                <View
+                  key={`${row.user_id}-${row.position}`}
+                  style={{
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: colors.surfacePanel,
+                    padding: spacing.sm,
+                  }}
+                >
+                  <RankingItem
+                    position={row.position}
+                    fullName={row.full_name}
+                    avatarUrl={row.avatar_url}
+                    loboClass={row.lobo_class}
+                    points={row.total_points}
+                    rightLabel={row.total_points.toLocaleString("pt-BR")}
+                  />
+                </View>
+              ))
+            )}
+          </View>
         </View>
       </View>
       </ScrollView>
