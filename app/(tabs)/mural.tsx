@@ -128,10 +128,14 @@ export default function MuralScreen() {
     }
   }
 
-  async function confirmDeletePost(postId: string) {
+  async function confirmDeletePost(post: FeedPost) {
     try {
-      setDeletingPostId(postId);
-      await deleteMuralPost(postId);
+      if (!currentUserId || post.author_id !== currentUserId) {
+        throw new Error("Você só pode excluir a sua própria postagem.");
+      }
+
+      setDeletingPostId(post.id);
+      await deleteMuralPost(post.id);
       await load();
       setPostFeedback({ kind: "ok", message: "Postagem excluída com sucesso." });
     } catch (e: unknown) {
@@ -144,10 +148,15 @@ export default function MuralScreen() {
   }
 
   function handleDeletePress(post: FeedPost) {
+    if (!currentUserId || post.author_id !== currentUserId) {
+      setPostFeedback({ kind: "error", message: "Você só pode excluir a sua própria postagem." });
+      return;
+    }
+
     if (Platform.OS === "web" && typeof window !== "undefined") {
       const confirmed = window.confirm("Tem certeza que deseja apagar esta mensagem do mural?");
       if (confirmed) {
-        void confirmDeletePost(post.id);
+        void confirmDeletePost(post);
       }
       return;
     }
@@ -161,7 +170,7 @@ export default function MuralScreen() {
           text: "Excluir",
           style: "destructive",
           onPress: () => {
-            void confirmDeletePost(post.id);
+            void confirmDeletePost(post);
           },
         },
       ],

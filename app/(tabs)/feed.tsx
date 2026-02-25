@@ -138,11 +138,15 @@ export default function FeedScreen() {
     }
   }
 
-  async function confirmDeletePost(postId: string) {
+  async function confirmDeletePost(post: FeedPost) {
     try {
       if (!canPostOwnFeed) throw new Error("Você só pode excluir postagens do seu próprio feed.");
-      setDeletingPostId(postId);
-      await deleteProfileFeedPost(postId);
+      if (!currentUserId || !feedOwnerId || post.author_id !== currentUserId || post.feed_owner_id !== feedOwnerId) {
+        throw new Error("Você só pode excluir a sua própria postagem neste feed.");
+      }
+
+      setDeletingPostId(post.id);
+      await deleteProfileFeedPost(post.id);
       await load();
       setPostFeedback({ kind: "ok", message: "Postagem excluída com sucesso." });
     } catch (e: unknown) {
@@ -155,9 +159,14 @@ export default function FeedScreen() {
   }
 
   function handleDeletePress(post: FeedPost) {
+    if (!currentUserId || !feedOwnerId || post.author_id !== currentUserId || post.feed_owner_id !== feedOwnerId) {
+      setPostFeedback({ kind: "error", message: "Você só pode excluir a sua própria postagem neste feed." });
+      return;
+    }
+
     if (Platform.OS === "web" && typeof window !== "undefined") {
       const confirmed = window.confirm("Tem certeza que deseja apagar esta mensagem do seu feed?");
-      if (confirmed) void confirmDeletePost(post.id);
+      if (confirmed) void confirmDeletePost(post);
       return;
     }
 
@@ -170,7 +179,7 @@ export default function FeedScreen() {
           text: "Excluir",
           style: "destructive",
           onPress: () => {
-            void confirmDeletePost(post.id);
+            void confirmDeletePost(post);
           },
         },
       ],
