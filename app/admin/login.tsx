@@ -18,19 +18,8 @@ export default function AdminLoginScreen() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    async function checkSession() {
-      const { data } = await supabase.auth.getUser();
-      if (!mounted || !data.user) return;
-      const role = await fetchMyAccessRole();
-      if (role === "admin" || role === "coord") {
-        router.replace("/admin");
-      }
-    }
-    void checkSession();
-    return () => {
-      mounted = false;
-    };
+    // Segurança: nunca redirecionar automaticamente para o admin.
+    // O acesso ao painel deve ocorrer somente após login explícito nesta tela.
   }, []);
 
   async function handleAdminLogin() {
