@@ -5,7 +5,6 @@ import { Image, Platform, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AvatarWithFallback from "../ui/AvatarWithFallback";
 import { Text } from "../ui/Text";
-import { hasAcceptedLatestTerms } from "../../lib/legal/consent";
 import { supabase } from "../../lib/supabase/client";
 import { fetchMyProfile } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
@@ -55,11 +54,6 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
         }
 
         setIsAuthenticated(true);
-        const acceptedLatest = await hasAcceptedLatestTerms();
-        if (!acceptedLatest && pathname !== "/(auth)/termos-lgpd") {
-          router.replace("/(auth)/termos-lgpd");
-          return;
-        }
         const fallbackName =
           String(user.user_metadata?.full_name ?? "").trim() ||
           user.email?.split("@")[0] ||

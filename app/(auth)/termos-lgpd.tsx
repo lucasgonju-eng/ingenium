@@ -5,8 +5,9 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { TERMS_CONTENT, TERMS_EFFECTIVE_DATE, TERMS_TITLE, TERMS_VERSION_TEXT } from "../../content/legal/terms-v1.0";
-import { fetchLatestTermsVersion } from "../../lib/legal/consent";
+import { acceptLatestTerms, fetchLatestTermsVersion } from "../../lib/legal/consent";
 import { clearLocalSignupTermsAcceptance, setLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
+import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing } from "../../lib/theme/tokens";
 
 type ScrollEvent = {
@@ -46,6 +47,20 @@ export default function TermsLgpdScreen() {
         termsHash: latest.content_sha256,
         acceptedAtIso: new Date().toISOString(),
       });
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        await acceptLatestTerms({
+          termsVersionId: latest.id,
+          evidenceJson: {
+            consent_checkbox: true,
+            scrolled_to_end: true,
+            accepted_from_screen: "termos-lgpd",
+          },
+        });
+        clearLocalSignupTermsAcceptance();
+        router.replace("/(tabs)/dashboard");
+        return;
+      }
       router.replace("/(auth)/cadastro");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível carregar a versão vigente dos termos.";
