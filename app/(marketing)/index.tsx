@@ -17,9 +17,25 @@ type TeaserRow = {
   lobo_class: "bronze" | "silver" | "gold";
 };
 
+type LandingOlympiadRow = {
+  id: string;
+  title: string;
+  category: string | null;
+  status: string | null;
+  registration_deadline: string | null;
+};
+
+function formatShortDate(value: string | null) {
+  if (!value) return "Sem data";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+}
+
 export default function MarketingLandingScreen() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<TeaserRow[]>([]);
+  const [olympiads, setOlympiads] = useState<LandingOlympiadRow[]>([]);
   const [hasSession, setHasSession] = useState(false);
 
   async function load() {
@@ -30,10 +46,22 @@ export default function MarketingLandingScreen() {
       const ok = Boolean(data.session);
       setHasSession(ok);
 
-      const teaser = await fetchPublicRankingTeaser(10);
+      const today = new Date().toISOString().slice(0, 10);
+      const [teaser, olympiadsResult] = await Promise.all([
+        fetchPublicRankingTeaser(10),
+        supabase
+          .from("olympiads")
+          .select("id,title,category,status,registration_deadline")
+          .gte("registration_deadline", today)
+          .order("registration_deadline", { ascending: true })
+          .limit(6),
+      ]);
+
+      if (olympiadsResult.error) throw olympiadsResult.error;
       setRows(teaser as TeaserRow[]);
+      setOlympiads((olympiadsResult.data ?? []) as LandingOlympiadRow[]);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao carregar ranking";
+      const message = e instanceof Error ? e.message : "Falha ao carregar dados da página";
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
@@ -268,36 +296,54 @@ export default function MarketingLandingScreen() {
           <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
             Próximas Olimpíadas
           </Text>
-          {[
-            { date: "Nov 12", name: "OBM - 2ª Fase", meta: "Matemática • Nacional" },
-            { date: "Nov 18", name: "Olimpíada de Física", meta: "Física • Seletiva" },
-            { date: "Dez 05", name: "Desafio InGenium", meta: "Geral • Online" },
-          ].map((item) => (
+          {loading ? (
+            <View style={{ marginTop: spacing.xs, alignItems: "center" }}>
+              <ActivityIndicator color={colors.einsteinYellow} />
+            </View>
+          ) : olympiads.length === 0 ? (
             <View
-              key={item.name}
               style={{
                 borderRadius: radii.md,
                 borderWidth: 1,
                 borderColor: colors.borderSoft,
                 backgroundColor: "rgba(255,255,255,0.03)",
                 padding: spacing.md,
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
               }}
             >
-              <View>
-                <Text style={{ color: colors.einsteinYellow, fontSize: 11 }} weight="semibold">
-                  {item.date}
-                </Text>
-                <Text style={{ color: colors.white, marginTop: 2 }} weight="bold">
-                  {item.name}
-                </Text>
-                <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2, fontSize: 12 }}>{item.meta}</Text>
-              </View>
-              <Text style={{ color: "rgba(255,255,255,0.78)" }}>🔔</Text>
+              <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                Sem olimpíadas cadastradas com inscrição aberta no momento.
+              </Text>
             </View>
-          ))}
+          ) : (
+            olympiads.map((item) => (
+              <View
+                key={item.id}
+                style={{
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  padding: spacing.md,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <View>
+                  <Text style={{ color: colors.einsteinYellow, fontSize: 11 }} weight="semibold">
+                    {formatShortDate(item.registration_deadline)}
+                  </Text>
+                  <Text style={{ color: colors.white, marginTop: 2 }} weight="bold">
+                    {item.title}
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2, fontSize: 12 }}>
+                    {item.category ?? "Olimpíada"} {item.status ? `• ${item.status}` : ""}
+                  </Text>
+                </View>
+                <Text style={{ color: "rgba(255,255,255,0.78)" }}>🔔</Text>
+              </View>
+            ))
+          )}
         </View>
 
         <View
