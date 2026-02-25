@@ -348,6 +348,7 @@ export default function PerfilScreen() {
           ) : null}
 
           {activeTab === "MEU_PERFIL" ? (
+          <>
           <View
             style={{
               marginTop: spacing.md,
@@ -569,6 +570,7 @@ export default function PerfilScreen() {
               Sair
             </Text>
           </Pressable>
+          </>
           ) : null}
         </View>
       </ScrollView>
