@@ -12,6 +12,7 @@ import {
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudentsFull,
   fetchTeachersWithOlympiads,
+  sendTeacherMagicLink,
   removeTeacherAssignment,
   fetchOlympiads,
   type FullStudentRow,
@@ -40,9 +41,12 @@ export default function AdminDashboardScreen() {
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [olympiads, setOlympiads] = useState<Array<{ id: string; title: string }>>([]);
-  const [teacherName, setTeacherName] = useState("");
+  const [teacherFullName, setTeacherFullName] = useState("");
+  const [teacherDisplayName, setTeacherDisplayName] = useState("");
   const [teacherEmail, setTeacherEmail] = useState("");
   const [teacherArea, setTeacherArea] = useState("");
+  const [selectedCreateOlympiadId, setSelectedCreateOlympiadId] = useState("");
+  const [teacherPendingOlympiadName, setTeacherPendingOlympiadName] = useState("");
   const [savingTeacher, setSavingTeacher] = useState(false);
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
@@ -142,22 +146,38 @@ export default function AdminDashboardScreen() {
   }
 
   async function handleCreateTeacher() {
-    if (!teacherName.trim() || !teacherEmail.trim()) {
-      Alert.alert("Campos obrigatórios", "Informe nome e e-mail do professor(a).");
+    if (!teacherFullName.trim() || !teacherDisplayName.trim() || !teacherEmail.trim()) {
+      Alert.alert("Campos obrigatórios", "Informe nome completo, nome de exibição e e-mail.");
+      return;
+    }
+    if (selectedCreateOlympiadId === "pending" && !teacherPendingOlympiadName.trim()) {
+      Alert.alert("Campo obrigatório", "Informe o nome da olimpíada pendente.");
       return;
     }
     try {
       setSavingTeacher(true);
-      await createTeacher({
-        full_name: teacherName.trim(),
+      await sendTeacherMagicLink({
         email: teacherEmail.trim(),
-        area: teacherArea.trim() || null,
+        full_name: teacherFullName.trim(),
+        display_name: teacherDisplayName.trim(),
+        subject_area: teacherArea.trim() || null,
       });
-      setTeacherName("");
+      await createTeacher({
+        full_name: teacherFullName.trim(),
+        display_name: teacherDisplayName.trim(),
+        email: teacherEmail.trim(),
+        subject_area: teacherArea.trim() || null,
+        olympiad_id: selectedCreateOlympiadId && selectedCreateOlympiadId !== "pending" ? selectedCreateOlympiadId : null,
+        pending_olympiad_name: selectedCreateOlympiadId === "pending" ? teacherPendingOlympiadName.trim() : null,
+      });
+      setTeacherFullName("");
+      setTeacherDisplayName("");
       setTeacherEmail("");
       setTeacherArea("");
+      setSelectedCreateOlympiadId("");
+      setTeacherPendingOlympiadName("");
       await reloadTeachers();
-      Alert.alert("Professor(a) salvo", "Cadastro atualizado com sucesso.");
+      Alert.alert("Professor(a) salvo", "Cadastro atualizado e magic link enviado.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
       Alert.alert("Erro", message);
@@ -169,7 +189,13 @@ export default function AdminDashboardScreen() {
   async function handleAssignTeacher(teacherId: string, olympiadId: string) {
     try {
       setAssigningTeacherId(teacherId);
-      await assignTeacherToOlympiad({ teacher_id: teacherId, olympiad_id: olympiadId });
+      const teacher = teachers.find((item) => item.id === teacherId);
+      await assignTeacherToOlympiad({
+        teacher_profile_id: teacherId,
+        olympiad_id: olympiadId,
+        display_name: teacher?.display_name ?? null,
+        subject_area: teacher?.subject_area ?? null,
+      });
       await reloadTeachers();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao vincular professor(a).";
@@ -179,9 +205,9 @@ export default function AdminDashboardScreen() {
     }
   }
 
-  async function handleRemoveAssignment(teacherId: string, olympiadId: string) {
+  async function handleRemoveAssignment(assignmentId: string) {
     try {
-      await removeTeacherAssignment({ teacher_id: teacherId, olympiad_id: olympiadId });
+      await removeTeacherAssignment({ assignment_id: assignmentId });
       await reloadTeachers();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao remover vínculo.";
@@ -356,9 +382,12 @@ export default function AdminDashboardScreen() {
                 students={students}
                 rankingRows={rankingRows}
                 teachers={teachers}
-                teacherName={teacherName}
+                teacherFullName={teacherFullName}
+                teacherDisplayName={teacherDisplayName}
                 teacherEmail={teacherEmail}
                 teacherArea={teacherArea}
+                selectedCreateOlympiadId={selectedCreateOlympiadId}
+                teacherPendingOlympiadName={teacherPendingOlympiadName}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -367,9 +396,15 @@ export default function AdminDashboardScreen() {
                 assigningTeacherId={assigningTeacherId}
                 deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
-                onTeacherNameChange={setTeacherName}
+                onTeacherFullNameChange={setTeacherFullName}
+                onTeacherDisplayNameChange={setTeacherDisplayName}
                 onTeacherEmailChange={setTeacherEmail}
                 onTeacherAreaChange={setTeacherArea}
+                onCreateOlympiadChange={(value) => {
+                  setSelectedCreateOlympiadId(value);
+                  if (value !== "pending") setTeacherPendingOlympiadName("");
+                }}
+                onTeacherPendingOlympiadNameChange={setTeacherPendingOlympiadName}
                 onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
                   setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
                 }}
@@ -381,8 +416,8 @@ export default function AdminDashboardScreen() {
                 onAssignTeacher={(teacherId, olympiadId) => {
                   void handleAssignTeacher(teacherId, olympiadId);
                 }}
-                onRemoveAssignment={(teacherId, olympiadId) => {
-                  void handleRemoveAssignment(teacherId, olympiadId);
+                onRemoveAssignment={(assignmentId) => {
+                  void handleRemoveAssignment(assignmentId);
                 }}
                 onDeleteTeacher={(teacherId) => {
                   void handleDeleteTeacher(teacherId);
@@ -402,9 +437,12 @@ export default function AdminDashboardScreen() {
                 students={students}
                 rankingRows={rankingRows}
                 teachers={teachers}
-                teacherName={teacherName}
+                teacherFullName={teacherFullName}
+                teacherDisplayName={teacherDisplayName}
                 teacherEmail={teacherEmail}
                 teacherArea={teacherArea}
+                selectedCreateOlympiadId={selectedCreateOlympiadId}
+                teacherPendingOlympiadName={teacherPendingOlympiadName}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -413,9 +451,15 @@ export default function AdminDashboardScreen() {
                 assigningTeacherId={assigningTeacherId}
                 deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
-                onTeacherNameChange={setTeacherName}
+                onTeacherFullNameChange={setTeacherFullName}
+                onTeacherDisplayNameChange={setTeacherDisplayName}
                 onTeacherEmailChange={setTeacherEmail}
                 onTeacherAreaChange={setTeacherArea}
+                onCreateOlympiadChange={(value) => {
+                  setSelectedCreateOlympiadId(value);
+                  if (value !== "pending") setTeacherPendingOlympiadName("");
+                }}
+                onTeacherPendingOlympiadNameChange={setTeacherPendingOlympiadName}
                 onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
                   setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
                 }}
@@ -427,8 +471,8 @@ export default function AdminDashboardScreen() {
                 onAssignTeacher={(teacherId, olympiadId) => {
                   void handleAssignTeacher(teacherId, olympiadId);
                 }}
-                onRemoveAssignment={(teacherId, olympiadId) => {
-                  void handleRemoveAssignment(teacherId, olympiadId);
+                onRemoveAssignment={(assignmentId) => {
+                  void handleRemoveAssignment(assignmentId);
                 }}
                 onDeleteTeacher={(teacherId) => {
                   void handleDeleteTeacher(teacherId);
@@ -448,9 +492,12 @@ export default function AdminDashboardScreen() {
                 students={students}
                 rankingRows={rankingRows}
                 teachers={teachers}
-                teacherName={teacherName}
+                teacherFullName={teacherFullName}
+                teacherDisplayName={teacherDisplayName}
                 teacherEmail={teacherEmail}
                 teacherArea={teacherArea}
+                selectedCreateOlympiadId={selectedCreateOlympiadId}
+                teacherPendingOlympiadName={teacherPendingOlympiadName}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -459,9 +506,15 @@ export default function AdminDashboardScreen() {
                 assigningTeacherId={assigningTeacherId}
                 deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
-                onTeacherNameChange={setTeacherName}
+                onTeacherFullNameChange={setTeacherFullName}
+                onTeacherDisplayNameChange={setTeacherDisplayName}
                 onTeacherEmailChange={setTeacherEmail}
                 onTeacherAreaChange={setTeacherArea}
+                onCreateOlympiadChange={(value) => {
+                  setSelectedCreateOlympiadId(value);
+                  if (value !== "pending") setTeacherPendingOlympiadName("");
+                }}
+                onTeacherPendingOlympiadNameChange={setTeacherPendingOlympiadName}
                 onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
                   setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
                 }}
@@ -473,8 +526,8 @@ export default function AdminDashboardScreen() {
                 onAssignTeacher={(teacherId, olympiadId) => {
                   void handleAssignTeacher(teacherId, olympiadId);
                 }}
-                onRemoveAssignment={(teacherId, olympiadId) => {
-                  void handleRemoveAssignment(teacherId, olympiadId);
+                onRemoveAssignment={(assignmentId) => {
+                  void handleRemoveAssignment(assignmentId);
                 }}
                 onDeleteTeacher={(teacherId) => {
                   void handleDeleteTeacher(teacherId);
@@ -539,9 +592,12 @@ export default function AdminDashboardScreen() {
                 students={students}
                 rankingRows={rankingRows}
                 teachers={teachers}
-                teacherName={teacherName}
+                teacherFullName={teacherFullName}
+                teacherDisplayName={teacherDisplayName}
                 teacherEmail={teacherEmail}
                 teacherArea={teacherArea}
+                selectedCreateOlympiadId={selectedCreateOlympiadId}
+                teacherPendingOlympiadName={teacherPendingOlympiadName}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -550,9 +606,15 @@ export default function AdminDashboardScreen() {
                 assigningTeacherId={assigningTeacherId}
                 deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
-                onTeacherNameChange={setTeacherName}
+                onTeacherFullNameChange={setTeacherFullName}
+                onTeacherDisplayNameChange={setTeacherDisplayName}
                 onTeacherEmailChange={setTeacherEmail}
                 onTeacherAreaChange={setTeacherArea}
+                onCreateOlympiadChange={(value) => {
+                  setSelectedCreateOlympiadId(value);
+                  if (value !== "pending") setTeacherPendingOlympiadName("");
+                }}
+                onTeacherPendingOlympiadNameChange={setTeacherPendingOlympiadName}
                 onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
                   setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
                 }}

@@ -21,9 +21,12 @@ type Props = {
   students: FullStudentRow[];
   rankingRows: RankingStudentRow[];
   teachers: TeacherRow[];
-  teacherName: string;
+  teacherFullName: string;
+  teacherDisplayName: string;
   teacherEmail: string;
   teacherArea: string;
+  selectedCreateOlympiadId: string;
+  teacherPendingOlympiadName: string;
   olympiadSelectionByTeacher: Record<string, string>;
   newPassword: string;
   confirmPassword: string;
@@ -32,15 +35,18 @@ type Props = {
   assigningTeacherId: string | null;
   deletingTeacherId: string | null;
   olympiads: Array<{ id: string; title: string }>;
-  onTeacherNameChange: (value: string) => void;
+  onTeacherFullNameChange: (value: string) => void;
+  onTeacherDisplayNameChange: (value: string) => void;
   onTeacherEmailChange: (value: string) => void;
   onTeacherAreaChange: (value: string) => void;
+  onCreateOlympiadChange: (value: string) => void;
+  onTeacherPendingOlympiadNameChange: (value: string) => void;
   onTeacherOlympiadSelectionChange: (teacherId: string, olympiadId: string) => void;
   onNewPasswordChange: (value: string) => void;
   onConfirmPasswordChange: (value: string) => void;
   onSaveTeacher: () => void;
   onAssignTeacher: (teacherId: string, olympiadId: string) => void;
-  onRemoveAssignment: (teacherId: string, olympiadId: string) => void;
+  onRemoveAssignment: (assignmentId: string) => void;
   onDeleteTeacher: (teacherId: string) => void;
   onUpdatePassword: () => void;
   onOpenProfileSettings: () => void;
@@ -52,9 +58,12 @@ export default function AdminCoreDashboard(props: Props) {
     students,
     rankingRows,
     teachers,
-    teacherName,
+    teacherFullName,
+    teacherDisplayName,
     teacherEmail,
     teacherArea,
+    selectedCreateOlympiadId,
+    teacherPendingOlympiadName,
     olympiadSelectionByTeacher,
     newPassword,
     confirmPassword,
@@ -63,9 +72,12 @@ export default function AdminCoreDashboard(props: Props) {
     assigningTeacherId,
     deletingTeacherId,
     olympiads,
-    onTeacherNameChange,
+    onTeacherFullNameChange,
+    onTeacherDisplayNameChange,
     onTeacherEmailChange,
     onTeacherAreaChange,
+    onCreateOlympiadChange,
+    onTeacherPendingOlympiadNameChange,
     onTeacherOlympiadSelectionChange,
     onNewPasswordChange,
     onConfirmPasswordChange,
@@ -82,6 +94,10 @@ export default function AdminCoreDashboard(props: Props) {
   const avgXp = totalStudents > 0 ? Math.round(totalXp / totalStudents) : 0;
   const withXp = rankingRows.filter((row) => Number(row.total_points || 0) > 0).length;
   const topStudents = rankingRows.slice(0, 10);
+  const teacherOptions = teachers.map((teacher) => ({
+    id: teacher.id,
+    label: teacher.display_name ?? teacher.full_name ?? "Sem nome",
+  }));
 
   const seriesSummary = [...students.reduce((acc, row) => {
     const grade = (row.grade ?? "Sem série").trim() || "Sem série";
@@ -198,11 +214,63 @@ export default function AdminCoreDashboard(props: Props) {
       <>
         <View style={sectionCardStyle}>
           <Text style={{ color: colors.white }} weight="bold">Cadastrar professor(a)</Text>
-          <TextInput placeholder="Nome completo" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherName} onChangeText={onTeacherNameChange} style={inputStyle} />
+          <TextInput placeholder="Nome completo" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherFullName} onChangeText={onTeacherFullNameChange} style={inputStyle} />
+          <TextInput placeholder="Nome a ser exibido" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherDisplayName} onChangeText={onTeacherDisplayNameChange} style={inputStyle} />
           <TextInput placeholder="E-mail" placeholderTextColor="rgba(255,255,255,0.45)" autoCapitalize="none" value={teacherEmail} onChangeText={onTeacherEmailChange} style={inputStyle} />
-          <TextInput placeholder="Área (opcional)" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherArea} onChangeText={onTeacherAreaChange} style={inputStyle} />
+          <TextInput placeholder="Área (Disciplina)" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherArea} onChangeText={onTeacherAreaChange} style={inputStyle} />
+          <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, fontSize: 12 }}>Olimpíada designada</Text>
+          <View style={{ marginTop: 6, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+            {olympiads.map((olympiad) => {
+              const selected = selectedCreateOlympiadId === olympiad.id;
+              return (
+                <Pressable
+                  key={`create-${olympiad.id}`}
+                  onPress={() => onCreateOlympiadChange(olympiad.id)}
+                  style={{
+                    borderRadius: radii.pill,
+                    borderWidth: 1,
+                    borderColor: selected ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                    backgroundColor: selected ? "rgba(255,199,0,0.16)" : "rgba(255,255,255,0.04)",
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                  }}
+                >
+                  <Text style={{ color: selected ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                    {olympiad.title}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() => onCreateOlympiadChange("pending")}
+              style={{
+                borderRadius: radii.pill,
+                borderWidth: 1,
+                borderColor: selectedCreateOlympiadId === "pending" ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                backgroundColor: selectedCreateOlympiadId === "pending" ? "rgba(255,199,0,0.16)" : "rgba(255,255,255,0.04)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 6,
+              }}
+            >
+              <Text
+                style={{ color: selectedCreateOlympiadId === "pending" ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }}
+                weight="semibold"
+              >
+                Olimpíada ainda não cadastrada
+              </Text>
+            </Pressable>
+          </View>
+          {selectedCreateOlympiadId === "pending" ? (
+            <TextInput
+              placeholder="Nome da olimpíada pendente"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              value={teacherPendingOlympiadName}
+              onChangeText={onTeacherPendingOlympiadNameChange}
+              style={inputStyle}
+            />
+          ) : null}
           <Pressable onPress={onSaveTeacher} disabled={savingTeacher} style={[actionBtnStyle, { opacity: savingTeacher ? 0.7 : 1 }]}>
-            <Text style={{ color: colors.einsteinBlue }} weight="bold">{savingTeacher ? "Salvando..." : "Salvar professor(a)"}</Text>
+            <Text style={{ color: colors.einsteinBlue }} weight="bold">{savingTeacher ? "Salvando..." : "Salvar e enviar magic link"}</Text>
           </Pressable>
         </View>
 
@@ -214,7 +282,9 @@ export default function AdminCoreDashboard(props: Props) {
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.xs }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: colors.white }} weight="semibold">{teacher.full_name ?? "Sem nome"}</Text>
-                    <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 2, fontSize: 12 }}>{teacher.email ?? "Sem e-mail"} {teacher.area ? `• ${teacher.area}` : ""}</Text>
+                    <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 2, fontSize: 12 }}>
+                      Exibição: {teacher.display_name ?? "Sem nome"} • {teacher.email ?? "Sem e-mail"} {teacher.subject_area ? `• ${teacher.subject_area}` : ""}
+                    </Text>
                   </View>
                   <Pressable onPress={() => onDeleteTeacher(teacher.id)} disabled={deletingTeacherId === teacher.id} style={{ paddingHorizontal: spacing.xs, paddingVertical: 4 }}>
                     <Text style={{ color: "#fca5a5", fontSize: 12 }} weight="semibold">{deletingTeacherId === teacher.id ? "..." : "Excluir"}</Text>
@@ -226,9 +296,11 @@ export default function AdminCoreDashboard(props: Props) {
                     <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Sem olimpíadas vinculadas.</Text>
                   ) : (
                     teacher.assignments.map((assignment) => (
-                      <View key={`${teacher.id}-${assignment.olympiad_id}`} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={{ color: "rgba(255,255,255,0.85)", flex: 1 }}>{assignment.olympiad_title}</Text>
-                        <Pressable onPress={() => onRemoveAssignment(teacher.id, assignment.olympiad_id)}>
+                      <View key={assignment.assignment_id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={{ color: "rgba(255,255,255,0.85)", flex: 1 }}>
+                          {assignment.olympiad_title ?? `Pendente: ${assignment.pending_olympiad_name ?? "Sem nome"}`}
+                        </Text>
+                        <Pressable onPress={() => onRemoveAssignment(assignment.assignment_id)}>
                           <Text style={{ color: "#fca5a5", fontSize: 12 }} weight="semibold">Remover</Text>
                         </Pressable>
                       </View>
@@ -287,6 +359,66 @@ export default function AdminCoreDashboard(props: Props) {
                 </View>
               </View>
             ))}
+          </View>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Edição de professores por olimpíada</Text>
+          <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
+            {olympiads.map((olympiad) => {
+              const assigned = teachers.flatMap((teacher) =>
+                teacher.assignments
+                  .filter((assignment) => assignment.olympiad_id === olympiad.id)
+                  .map((assignment) => ({
+                    assignment_id: assignment.assignment_id,
+                    teacher_id: teacher.id,
+                    teacher_label: teacher.display_name ?? teacher.full_name ?? "Sem nome",
+                  })),
+              );
+              return (
+                <View
+                  key={`olympiad-edit-${olympiad.id}`}
+                  style={{ borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.03)", padding: spacing.sm }}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">{olympiad.title}</Text>
+                  <View style={{ marginTop: 6, gap: 6 }}>
+                    {assigned.length === 0 ? (
+                      <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Nenhum professor designado.</Text>
+                    ) : (
+                      assigned.map((item) => (
+                        <View key={item.assignment_id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={{ color: "rgba(255,255,255,0.85)", flex: 1 }}>{item.teacher_label}</Text>
+                          <Pressable onPress={() => onRemoveAssignment(item.assignment_id)}>
+                            <Text style={{ color: "#fca5a5", fontSize: 12 }} weight="semibold">Remover</Text>
+                          </Pressable>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.xs, fontSize: 12 }}>Adicionar professor(es)</Text>
+                  <View style={{ marginTop: 6, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+                    {teacherOptions.map((teacherOption) => (
+                      <Pressable
+                        key={`assign-by-olympiad-${olympiad.id}-${teacherOption.id}`}
+                        onPress={() => onAssignTeacher(teacherOption.id, olympiad.id)}
+                        style={{
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(255,255,255,0.04)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        <Text style={{ color: "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                          {teacherOption.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
       </>

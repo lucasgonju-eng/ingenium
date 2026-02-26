@@ -13,6 +13,7 @@ import {
   fetchOlympiads,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudentsFull,
+  sendTeacherMagicLink,
   fetchTeachersWithOlympiads,
   removeTeacherAssignment,
   type FullStudentRow,
@@ -20,7 +21,7 @@ import {
   type TeacherRow,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
-import { colors, radii, spacing } from "../../lib/theme/tokens";
+import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 type GestaoTab = ReturnType<typeof getAdminCoreTabs>[number]["key"];
 
@@ -36,9 +37,12 @@ export default function GestaoDashboardPlaceholder() {
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [olympiads, setOlympiads] = useState<Array<{ id: string; title: string }>>([]);
-  const [teacherName, setTeacherName] = useState("");
+  const [teacherFullName, setTeacherFullName] = useState("");
+  const [teacherDisplayName, setTeacherDisplayName] = useState("");
   const [teacherEmail, setTeacherEmail] = useState("");
   const [teacherArea, setTeacherArea] = useState("");
+  const [selectedCreateOlympiadId, setSelectedCreateOlympiadId] = useState("");
+  const [teacherPendingOlympiadName, setTeacherPendingOlympiadName] = useState("");
   const [savingTeacher, setSavingTeacher] = useState(false);
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
@@ -126,22 +130,38 @@ export default function GestaoDashboardPlaceholder() {
   }
 
   async function handleCreateTeacher() {
-    if (!teacherName.trim() || !teacherEmail.trim()) {
-      Alert.alert("Campos obrigatórios", "Informe nome e e-mail do professor(a).");
+    if (!teacherFullName.trim() || !teacherDisplayName.trim() || !teacherEmail.trim()) {
+      Alert.alert("Campos obrigatórios", "Informe nome completo, nome de exibição e e-mail.");
+      return;
+    }
+    if (selectedCreateOlympiadId === "pending" && !teacherPendingOlympiadName.trim()) {
+      Alert.alert("Campo obrigatório", "Informe o nome da olimpíada pendente.");
       return;
     }
     try {
       setSavingTeacher(true);
-      await createTeacher({
-        full_name: teacherName.trim(),
+      await sendTeacherMagicLink({
         email: teacherEmail.trim(),
-        area: teacherArea.trim() || null,
+        full_name: teacherFullName.trim(),
+        display_name: teacherDisplayName.trim(),
+        subject_area: teacherArea.trim() || null,
       });
-      setTeacherName("");
+      await createTeacher({
+        full_name: teacherFullName.trim(),
+        display_name: teacherDisplayName.trim(),
+        email: teacherEmail.trim(),
+        subject_area: teacherArea.trim() || null,
+        olympiad_id: selectedCreateOlympiadId && selectedCreateOlympiadId !== "pending" ? selectedCreateOlympiadId : null,
+        pending_olympiad_name: selectedCreateOlympiadId === "pending" ? teacherPendingOlympiadName.trim() : null,
+      });
+      setTeacherFullName("");
+      setTeacherDisplayName("");
       setTeacherEmail("");
       setTeacherArea("");
+      setSelectedCreateOlympiadId("");
+      setTeacherPendingOlympiadName("");
       await reloadTeachers();
-      Alert.alert("Professor(a) salvo", "Cadastro atualizado com sucesso.");
+      Alert.alert("Professor(a) salvo", "Cadastro atualizado e magic link enviado.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
       Alert.alert("Erro", message);
@@ -153,7 +173,13 @@ export default function GestaoDashboardPlaceholder() {
   async function handleAssignTeacher(teacherId: string, olympiadId: string) {
     try {
       setAssigningTeacherId(teacherId);
-      await assignTeacherToOlympiad({ teacher_id: teacherId, olympiad_id: olympiadId });
+      const teacher = teachers.find((item) => item.id === teacherId);
+      await assignTeacherToOlympiad({
+        teacher_profile_id: teacherId,
+        olympiad_id: olympiadId,
+        display_name: teacher?.display_name ?? null,
+        subject_area: teacher?.subject_area ?? null,
+      });
       await reloadTeachers();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao vincular professor(a).";
@@ -163,9 +189,9 @@ export default function GestaoDashboardPlaceholder() {
     }
   }
 
-  async function handleRemoveAssignment(teacherId: string, olympiadId: string) {
+  async function handleRemoveAssignment(assignmentId: string) {
     try {
-      await removeTeacherAssignment({ teacher_id: teacherId, olympiad_id: olympiadId });
+      await removeTeacherAssignment({ assignment_id: assignmentId });
       await reloadTeachers();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao remover vínculo.";
@@ -321,9 +347,12 @@ export default function GestaoDashboardPlaceholder() {
               students={students}
               rankingRows={rankingRows}
               teachers={teachers}
-              teacherName={teacherName}
+              teacherFullName={teacherFullName}
+              teacherDisplayName={teacherDisplayName}
               teacherEmail={teacherEmail}
               teacherArea={teacherArea}
+              selectedCreateOlympiadId={selectedCreateOlympiadId}
+              teacherPendingOlympiadName={teacherPendingOlympiadName}
               olympiadSelectionByTeacher={olympiadSelectionByTeacher}
               newPassword={newPassword}
               confirmPassword={confirmPassword}
@@ -332,9 +361,15 @@ export default function GestaoDashboardPlaceholder() {
               assigningTeacherId={assigningTeacherId}
               deletingTeacherId={deletingTeacherId}
               olympiads={olympiads}
-              onTeacherNameChange={setTeacherName}
+              onTeacherFullNameChange={setTeacherFullName}
+              onTeacherDisplayNameChange={setTeacherDisplayName}
               onTeacherEmailChange={setTeacherEmail}
               onTeacherAreaChange={setTeacherArea}
+              onCreateOlympiadChange={(value) => {
+                setSelectedCreateOlympiadId(value);
+                if (value !== "pending") setTeacherPendingOlympiadName("");
+              }}
+              onTeacherPendingOlympiadNameChange={setTeacherPendingOlympiadName}
               onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
                 setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
               }}
@@ -346,8 +381,8 @@ export default function GestaoDashboardPlaceholder() {
               onAssignTeacher={(teacherId, olympiadId) => {
                 void handleAssignTeacher(teacherId, olympiadId);
               }}
-              onRemoveAssignment={(teacherId, olympiadId) => {
-                void handleRemoveAssignment(teacherId, olympiadId);
+              onRemoveAssignment={(assignmentId) => {
+                void handleRemoveAssignment(assignmentId);
               }}
               onDeleteTeacher={(teacherId) => {
                 void handleDeleteTeacher(teacherId);

@@ -53,10 +53,18 @@ export type FullStudentRow = {
 export type TeacherRow = {
   id: string;
   full_name: string | null;
+  display_name: string | null;
   email: string | null;
   avatar_url: string | null;
-  area: string | null;
-  assignments: Array<{ olympiad_id: string; olympiad_title: string }>;
+  subject_area: string | null;
+  assignments: Array<{
+    assignment_id: string;
+    olympiad_id: string | null;
+    olympiad_title: string | null;
+    pending_olympiad_name: string | null;
+    display_name: string | null;
+    subject_area: string | null;
+  }>;
 };
 
 export async function fetchRankingGeral(limit = 50) {
@@ -439,6 +447,8 @@ export async function ensureCurrentUserProfileFromAuthMetadata() {
 
   const metadata = user.user_metadata ?? {};
   const fullName = String(metadata.full_name ?? "").trim() || (user.email?.split("@")[0] ?? "Aluno");
+  const displayName = String(metadata.display_name ?? "").trim() || null;
+  const subjectArea = String(metadata.subject_area ?? "").trim() || null;
   const grade = String(metadata.grade ?? "").trim() || null;
   const roleRaw = String(metadata.role ?? "").trim().toLowerCase();
   const role =
@@ -452,6 +462,8 @@ export async function ensureCurrentUserProfileFromAuthMetadata() {
       {
         id: user.id,
         full_name: fullName,
+        display_name: displayName,
+        subject_area: subjectArea,
         grade,
         role,
         updated_at: new Date().toISOString(),
@@ -634,57 +646,131 @@ export async function fetchTeachersWithOlympiads() {
   const { data, error } = await supabase.rpc("get_teachers_with_olympiads_admin");
   if (error) throw error;
   return ((data ?? []) as Array<{
-    id: string;
+    teacher_id: string;
     full_name: string | null;
+    display_name: string | null;
     email: string | null;
     avatar_url: string | null;
-    area: string | null;
-    assignments: Array<{ olympiad_id?: string; olympiad_title?: string }> | null;
+    subject_area: string | null;
+    assignments:
+      | Array<{
+          assignment_id?: string;
+          olympiad_id?: string | null;
+          olympiad_title?: string | null;
+          pending_olympiad_name?: string | null;
+          display_name?: string | null;
+          subject_area?: string | null;
+        }>
+      | null;
   }>).map((row) => ({
-    id: row.id,
+    id: row.teacher_id,
     full_name: row.full_name,
+    display_name: row.display_name,
     email: row.email,
     avatar_url: row.avatar_url,
-    area: row.area,
+    subject_area: row.subject_area,
     assignments: (row.assignments ?? [])
       .map((item) => ({
-        olympiad_id: String(item.olympiad_id ?? ""),
-        olympiad_title: String(item.olympiad_title ?? ""),
+        assignment_id: String(item.assignment_id ?? ""),
+        olympiad_id: item.olympiad_id ? String(item.olympiad_id) : null,
+        olympiad_title: item.olympiad_title ? String(item.olympiad_title) : null,
+        pending_olympiad_name: item.pending_olympiad_name ? String(item.pending_olympiad_name) : null,
+        display_name: item.display_name ? String(item.display_name) : null,
+        subject_area: item.subject_area ? String(item.subject_area) : null,
       }))
-      .filter((item) => Boolean(item.olympiad_id)),
+      .filter((item) => Boolean(item.assignment_id)),
   }));
 }
 
-export async function createTeacher(input: { full_name: string; email: string; area?: string | null }) {
-  const { data, error } = await supabase.rpc("create_teacher_admin", {
+export async function sendTeacherMagicLink(input: {
+  email: string;
+  full_name: string;
+  display_name: string;
+  subject_area?: string | null;
+}) {
+  const targetEmail = input.email.trim().toLowerCase();
+  const siteUrl =
+    process.env.EXPO_PUBLIC_SITE_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+  const redirectTo = `${siteUrl.replace(/\/+$/, "")}/professor/login-link`;
+  const { error } = await supabase.auth.signInWithOtp({
+    email: targetEmail,
+    options: {
+      emailRedirectTo: redirectTo,
+      shouldCreateUser: true,
+      data: {
+        role: "teacher",
+        full_name: input.full_name.trim(),
+        display_name: input.display_name.trim(),
+        subject_area: input.subject_area?.trim() || null,
+      },
+    },
+  });
+  if (error) throw error;
+}
+
+export async function createTeacher(input: {
+  full_name: string;
+  display_name: string;
+  email: string;
+  subject_area?: string | null;
+  olympiad_id?: string | null;
+  pending_olympiad_name?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("upsert_teacher_profile_admin", {
     p_full_name: input.full_name,
+    p_display_name: input.display_name,
     p_email: input.email,
-    p_area: input.area ?? null,
+    p_subject_area: input.subject_area ?? null,
+    p_olympiad_id: input.olympiad_id ?? null,
+    p_pending_olympiad_name: input.pending_olympiad_name ?? null,
   });
   if (error) throw error;
   return data as string;
 }
 
-export async function assignTeacherToOlympiad(input: { teacher_id: string; olympiad_id: string }) {
+export async function assignTeacherToOlympiad(input: {
+  teacher_profile_id: string;
+  olympiad_id: string;
+  display_name?: string | null;
+  subject_area?: string | null;
+}) {
   const { data, error } = await supabase.rpc("assign_teacher_to_olympiad_admin", {
-    p_teacher_id: input.teacher_id,
+    p_teacher_profile_id: input.teacher_profile_id,
     p_olympiad_id: input.olympiad_id,
+    p_display_name: input.display_name ?? null,
+    p_subject_area: input.subject_area ?? null,
   });
   if (error) throw error;
   return data as string;
 }
 
-export async function removeTeacherAssignment(input: { teacher_id: string; olympiad_id: string }) {
+export async function assignTeacherPendingOlympiad(input: {
+  teacher_profile_id: string;
+  pending_olympiad_name: string;
+  display_name?: string | null;
+  subject_area?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("assign_teacher_pending_olympiad_admin", {
+    p_teacher_profile_id: input.teacher_profile_id,
+    p_pending_olympiad_name: input.pending_olympiad_name,
+    p_display_name: input.display_name ?? null,
+    p_subject_area: input.subject_area ?? null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function removeTeacherAssignment(input: { assignment_id: string }) {
   const { error } = await supabase.rpc("remove_teacher_assignment_admin", {
-    p_teacher_id: input.teacher_id,
-    p_olympiad_id: input.olympiad_id,
+    p_assignment_id: input.assignment_id,
   });
   if (error) throw error;
 }
 
 export async function deleteTeacher(teacherId: string) {
   const { error } = await supabase.rpc("delete_teacher_admin", {
-    p_teacher_id: teacherId,
+    p_teacher_profile_id: teacherId,
   });
   if (error) throw error;
 }
