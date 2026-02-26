@@ -1,11 +1,12 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { acceptLatestTerms, hasAcceptedLatestTerms } from "../../lib/legal/consent";
 import { clearLocalSignupTermsAcceptance, getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { supabase } from "../../lib/supabase/client";
 import { ensureCurrentUserProfileFromAuthMetadata } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
@@ -18,6 +19,10 @@ export default function LoginScreen() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackEvent("login_screen_view", { page_type: "login", platform: "web" });
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -35,6 +40,7 @@ export default function LoginScreen() {
       });
 
       if (error) {
+        trackEvent("login_error", { message: error.message });
         setErrorText(error.message);
         Alert.alert("Erro no login", error.message);
         return;
@@ -75,6 +81,7 @@ export default function LoginScreen() {
       }
 
       router.replace("/(tabs)/dashboard");
+      trackEvent("login_success", { method: "email_password" });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha de conexão ao tentar entrar.";
       setErrorText(message);

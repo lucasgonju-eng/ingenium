@@ -5,6 +5,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { fetchOlympiads, fetchPublicRankingTeaser } from "../../lib/supabase/queries";
 import { colors, radii, shadows, spacing, typography } from "../../lib/theme/tokens";
 import { copy } from "../../content/copy";
@@ -74,6 +75,7 @@ export default function MarketingLandingScreen() {
   }
 
   useEffect(() => {
+    trackEvent("lp_view", { page_type: "marketing_lp", platform: "web" });
     void load();
   }, []);
 
@@ -111,6 +113,7 @@ export default function MarketingLandingScreen() {
             </View>
             <Pressable
               onPress={() => {
+                trackEvent("ranking_refresh_click", { source: "marketing_lp" });
                 void load();
               }}
               style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: radii.pill, backgroundColor: "rgba(255,255,255,0.08)" }}
@@ -167,6 +170,7 @@ export default function MarketingLandingScreen() {
 
               <Pressable
                 onPress={() => {
+                trackEvent("ranking_cta_click", { source: "marketing_lp", has_session: hasSession });
                   if (hasSession) {
                     router.push("/(tabs)/ranking");
                     return;
@@ -351,6 +355,7 @@ export default function MarketingLandingScreen() {
           )}
           <Pressable
             onPress={() => {
+              trackEvent("olympiads_cta_click", { source: "marketing_lp", has_session: hasSession });
               if (hasSession) {
                 router.push("/(tabs)/olimpiadas");
                 return;
@@ -387,7 +392,10 @@ export default function MarketingLandingScreen() {
           <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: 6 }}>Junte-se à liga hoje mesmo.</Text>
           <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
             <Pressable
-              onPress={() => router.push("/(auth)/login")}
+              onPress={() => {
+                trackEvent("login_cta_click", { source: "marketing_lp" });
+                router.push("/(auth)/login");
+              }}
               style={{
                 flex: 1,
                 height: 44,
@@ -402,7 +410,10 @@ export default function MarketingLandingScreen() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => router.push("/(auth)/cadastro")}
+              onPress={() => {
+                trackEvent("signup_start", { source: "marketing_lp" });
+                router.push("/(auth)/cadastro");
+              }}
               style={{
                 flex: 1,
                 height: 44,

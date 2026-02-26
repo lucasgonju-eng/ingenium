@@ -1,10 +1,11 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { fetchMyAccessRole } from "../../lib/supabase/queries";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -15,6 +16,10 @@ export default function GestaoLoginScreen() {
   const [loading, setLoading] = useState(false);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackEvent("gestao_login_view", { page_type: "gestao_login", platform: "web" });
+  }, []);
 
   async function handleGestaoLogin() {
     setErrorText(null);
@@ -31,6 +36,7 @@ export default function GestaoLoginScreen() {
         password,
       });
       if (error) {
+        trackEvent("gestao_login_error", { message: error.message });
         setErrorText(error.message);
         Alert.alert("Erro no login", error.message);
         return;
@@ -44,6 +50,7 @@ export default function GestaoLoginScreen() {
         return;
       }
 
+      trackEvent("gestao_login_success", { method: "email_password" });
       router.replace("/gestao");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao autenticar no menu gestão.";
@@ -74,6 +81,7 @@ export default function GestaoLoginScreen() {
       });
       if (error) throw error;
 
+      trackEvent("gestao_magic_link_sent", { email_domain: targetEmail.split("@")[1] ?? "unknown" });
       Alert.alert("Link enviado", "Enviamos um link de acesso para o e-mail informado.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível enviar o magic link.";

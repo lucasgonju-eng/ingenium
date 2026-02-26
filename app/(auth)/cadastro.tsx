@@ -5,6 +5,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -43,6 +44,7 @@ export default function CadastroScreen() {
   const [termsReady, setTermsReady] = useState(false);
 
   useEffect(() => {
+    trackEvent("signup_screen_view", { page_type: "signup", platform: "web" });
     const termsState = getLocalSignupTermsAcceptance();
     if (!termsState?.accepted || !termsState.termsVersionId || !termsState.termsHash) {
       router.replace("/(auth)/termos-lgpd");
@@ -100,9 +102,11 @@ export default function CadastroScreen() {
           return;
         }
         Alert.alert("Erro no cadastro", error.message);
+        trackEvent("signup_error", { message: error.message });
         return;
       }
 
+      trackEvent("signup_submit", { method: "email_password", role: "student" });
       Alert.alert(
         "Confirme sua inscrição",
         "Enviamos um e-mail de confirmação. Confirme o link para liberar seu primeiro login.",

@@ -5,6 +5,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { fetchMyAccessRole } from "../../lib/supabase/queries";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -17,6 +18,10 @@ export default function AdminLoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackEvent("admin_login_view", { page_type: "admin_login", platform: "web" });
+  }, []);
 
   useEffect(() => {
     // Segurança: nunca redirecionar automaticamente para o admin.
@@ -46,6 +51,7 @@ export default function AdminLoginScreen() {
       });
 
       if (error) {
+        trackEvent("admin_login_error", { message: error.message });
         setErrorText(error.message);
         Alert.alert("Erro no login admin", error.message);
         return;
@@ -59,6 +65,7 @@ export default function AdminLoginScreen() {
         return;
       }
 
+      trackEvent("admin_login_success", { method: "email_password" });
       router.replace("/admin");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao autenticar no menu admin.";

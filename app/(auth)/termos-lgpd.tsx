@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
@@ -7,6 +7,7 @@ import { Text } from "../../components/ui/Text";
 import { TERMS_CONTENT, TERMS_EFFECTIVE_DATE, TERMS_TITLE, TERMS_VERSION_TEXT } from "../../content/legal/terms-v1.0";
 import { acceptLatestTerms, fetchLatestTermsVersion } from "../../lib/legal/consent";
 import { clearLocalSignupTermsAcceptance, setLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing } from "../../lib/theme/tokens";
 
@@ -27,6 +28,14 @@ export default function TermsLgpdScreen() {
 
   const lines = useMemo(() => TERMS_CONTENT.trim().split("\n"), []);
 
+  useEffect(() => {
+    trackEvent("terms_view", {
+      page_type: "terms_lgpd",
+      terms_version: TERMS_VERSION_TEXT,
+      platform: "web",
+    });
+  }, []);
+
   function handleScroll(e: ScrollEvent) {
     const offsetY = e.nativeEvent.contentOffset.y;
     const contentHeight = e.nativeEvent.contentSize.height;
@@ -41,6 +50,11 @@ export default function TermsLgpdScreen() {
       setLoading(true);
       clearLocalSignupTermsAcceptance();
       const latest = await fetchLatestTermsVersion();
+      trackEvent("terms_accept", {
+        terms_version: latest.version_text,
+        terms_version_id: latest.id,
+        page_type: "terms_lgpd",
+      });
       setLocalSignupTermsAcceptance({
         accepted: true,
         termsVersionId: latest.id,
