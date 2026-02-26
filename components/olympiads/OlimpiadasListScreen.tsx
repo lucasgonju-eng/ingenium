@@ -29,6 +29,25 @@ function fmtDate(value: string | null) {
   return new Date(value).toLocaleDateString("pt-BR");
 }
 
+function registrationDeadlineDistance(value: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return Number.POSITIVE_INFINITY;
+  return Math.abs(parsed.getTime() - Date.now());
+}
+
+function sortByRegistrationProximity(a: OlympiadRow, b: OlympiadRow) {
+  const da = registrationDeadlineDistance(a.registration_deadline);
+  const db = registrationDeadlineDistance(b.registration_deadline);
+  if (da !== db) return da - db;
+
+  const deadlineA = a.registration_deadline ?? "9999-12-31";
+  const deadlineB = b.registration_deadline ?? "9999-12-31";
+  if (deadlineA !== deadlineB) return deadlineA.localeCompare(deadlineB);
+
+  return a.title.localeCompare(b.title, "pt-BR");
+}
+
 export default function OlimpiadasListScreen() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<OlympiadRow[]>([]);
@@ -54,13 +73,15 @@ export default function OlimpiadasListScreen() {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      const status = mapOlympiadStatus(row.status);
-      const byTab =
-        tab === "open" ? status === "open" : tab === "ongoing" ? status === "upcoming" || status === "open" : status === "closed";
-      const bySearch = !q || row.title.toLowerCase().includes(q) || (row.category ?? "").toLowerCase().includes(q);
-      return byTab && bySearch;
-    });
+    return rows
+      .filter((row) => {
+        const status = mapOlympiadStatus(row.status);
+        const byTab =
+          tab === "open" ? status === "open" : tab === "ongoing" ? status === "upcoming" || status === "open" : status === "closed";
+        const bySearch = !q || row.title.toLowerCase().includes(q) || (row.category ?? "").toLowerCase().includes(q);
+        return byTab && bySearch;
+      })
+      .sort(sortByRegistrationProximity);
   }, [rows, search, tab]);
   const listRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -68,7 +89,9 @@ export default function OlimpiadasListScreen() {
       return !q || row.title.toLowerCase().includes(q) || (row.category ?? "").toLowerCase().includes(q);
     });
     const featuredId = filteredRows[0]?.id;
-    return searchedRows.filter((row) => row.id !== featuredId);
+    return searchedRows
+      .filter((row) => row.id !== featuredId)
+      .sort(sortByRegistrationProximity);
   }, [rows, search, filteredRows]);
 
   if (loading) {
