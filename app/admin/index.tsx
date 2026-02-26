@@ -31,9 +31,62 @@ const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
 ];
 type GtmObservedEvent = {
   event: string;
-  sentAt: string | null;
+  eventTime: string | null;
+  eventSource: "app" | "gtm";
   payloadPreview: string;
 };
+
+function getEventTimeFromDataLayerItem(item: Record<string, unknown>): string | null {
+  if (typeof item.sent_at === "string" && item.sent_at.trim()) return item.sent_at;
+  if (typeof item.event_at === "string" && item.event_at.trim()) return item.event_at;
+  if (typeof item["gtm.start"] === "number") {
+    try {
+      return new Date(item["gtm.start"]).toISOString();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function summarizeDataLayerPayload(item: Record<string, unknown>): string {
+  const ignoredKeys = new Set(["event", "gtm.uniqueEventId", "gtm.start"]);
+  const preferredKeys = [
+    "source",
+    "screen",
+    "path",
+    "role",
+    "user_id",
+    "sent_at",
+    "event_at",
+    "locale",
+    "app_version",
+    "app_platform",
+  ];
+  const pieces: string[] = [];
+
+  for (const key of preferredKeys) {
+    if (ignoredKeys.has(key)) continue;
+    const value = item[key];
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      pieces.push(`${key}=${String(value)}`);
+    }
+  }
+
+  if (pieces.length === 0) {
+    const fallbackKeys = Object.keys(item).filter((key) => !ignoredKeys.has(key));
+    for (const key of fallbackKeys.slice(0, 4)) {
+      const value = item[key];
+      if (value === null || value === undefined) continue;
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        pieces.push(`${key}=${String(value)}`);
+      }
+    }
+  }
+
+  return pieces.length ? pieces.join(" | ") : "sem campos adicionais relevantes";
+}
 
 export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
@@ -143,19 +196,13 @@ export default function AdminDashboardScreen() {
       for (let i = layer.length - 1; i >= 0; i -= 1) {
         const item = layer[i];
         if (item && typeof item.event === "string" && item.event.trim()) {
-          const sentAt = typeof item.sent_at === "string" ? item.sent_at : null;
-          let payloadPreview = "";
-          try {
-            payloadPreview = JSON.stringify(item);
-            if (payloadPreview.length > 200) {
-              payloadPreview = `${payloadPreview.slice(0, 197)}...`;
-            }
-          } catch {
-            payloadPreview = "[payload não serializável]";
-          }
+          const eventSource: "app" | "gtm" = item.event.startsWith("gtm.") ? "gtm" : "app";
+          const eventTime = getEventTimeFromDataLayerItem(item);
+          const payloadPreview = summarizeDataLayerPayload(item);
           observedEvents.push({
             event: item.event,
-            sentAt,
+            eventTime,
+            eventSource,
             payloadPreview,
           });
           if (observedEvents.length >= 8) break;
@@ -731,10 +778,13 @@ export default function AdminDashboardScreen() {
                           Evento: {item.event}
                         </Text>
                         <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
-                          sent_at: {item.sentAt ?? "não informado"}
+                          Origem: {item.eventSource === "app" ? "App InGenium" : "Infra GTM"}
                         </Text>
                         <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
-                          payload: {item.payloadPreview}
+                          Horário: {item.eventTime ?? "sem carimbo de data neste evento"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
+                          Resumo: {item.payloadPreview}
                         </Text>
                       </View>
                     ))
