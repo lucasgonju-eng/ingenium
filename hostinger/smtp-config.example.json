@@ -1,4 +1,9 @@
 {
+  "smtpHost": "smtp.hostinger.com",
+  "smtpPort": 465,
+  "smtpEncryption": "ssl",
+  "smtpUsername": "nao-responder@ingenium.einsteinhub.co",
+  "smtpPassword": "SUA_SENHA_SMTP_AQUI",
   "fromEmail": "nao-responder@ingenium.einsteinhub.co",
   "fromName": "InGenium"
 }

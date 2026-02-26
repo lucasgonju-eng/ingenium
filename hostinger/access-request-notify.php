@@ -34,19 +34,153 @@ function respond_json(int $status, array $payload): void {
  * @param string $to
  * @param string $subject
  * @param string $html
- * @param string $fromEmail
- * @param string $fromName
- * @return bool
+ * @param array<string,mixed> $smtp
+ * @return array{ok:bool,error:string}
  */
-function send_html_mail(string $to, string $subject, string $html, string $fromEmail, string $fromName): bool {
+function send_html_mail(string $to, string $subject, string $html, array $smtp): array {
+  $host = trim((string) ($smtp["host"] ?? ""));
+  $port = (int) ($smtp["port"] ?? 0);
+  $encryption = strtolower(trim((string) ($smtp["encryption"] ?? "ssl")));
+  $username = trim((string) ($smtp["username"] ?? ""));
+  $password = (string) ($smtp["password"] ?? "");
+  $fromEmail = trim((string) ($smtp["fromEmail"] ?? ""));
+  $fromName = trim((string) ($smtp["fromName"] ?? "InGenium"));
+
+  if ($host === "" || $port <= 0 || $username === "" || $password === "" || $fromEmail === "") {
+    return ["ok" => false, "error" => "Configuração SMTP incompleta."];
+  }
+  if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+    return ["ok" => false, "error" => "E-mail de destino inválido."];
+  }
+
+  $remote = ($encryption === "ssl" ? "ssl://" : "") . $host . ":" . $port;
+  $errno = 0;
+  $errstr = "";
+  $socket = @stream_socket_client($remote, $errno, $errstr, 20);
+  if (!$socket) {
+    return ["ok" => false, "error" => "Falha conexão SMTP: {$errstr} ({$errno})"];
+  }
+
+  $readLine = static function ($fp): string {
+    $data = "";
+    while (!feof($fp)) {
+      $line = fgets($fp, 515);
+      if ($line === false) break;
+      $data .= $line;
+      if (preg_match('/^\d{3}\s/', $line) === 1) break;
+    }
+    return trim($data);
+  };
+  $expectCode = static function (string $response, array $codes): bool {
+    foreach ($codes as $code) {
+      if (strpos($response, (string) $code) === 0) return true;
+    }
+    return false;
+  };
+  $sendCmd = static function ($fp, string $cmd): void {
+    fwrite($fp, $cmd . "\r\n");
+  };
+
+  stream_set_timeout($socket, 20);
+  $greeting = $readLine($socket);
+  if (!$expectCode($greeting, [220])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "SMTP greeting inválido: {$greeting}"];
+  }
+
+  $sendCmd($socket, "EHLO ingenium.einsteinhub.co");
+  $ehlo = $readLine($socket);
+  if (!$expectCode($ehlo, [250])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "EHLO falhou: {$ehlo}"];
+  }
+
+  if ($encryption === "tls") {
+    $sendCmd($socket, "STARTTLS");
+    $tlsResp = $readLine($socket);
+    if (!$expectCode($tlsResp, [220])) {
+      fclose($socket);
+      return ["ok" => false, "error" => "STARTTLS falhou: {$tlsResp}"];
+    }
+    $cryptoOk = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+    if (!$cryptoOk) {
+      fclose($socket);
+      return ["ok" => false, "error" => "Não foi possível iniciar TLS."];
+    }
+    $sendCmd($socket, "EHLO ingenium.einsteinhub.co");
+    $ehloTls = $readLine($socket);
+    if (!$expectCode($ehloTls, [250])) {
+      fclose($socket);
+      return ["ok" => false, "error" => "EHLO pós-TLS falhou: {$ehloTls}"];
+    }
+  }
+
+  $sendCmd($socket, "AUTH LOGIN");
+  $authResp = $readLine($socket);
+  if (!$expectCode($authResp, [334])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "AUTH LOGIN falhou: {$authResp}"];
+  }
+  $sendCmd($socket, base64_encode($username));
+  $userResp = $readLine($socket);
+  if (!$expectCode($userResp, [334])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "Usuário SMTP rejeitado: {$userResp}"];
+  }
+  $sendCmd($socket, base64_encode($password));
+  $passResp = $readLine($socket);
+  if (!$expectCode($passResp, [235])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "Senha SMTP rejeitada: {$passResp}"];
+  }
+
+  $sendCmd($socket, "MAIL FROM:<{$fromEmail}>");
+  $mailFromResp = $readLine($socket);
+  if (!$expectCode($mailFromResp, [250])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "MAIL FROM falhou: {$mailFromResp}"];
+  }
+
+  $sendCmd($socket, "RCPT TO:<{$to}>");
+  $rcptResp = $readLine($socket);
+  if (!$expectCode($rcptResp, [250, 251])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "RCPT TO falhou: {$rcptResp}"];
+  }
+
+  $sendCmd($socket, "DATA");
+  $dataResp = $readLine($socket);
+  if (!$expectCode($dataResp, [354])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "DATA falhou: {$dataResp}"];
+  }
+
   $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
+  $safeFromName = str_replace(["\r", "\n"], "", $fromName);
+  $safeFromEmail = str_replace(["\r", "\n"], "", $fromEmail);
+  $safeTo = str_replace(["\r", "\n"], "", $to);
+  $bodyBase64 = chunk_split(base64_encode($html));
   $headers = [];
+  $headers[] = "Date: " . gmdate("r");
+  $headers[] = "From: {$safeFromName} <{$safeFromEmail}>";
+  $headers[] = "To: <{$safeTo}>";
+  $headers[] = "Subject: {$encodedSubject}";
   $headers[] = "MIME-Version: 1.0";
   $headers[] = "Content-Type: text/html; charset=UTF-8";
-  $headers[] = "From: {$fromName} <{$fromEmail}>";
-  $headers[] = "Reply-To: {$fromEmail}";
-  $headers[] = "X-Mailer: PHP/" . PHP_VERSION;
-  return @mail($to, $encodedSubject, $html, implode("\r\n", $headers));
+  $headers[] = "Content-Transfer-Encoding: base64";
+  $headers[] = "X-Mailer: InGenium SMTP";
+
+  $message = implode("\r\n", $headers) . "\r\n\r\n" . $bodyBase64 . "\r\n.";
+  fwrite($socket, $message . "\r\n");
+  $sendResp = $readLine($socket);
+  if (!$expectCode($sendResp, [250])) {
+    fclose($socket);
+    return ["ok" => false, "error" => "Envio SMTP falhou: {$sendResp}"];
+  }
+
+  $sendCmd($socket, "QUIT");
+  fclose($socket);
+  return ["ok" => true, "error" => ""];
 }
 
 $raw = (string) file_get_contents("php://input");
@@ -80,9 +214,27 @@ if (!is_array($cfg)) {
 
 $fromEmail = trim((string) ($cfg["fromEmail"] ?? ""));
 $fromName = trim((string) ($cfg["fromName"] ?? "InGenium"));
+$smtpHost = trim((string) ($cfg["smtpHost"] ?? $cfg["host"] ?? ""));
+$smtpPort = (int) ($cfg["smtpPort"] ?? $cfg["port"] ?? 0);
+$smtpEncryption = trim((string) ($cfg["smtpEncryption"] ?? $cfg["encryption"] ?? "ssl"));
+$smtpUsername = trim((string) ($cfg["smtpUsername"] ?? $cfg["username"] ?? ""));
+$smtpPassword = (string) ($cfg["smtpPassword"] ?? $cfg["password"] ?? "");
 if ($fromEmail === "" || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
   respond_json(500, ["ok" => false, "error" => "fromEmail inválido na configuração SMTP."]);
 }
+if ($smtpHost === "" || $smtpPort <= 0 || $smtpUsername === "" || $smtpPassword === "") {
+  respond_json(500, ["ok" => false, "error" => "Configuração SMTP ausente/incompleta no smtp-config.json."]);
+}
+
+$smtpCfg = [
+  "host" => $smtpHost,
+  "port" => $smtpPort,
+  "encryption" => $smtpEncryption,
+  "username" => $smtpUsername,
+  "password" => $smtpPassword,
+  "fromEmail" => $fromEmail,
+  "fromName" => $fromName,
+];
 
 $targetAdmin = "contato@ingenium.einsteinhub.co";
 $roleLabel = $requestType === "collaborator" ? "colaborador(a)" : "professor(a)";
@@ -123,11 +275,14 @@ $adminHtml = "
   </div>
 </div>";
 
-$okCandidate = send_html_mail($candidateEmail, $candidateSubject, $candidateHtml, $fromEmail, $fromName);
-$okAdmin = send_html_mail($targetAdmin, $adminSubject, $adminHtml, $fromEmail, $fromName);
+$sendCandidate = send_html_mail($candidateEmail, $candidateSubject, $candidateHtml, $smtpCfg);
+$sendAdmin = send_html_mail($targetAdmin, $adminSubject, $adminHtml, $smtpCfg);
 
-if (!$okCandidate || !$okAdmin) {
-  respond_json(500, ["ok" => false, "error" => "Falha ao enviar e-mails de notificação."]);
+if (!$sendCandidate["ok"] || !$sendAdmin["ok"]) {
+  $errors = [];
+  if (!$sendCandidate["ok"]) $errors[] = "professor: " . $sendCandidate["error"];
+  if (!$sendAdmin["ok"]) $errors[] = "admin: " . $sendAdmin["error"];
+  respond_json(500, ["ok" => false, "error" => "Falha SMTP: " . implode(" | ", $errors)]);
 }
 
 respond_json(200, ["ok" => true]);
