@@ -8,7 +8,7 @@ import { fetchMyAccessRole } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, spacing } from "../../lib/theme/tokens";
 
-export default function AdminLoginLinkScreen() {
+export default function GestaoLoginLinkScreen() {
   const [status, setStatus] = useState("Validando acesso...");
 
   useEffect(() => {
@@ -55,18 +55,18 @@ export default function AdminLoginLinkScreen() {
         }
 
         const role = await fetchMyAccessRole();
-        if (role !== "admin") {
+        if (role !== "gestao" && role !== "admin") {
           await supabase.auth.signOut();
-          setStatus("Conta sem permissão de administrador.");
+          setStatus("Conta sem permissão para Gestão.");
           return;
         }
 
         if (window.history?.replaceState) {
-          window.history.replaceState({}, document.title, "/admin");
+          window.history.replaceState({}, document.title, "/gestao");
         }
 
         if (!mounted) return;
-        router.replace("/admin");
+        router.replace("/gestao");
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : "Falha ao processar link.";
         setStatus(message);
@@ -82,7 +82,7 @@ export default function AdminLoginLinkScreen() {
   return (
     <StitchScreenFrame>
       <View style={{ flex: 1, paddingHorizontal: spacing.md, paddingTop: spacing.sm, alignItems: "center" }}>
-        <StitchHeader title="Admin" subtitle="Acesso por link seguro" variant="feed" />
+        <StitchHeader title="Gestão" subtitle="Acesso por link seguro" variant="feed" />
         <View style={{ marginTop: spacing.lg, alignItems: "center", gap: spacing.sm }}>
           <ActivityIndicator color={colors.einsteinYellow} />
           <Text style={{ color: "rgba(255,255,255,0.82)", textAlign: "center" }}>{status}</Text>

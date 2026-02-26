@@ -1,0 +1,373 @@
+import { Pressable, TextInput, View } from "react-native";
+import { Text } from "../ui/Text";
+import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
+import type { FullStudentRow, RankingStudentRow, TeacherRow } from "../../lib/supabase/queries";
+
+const GRADE_ORDER = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
+
+type AdminCoreTab = "dashboard" | "alunos" | "professores" | "perfil";
+
+export function getAdminCoreTabs() {
+  return [
+    { key: "dashboard" as const, label: "Visão geral" },
+    { key: "alunos" as const, label: "Alunos" },
+    { key: "professores" as const, label: "Professores" },
+    { key: "perfil" as const, label: "Perfil" },
+  ];
+}
+
+type Props = {
+  activeTab: AdminCoreTab;
+  students: FullStudentRow[];
+  rankingRows: RankingStudentRow[];
+  teachers: TeacherRow[];
+  teacherName: string;
+  teacherEmail: string;
+  teacherArea: string;
+  olympiadSelectionByTeacher: Record<string, string>;
+  newPassword: string;
+  confirmPassword: string;
+  savingPassword: boolean;
+  savingTeacher: boolean;
+  assigningTeacherId: string | null;
+  deletingTeacherId: string | null;
+  olympiads: Array<{ id: string; title: string }>;
+  onTeacherNameChange: (value: string) => void;
+  onTeacherEmailChange: (value: string) => void;
+  onTeacherAreaChange: (value: string) => void;
+  onTeacherOlympiadSelectionChange: (teacherId: string, olympiadId: string) => void;
+  onNewPasswordChange: (value: string) => void;
+  onConfirmPasswordChange: (value: string) => void;
+  onSaveTeacher: () => void;
+  onAssignTeacher: (teacherId: string, olympiadId: string) => void;
+  onRemoveAssignment: (teacherId: string, olympiadId: string) => void;
+  onDeleteTeacher: (teacherId: string) => void;
+  onUpdatePassword: () => void;
+  onOpenProfileSettings: () => void;
+};
+
+export default function AdminCoreDashboard(props: Props) {
+  const {
+    activeTab,
+    students,
+    rankingRows,
+    teachers,
+    teacherName,
+    teacherEmail,
+    teacherArea,
+    olympiadSelectionByTeacher,
+    newPassword,
+    confirmPassword,
+    savingPassword,
+    savingTeacher,
+    assigningTeacherId,
+    deletingTeacherId,
+    olympiads,
+    onTeacherNameChange,
+    onTeacherEmailChange,
+    onTeacherAreaChange,
+    onTeacherOlympiadSelectionChange,
+    onNewPasswordChange,
+    onConfirmPasswordChange,
+    onSaveTeacher,
+    onAssignTeacher,
+    onRemoveAssignment,
+    onDeleteTeacher,
+    onUpdatePassword,
+    onOpenProfileSettings,
+  } = props;
+
+  const totalStudents = students.length;
+  const totalXp = rankingRows.reduce((sum, row) => sum + Number(row.total_points || 0), 0);
+  const avgXp = totalStudents > 0 ? Math.round(totalXp / totalStudents) : 0;
+  const withXp = rankingRows.filter((row) => Number(row.total_points || 0) > 0).length;
+  const topStudents = rankingRows.slice(0, 10);
+
+  const seriesSummary = [...students.reduce((acc, row) => {
+    const grade = (row.grade ?? "Sem série").trim() || "Sem série";
+    acc.set(grade, (acc.get(grade) ?? 0) + 1);
+    return acc;
+  }, new Map<string, number>()).entries()]
+    .sort((a, b) => {
+      const ai = GRADE_ORDER.indexOf(a[0] as (typeof GRADE_ORDER)[number]);
+      const bi = GRADE_ORDER.indexOf(b[0] as (typeof GRADE_ORDER)[number]);
+      if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      return a[0].localeCompare(b[0], "pt-BR");
+    });
+
+  const loboSummary = rankingRows.reduce(
+    (acc, row) => {
+      if (row.lobo_class === "gold") acc.gold += 1;
+      else if (row.lobo_class === "silver") acc.silver += 1;
+      else acc.bronze += 1;
+      return acc;
+    },
+    { gold: 0, silver: 0, bronze: 0 },
+  );
+
+  if (activeTab === "dashboard") {
+    return (
+      <>
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">KPIs principais</Text>
+          <View style={{ marginTop: spacing.sm, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+            {[
+              { label: "Alunos cadastrados", value: totalStudents.toLocaleString("pt-BR") },
+              { label: "Alunos com XP", value: withXp.toLocaleString("pt-BR") },
+              { label: "XP total", value: totalXp.toLocaleString("pt-BR") },
+              { label: "Média XP/aluno", value: avgXp.toLocaleString("pt-BR") },
+            ].map((item) => (
+              <View key={item.label} style={metricItemStyle}>
+                <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 12 }}>{item.label}</Text>
+                <Text style={{ color: colors.einsteinYellow, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Distribuição por classe Lobo</Text>
+          <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs }}>
+            {[
+              { label: "Ouro", value: loboSummary.gold, color: "#facc15" },
+              { label: "Prata", value: loboSummary.silver, color: "#d1d5db" },
+              { label: "Bronze", value: loboSummary.bronze, color: "#d97706" },
+            ].map((item) => (
+              <View key={item.label} style={loboItemStyle}>
+                <Text style={{ color: item.color }} weight="bold">{item.label}</Text>
+                <Text style={{ color: colors.white, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  if (activeTab === "alunos") {
+    return (
+      <>
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Alunos por série</Text>
+          <View style={{ marginTop: spacing.sm, gap: 8 }}>
+            {seriesSummary.map(([grade, count]) => (
+              <View key={grade} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ color: "rgba(255,255,255,0.86)" }} weight="semibold">{grade}</Text>
+                <Text style={{ color: colors.einsteinYellow }} weight="bold">{count}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Top 10 por XP</Text>
+          <View style={{ marginTop: spacing.sm, gap: 8 }}>
+            {topStudents.map((row) => (
+              <View key={row.user_id} style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                <Text style={{ color: "rgba(255,255,255,0.7)", width: 28 }} weight="bold">{row.position}º</Text>
+                <Text style={{ color: colors.white, flex: 1 }} weight="semibold">{row.full_name ?? "Sem nome"}</Text>
+                <Text style={{ color: colors.einsteinYellow }} weight="bold">{row.total_points.toLocaleString("pt-BR")} XP</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Lista completa de alunos</Text>
+          <View style={{ marginTop: spacing.sm, gap: 8 }}>
+            {students.map((student) => (
+              <View key={student.id} style={{ borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.03)", padding: spacing.sm }}>
+                <Text style={{ color: colors.white }} weight="semibold">{student.full_name ?? "Sem nome"}</Text>
+                <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: 12 }}>
+                  Série: {student.grade ?? "Sem série"} • Turma: {student.class_name ?? "Sem turma"}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  if (activeTab === "professores") {
+    return (
+      <>
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Cadastrar professor(a)</Text>
+          <TextInput placeholder="Nome completo" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherName} onChangeText={onTeacherNameChange} style={inputStyle} />
+          <TextInput placeholder="E-mail" placeholderTextColor="rgba(255,255,255,0.45)" autoCapitalize="none" value={teacherEmail} onChangeText={onTeacherEmailChange} style={inputStyle} />
+          <TextInput placeholder="Área (opcional)" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherArea} onChangeText={onTeacherAreaChange} style={inputStyle} />
+          <Pressable onPress={onSaveTeacher} disabled={savingTeacher} style={[actionBtnStyle, { opacity: savingTeacher ? 0.7 : 1 }]}>
+            <Text style={{ color: colors.einsteinBlue }} weight="bold">{savingTeacher ? "Salvando..." : "Salvar professor(a)"}</Text>
+          </Pressable>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Professores e olimpíadas designadas</Text>
+          <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
+            {teachers.map((teacher) => (
+              <View key={teacher.id} style={{ borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.03)", padding: spacing.sm }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.xs }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.white }} weight="semibold">{teacher.full_name ?? "Sem nome"}</Text>
+                    <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 2, fontSize: 12 }}>{teacher.email ?? "Sem e-mail"} {teacher.area ? `• ${teacher.area}` : ""}</Text>
+                  </View>
+                  <Pressable onPress={() => onDeleteTeacher(teacher.id)} disabled={deletingTeacherId === teacher.id} style={{ paddingHorizontal: spacing.xs, paddingVertical: 4 }}>
+                    <Text style={{ color: "#fca5a5", fontSize: 12 }} weight="semibold">{deletingTeacherId === teacher.id ? "..." : "Excluir"}</Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ marginTop: spacing.xs, gap: 6 }}>
+                  {teacher.assignments.length === 0 ? (
+                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Sem olimpíadas vinculadas.</Text>
+                  ) : (
+                    teacher.assignments.map((assignment) => (
+                      <View key={`${teacher.id}-${assignment.olympiad_id}`} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={{ color: "rgba(255,255,255,0.85)", flex: 1 }}>{assignment.olympiad_title}</Text>
+                        <Pressable onPress={() => onRemoveAssignment(teacher.id, assignment.olympiad_id)}>
+                          <Text style={{ color: "#fca5a5", fontSize: 12 }} weight="semibold">Remover</Text>
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
+                </View>
+
+                <View style={{ marginTop: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginBottom: 4 }}>Vincular nova olimpíada</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+                    {olympiads.map((olympiad) => {
+                      const selected = olympiadSelectionByTeacher[teacher.id] === olympiad.id;
+                      return (
+                        <Pressable
+                          key={`${teacher.id}-${olympiad.id}`}
+                          onPress={() => onTeacherOlympiadSelectionChange(teacher.id, olympiad.id)}
+                          style={{
+                            borderRadius: radii.pill,
+                            borderWidth: 1,
+                            borderColor: selected ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                            backgroundColor: selected ? "rgba(255,199,0,0.16)" : "rgba(255,255,255,0.04)",
+                            paddingHorizontal: spacing.sm,
+                            paddingVertical: 6,
+                          }}
+                        >
+                          <Text style={{ color: selected ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                            {olympiad.title}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      const selectedOlympiadId = olympiadSelectionByTeacher[teacher.id];
+                      if (!selectedOlympiadId) return;
+                      onAssignTeacher(teacher.id, selectedOlympiadId);
+                    }}
+                    disabled={!olympiadSelectionByTeacher[teacher.id] || assigningTeacherId === teacher.id}
+                    style={{
+                      marginTop: spacing.xs,
+                      height: 38,
+                      borderRadius: radii.md,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "rgba(255,255,255,0.10)",
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      opacity: !olympiadSelectionByTeacher[teacher.id] || assigningTeacherId === teacher.id ? 0.6 : 1,
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      {assigningTeacherId === teacher.id ? "Vinculando..." : "Vincular selecionada"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  return (
+    <View style={sectionCardStyle}>
+      <Text style={{ color: colors.white }} weight="bold">Perfil da conta</Text>
+      <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: spacing.xs, lineHeight: 20 }}>
+        Atualize nome/foto no perfil e altere a senha da conta de acesso ao painel.
+      </Text>
+      <Pressable
+        onPress={onOpenProfileSettings}
+        style={{
+          marginTop: spacing.xs,
+          height: 40,
+          borderRadius: radii.md,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(255,255,255,0.08)",
+          borderWidth: 1,
+          borderColor: colors.borderSoft,
+        }}
+      >
+        <Text style={{ color: colors.white }} weight="semibold">Editar nome e foto</Text>
+      </Pressable>
+      <TextInput placeholder="Nova senha" placeholderTextColor="rgba(255,255,255,0.45)" secureTextEntry value={newPassword} onChangeText={onNewPasswordChange} style={inputStyle} />
+      <TextInput placeholder="Confirmar senha" placeholderTextColor="rgba(255,255,255,0.45)" secureTextEntry value={confirmPassword} onChangeText={onConfirmPasswordChange} style={inputStyle} />
+      <Pressable onPress={onUpdatePassword} disabled={savingPassword} style={[actionBtnStyle, { opacity: savingPassword ? 0.7 : 1 }]}>
+        <Text style={{ color: colors.einsteinBlue }} weight="bold">{savingPassword ? "Salvando..." : "Atualizar senha"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const sectionCardStyle = {
+  borderRadius: radii.lg,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: colors.surfacePanel,
+  padding: spacing.md,
+};
+
+const metricItemStyle = {
+  minWidth: 150,
+  flexGrow: 1,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  padding: spacing.sm,
+};
+
+const loboItemStyle = {
+  flex: 1,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  padding: spacing.sm,
+  alignItems: "center" as const,
+};
+
+const inputStyle = {
+  marginTop: spacing.xs,
+  height: 46,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  color: colors.white,
+  paddingHorizontal: spacing.sm,
+  fontFamily: typography.fontFamily.base,
+};
+
+const actionBtnStyle = {
+  marginTop: spacing.sm,
+  height: 44,
+  borderRadius: radii.md,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: colors.einsteinYellow,
+};

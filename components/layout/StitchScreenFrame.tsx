@@ -148,19 +148,38 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
               }}
             >
               {isMarketingHome ? (
-                <Pressable
-                  onPress={() => router.push("/admin/login")}
-                  style={{
-                    height: 34,
-                    paddingHorizontal: spacing.sm,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ color: "rgba(255,255,255,0.22)", fontSize: typography.small.fontSize }} weight="semibold">
-                    Admin
-                  </Text>
-                </Pressable>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                  <Pressable
+                    onPress={() => router.push("/admin/login")}
+                    style={{
+                      height: 34,
+                      paddingHorizontal: spacing.sm,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.22)", fontSize: typography.small.fontSize }} weight="semibold">
+                      Admin
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push("/gestao/login")}
+                    style={{
+                      height: 34,
+                      borderRadius: radii.pill,
+                      paddingHorizontal: spacing.sm,
+                      backgroundColor: "rgba(255,255,255,0.10)",
+                      borderWidth: 1,
+                      borderColor: "rgba(255,255,255,0.14)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                      Gestão
+                    </Text>
+                  </Pressable>
+                </View>
               ) : (
                 <Pressable
                   onPress={handleBack}

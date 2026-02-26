@@ -22,7 +22,7 @@ as $$
     p.avatar_url,
     p.role
   from public.profiles p
-  where coalesce(lower(p.role), 'student') not in ('admin', 'coord')
+  where coalesce(lower(p.role), 'student') not in ('admin', 'coord', 'gestao', 'teacher')
   order by p.full_name asc nulls last;
 $$;
 
@@ -54,7 +54,7 @@ as $$
     coalesce(pt.lobo_class, 'bronze')::text as lobo_class
   from public.profiles p
   left join public.points pt on pt.user_id = p.id
-  where coalesce(lower(p.role), 'student') not in ('admin', 'coord')
+  where coalesce(lower(p.role), 'student') not in ('admin', 'coord', 'gestao', 'teacher')
   order by p.full_name asc nulls last
   limit greatest(1, least(coalesce(p_limit, 500), 2000));
 $$;

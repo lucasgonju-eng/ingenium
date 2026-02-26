@@ -1,28 +1,32 @@
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import {
+  assignTeacherToOlympiad,
+  createTeacher,
+  deleteTeacher,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
-  fetchRegisteredStudents,
+  fetchRegisteredStudentsFull,
+  fetchTeachersWithOlympiads,
+  removeTeacherAssignment,
+  fetchOlympiads,
+  type FullStudentRow,
   type RankingStudentRow,
-  type RegisteredStudentRow,
+  type TeacherRow,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
+import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 
-type AdminTab = "dashboard" | "alunos" | "gtm" | "perfil";
+type AdminTab = ReturnType<typeof getAdminCoreTabs>[number]["key"] | "gtm";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
-  { key: "dashboard", label: "Visão geral" },
-  { key: "alunos", label: "Alunos" },
+  ...getAdminCoreTabs(),
   { key: "gtm", label: "GTM" },
-  { key: "perfil", label: "Perfil" },
 ];
-
-const GRADE_ORDER = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
 export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
@@ -32,8 +36,17 @@ export default function AdminDashboardScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [students, setStudents] = useState<RegisteredStudentRow[]>([]);
+  const [students, setStudents] = useState<FullStudentRow[]>([]);
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
+  const [teachers, setTeachers] = useState<TeacherRow[]>([]);
+  const [olympiads, setOlympiads] = useState<Array<{ id: string; title: string }>>([]);
+  const [teacherName, setTeacherName] = useState("");
+  const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherArea, setTeacherArea] = useState("");
+  const [savingTeacher, setSavingTeacher] = useState(false);
+  const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
+  const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
+  const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
   const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,21 +67,25 @@ export default function AdminDashboardScreen() {
         setMustChangePassword(mustChange);
 
         const role = await fetchMyAccessRole();
-        if (role !== "admin" && role !== "coord") {
+        if (role !== "admin") {
           if (!mounted) return;
           setAuthorized(false);
           setErrorText("Acesso restrito. Entre com uma conta administradora.");
           return;
         }
 
-        const [studentsData, rankingData] = await Promise.all([
-          fetchRegisteredStudents(),
+        const [studentsData, rankingData, teachersData, olympiadsData] = await Promise.all([
+          fetchRegisteredStudentsFull(),
           fetchRankingAllRegisteredStudents(500),
+          fetchTeachersWithOlympiads(),
+          fetchOlympiads(),
         ]);
         if (!mounted) return;
         setAuthorized(true);
         setStudents(studentsData);
         setRankingRows(rankingData);
+        setTeachers(teachersData);
+        setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
       } catch (e: unknown) {
         if (!mounted) return;
         const message = e instanceof Error ? e.message : "Falha ao carregar dashboard admin.";
@@ -119,41 +136,71 @@ export default function AdminDashboardScreen() {
     }
   }
 
-  const kpis = useMemo(() => {
-    const totalStudents = students.length;
-    const totalXp = rankingRows.reduce((sum, row) => sum + Number(row.total_points || 0), 0);
-    const avgXp = totalStudents > 0 ? Math.round(totalXp / totalStudents) : 0;
-    const withXp = rankingRows.filter((row) => Number(row.total_points || 0) > 0).length;
-    return { totalStudents, totalXp, avgXp, withXp };
-  }, [students, rankingRows]);
+  async function reloadTeachers() {
+    const teachersData = await fetchTeachersWithOlympiads();
+    setTeachers(teachersData);
+  }
 
-  const seriesSummary = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const student of students) {
-      const grade = (student.grade ?? "Sem série").trim() || "Sem série";
-      map.set(grade, (map.get(grade) ?? 0) + 1);
+  async function handleCreateTeacher() {
+    if (!teacherName.trim() || !teacherEmail.trim()) {
+      Alert.alert("Campos obrigatórios", "Informe nome e e-mail do professor(a).");
+      return;
     }
-    return [...map.entries()]
-      .sort((a, b) => {
-        const ai = GRADE_ORDER.indexOf(a[0] as (typeof GRADE_ORDER)[number]);
-        const bi = GRADE_ORDER.indexOf(b[0] as (typeof GRADE_ORDER)[number]);
-        if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-        return a[0].localeCompare(b[0], "pt-BR");
-      })
-      .map(([grade, count]) => ({ grade, count }));
-  }, [students]);
-
-  const loboSummary = useMemo(() => {
-    const counters = { gold: 0, silver: 0, bronze: 0 };
-    for (const row of rankingRows) {
-      if (row.lobo_class === "gold") counters.gold += 1;
-      else if (row.lobo_class === "silver") counters.silver += 1;
-      else counters.bronze += 1;
+    try {
+      setSavingTeacher(true);
+      await createTeacher({
+        full_name: teacherName.trim(),
+        email: teacherEmail.trim(),
+        area: teacherArea.trim() || null,
+      });
+      setTeacherName("");
+      setTeacherEmail("");
+      setTeacherArea("");
+      await reloadTeachers();
+      Alert.alert("Professor(a) salvo", "Cadastro atualizado com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
+      Alert.alert("Erro", message);
+    } finally {
+      setSavingTeacher(false);
     }
-    return counters;
-  }, [rankingRows]);
+  }
 
-  const topStudents = useMemo(() => rankingRows.slice(0, 10), [rankingRows]);
+  async function handleAssignTeacher(teacherId: string, olympiadId: string) {
+    try {
+      setAssigningTeacherId(teacherId);
+      await assignTeacherToOlympiad({ teacher_id: teacherId, olympiad_id: olympiadId });
+      await reloadTeachers();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao vincular professor(a).";
+      Alert.alert("Erro", message);
+    } finally {
+      setAssigningTeacherId(null);
+    }
+  }
+
+  async function handleRemoveAssignment(teacherId: string, olympiadId: string) {
+    try {
+      await removeTeacherAssignment({ teacher_id: teacherId, olympiad_id: olympiadId });
+      await reloadTeachers();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao remover vínculo.";
+      Alert.alert("Erro", message);
+    }
+  }
+
+  async function handleDeleteTeacher(teacherId: string) {
+    try {
+      setDeletingTeacherId(teacherId);
+      await deleteTeacher(teacherId);
+      await reloadTeachers();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao excluir professor(a).";
+      Alert.alert("Erro", message);
+    } finally {
+      setDeletingTeacherId(null);
+    }
+  }
 
   return (
     <StitchScreenFrame>
@@ -207,7 +254,7 @@ export default function AdminDashboardScreen() {
                 Acesso restrito
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
-                {errorText ?? "Faça login com usuário admin/coordenador para acessar este painel."}
+                {errorText ?? "Faça login com usuário admin para acessar este painel."}
               </Text>
               <Pressable
                 onPress={() => router.replace("/admin/login")}
@@ -304,147 +351,141 @@ export default function AdminDashboardScreen() {
         ) : (
           <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm, gap: spacing.sm }}>
             {activeTab === "dashboard" ? (
-              <>
-                <View
-                  style={{
-                    borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: colors.surfacePanel,
-                    padding: spacing.md,
-                  }}
-                >
-                  <Text style={{ color: colors.white }} weight="bold">
-                    KPIs principais
-                  </Text>
-                  <View style={{ marginTop: spacing.sm, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
-                    {[
-                      { label: "Alunos cadastrados", value: kpis.totalStudents.toLocaleString("pt-BR") },
-                      { label: "Alunos com XP", value: kpis.withXp.toLocaleString("pt-BR") },
-                      { label: "XP total", value: kpis.totalXp.toLocaleString("pt-BR") },
-                      { label: "Média XP/aluno", value: kpis.avgXp.toLocaleString("pt-BR") },
-                    ].map((item) => (
-                      <View
-                        key={item.label}
-                        style={{
-                          minWidth: 150,
-                          flexGrow: 1,
-                          borderRadius: radii.md,
-                          borderWidth: 1,
-                          borderColor: colors.borderSoft,
-                          backgroundColor: "rgba(255,255,255,0.03)",
-                          padding: spacing.sm,
-                        }}
-                      >
-                        <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 12 }}>{item.label}</Text>
-                        <Text style={{ color: colors.einsteinYellow, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
-                          {item.value}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                <View
-                  style={{
-                    borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: colors.surfacePanel,
-                    padding: spacing.md,
-                  }}
-                >
-                  <Text style={{ color: colors.white }} weight="bold">
-                    Distribuição por classe Lobo
-                  </Text>
-                  <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs }}>
-                    {[
-                      { label: "Ouro", value: loboSummary.gold, color: "#facc15" },
-                      { label: "Prata", value: loboSummary.silver, color: "#d1d5db" },
-                      { label: "Bronze", value: loboSummary.bronze, color: "#d97706" },
-                    ].map((item) => (
-                      <View
-                        key={item.label}
-                        style={{
-                          flex: 1,
-                          borderRadius: radii.md,
-                          borderWidth: 1,
-                          borderColor: colors.borderSoft,
-                          backgroundColor: "rgba(255,255,255,0.03)",
-                          padding: spacing.sm,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text style={{ color: item.color }} weight="bold">
-                          {item.label}
-                        </Text>
-                        <Text style={{ color: colors.white, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
-                          {item.value}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </>
+              <AdminCoreDashboard
+                activeTab="dashboard"
+                students={students}
+                rankingRows={rankingRows}
+                teachers={teachers}
+                teacherName={teacherName}
+                teacherEmail={teacherEmail}
+                teacherArea={teacherArea}
+                olympiadSelectionByTeacher={olympiadSelectionByTeacher}
+                newPassword={newPassword}
+                confirmPassword={confirmPassword}
+                savingPassword={savingPassword}
+                savingTeacher={savingTeacher}
+                assigningTeacherId={assigningTeacherId}
+                deletingTeacherId={deletingTeacherId}
+                olympiads={olympiads}
+                onTeacherNameChange={setTeacherName}
+                onTeacherEmailChange={setTeacherEmail}
+                onTeacherAreaChange={setTeacherArea}
+                onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
+                  setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
+                }}
+                onNewPasswordChange={setNewPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                onSaveTeacher={() => {
+                  void handleCreateTeacher();
+                }}
+                onAssignTeacher={(teacherId, olympiadId) => {
+                  void handleAssignTeacher(teacherId, olympiadId);
+                }}
+                onRemoveAssignment={(teacherId, olympiadId) => {
+                  void handleRemoveAssignment(teacherId, olympiadId);
+                }}
+                onDeleteTeacher={(teacherId) => {
+                  void handleDeleteTeacher(teacherId);
+                }}
+                onUpdatePassword={() => {
+                  void handleChangePasswordNow();
+                }}
+                onOpenProfileSettings={() => {
+                  router.push("/(tabs)/perfil");
+                }}
+              />
             ) : null}
 
             {activeTab === "alunos" ? (
-              <>
-                <View
-                  style={{
-                    borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: colors.surfacePanel,
-                    padding: spacing.md,
-                  }}
-                >
-                  <Text style={{ color: colors.white }} weight="bold">
-                    Alunos por série
-                  </Text>
-                  <View style={{ marginTop: spacing.sm, gap: 8 }}>
-                    {seriesSummary.map((row) => (
-                      <View key={row.grade} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={{ color: "rgba(255,255,255,0.86)" }} weight="semibold">
-                          {row.grade}
-                        </Text>
-                        <Text style={{ color: colors.einsteinYellow }} weight="bold">
-                          {row.count}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
+              <AdminCoreDashboard
+                activeTab="alunos"
+                students={students}
+                rankingRows={rankingRows}
+                teachers={teachers}
+                teacherName={teacherName}
+                teacherEmail={teacherEmail}
+                teacherArea={teacherArea}
+                olympiadSelectionByTeacher={olympiadSelectionByTeacher}
+                newPassword={newPassword}
+                confirmPassword={confirmPassword}
+                savingPassword={savingPassword}
+                savingTeacher={savingTeacher}
+                assigningTeacherId={assigningTeacherId}
+                deletingTeacherId={deletingTeacherId}
+                olympiads={olympiads}
+                onTeacherNameChange={setTeacherName}
+                onTeacherEmailChange={setTeacherEmail}
+                onTeacherAreaChange={setTeacherArea}
+                onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
+                  setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
+                }}
+                onNewPasswordChange={setNewPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                onSaveTeacher={() => {
+                  void handleCreateTeacher();
+                }}
+                onAssignTeacher={(teacherId, olympiadId) => {
+                  void handleAssignTeacher(teacherId, olympiadId);
+                }}
+                onRemoveAssignment={(teacherId, olympiadId) => {
+                  void handleRemoveAssignment(teacherId, olympiadId);
+                }}
+                onDeleteTeacher={(teacherId) => {
+                  void handleDeleteTeacher(teacherId);
+                }}
+                onUpdatePassword={() => {
+                  void handleChangePasswordNow();
+                }}
+                onOpenProfileSettings={() => {
+                  router.push("/(tabs)/perfil");
+                }}
+              />
+            ) : null}
 
-                <View
-                  style={{
-                    borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: colors.surfacePanel,
-                    padding: spacing.md,
-                  }}
-                >
-                  <Text style={{ color: colors.white }} weight="bold">
-                    Top 10 por XP
-                  </Text>
-                  <View style={{ marginTop: spacing.sm, gap: 8 }}>
-                    {topStudents.map((row) => (
-                      <View key={row.user_id} style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
-                        <Text style={{ color: "rgba(255,255,255,0.7)", width: 28 }} weight="bold">
-                          {row.position}º
-                        </Text>
-                        <Text style={{ color: colors.white, flex: 1 }} weight="semibold">
-                          {row.full_name ?? "Sem nome"}
-                        </Text>
-                        <Text style={{ color: colors.einsteinYellow }} weight="bold">
-                          {row.total_points.toLocaleString("pt-BR")} XP
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </>
+            {activeTab === "professores" ? (
+              <AdminCoreDashboard
+                activeTab="professores"
+                students={students}
+                rankingRows={rankingRows}
+                teachers={teachers}
+                teacherName={teacherName}
+                teacherEmail={teacherEmail}
+                teacherArea={teacherArea}
+                olympiadSelectionByTeacher={olympiadSelectionByTeacher}
+                newPassword={newPassword}
+                confirmPassword={confirmPassword}
+                savingPassword={savingPassword}
+                savingTeacher={savingTeacher}
+                assigningTeacherId={assigningTeacherId}
+                deletingTeacherId={deletingTeacherId}
+                olympiads={olympiads}
+                onTeacherNameChange={setTeacherName}
+                onTeacherEmailChange={setTeacherEmail}
+                onTeacherAreaChange={setTeacherArea}
+                onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
+                  setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
+                }}
+                onNewPasswordChange={setNewPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                onSaveTeacher={() => {
+                  void handleCreateTeacher();
+                }}
+                onAssignTeacher={(teacherId, olympiadId) => {
+                  void handleAssignTeacher(teacherId, olympiadId);
+                }}
+                onRemoveAssignment={(teacherId, olympiadId) => {
+                  void handleRemoveAssignment(teacherId, olympiadId);
+                }}
+                onDeleteTeacher={(teacherId) => {
+                  void handleDeleteTeacher(teacherId);
+                }}
+                onUpdatePassword={() => {
+                  void handleChangePasswordNow();
+                }}
+                onOpenProfileSettings={() => {
+                  router.push("/(tabs)/perfil");
+                }}
+              />
             ) : null}
 
             {activeTab === "gtm" ? (
@@ -493,78 +534,49 @@ export default function AdminDashboardScreen() {
             ) : null}
 
             {activeTab === "perfil" ? (
-              <View
-                style={{
-                  borderRadius: radii.lg,
-                  borderWidth: 1,
-                  borderColor: colors.borderSoft,
-                  backgroundColor: colors.surfacePanel,
-                  padding: spacing.md,
+              <AdminCoreDashboard
+                activeTab="perfil"
+                students={students}
+                rankingRows={rankingRows}
+                teachers={teachers}
+                teacherName={teacherName}
+                teacherEmail={teacherEmail}
+                teacherArea={teacherArea}
+                olympiadSelectionByTeacher={olympiadSelectionByTeacher}
+                newPassword={newPassword}
+                confirmPassword={confirmPassword}
+                savingPassword={savingPassword}
+                savingTeacher={savingTeacher}
+                assigningTeacherId={assigningTeacherId}
+                deletingTeacherId={deletingTeacherId}
+                olympiads={olympiads}
+                onTeacherNameChange={setTeacherName}
+                onTeacherEmailChange={setTeacherEmail}
+                onTeacherAreaChange={setTeacherArea}
+                onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
+                  setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
                 }}
-              >
-                <Text style={{ color: colors.white }} weight="bold">
-                  Segurança da conta admin
-                </Text>
-                <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: spacing.xs, lineHeight: 20 }}>
-                  Atualize sua senha do painel administrativo.
-                </Text>
-
-                <TextInput
-                  placeholder="Nova senha"
-                  placeholderTextColor="rgba(255,255,255,0.45)"
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  style={{
-                    marginTop: spacing.sm,
-                    height: 46,
-                    borderRadius: radii.md,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                    color: colors.white,
-                    paddingHorizontal: spacing.sm,
-                    fontFamily: typography.fontFamily.base,
-                  }}
-                />
-                <TextInput
-                  placeholder="Confirmar senha"
-                  placeholderTextColor="rgba(255,255,255,0.45)"
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  style={{
-                    marginTop: spacing.xs,
-                    height: 46,
-                    borderRadius: radii.md,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                    color: colors.white,
-                    paddingHorizontal: spacing.sm,
-                    fontFamily: typography.fontFamily.base,
-                  }}
-                />
-                <Pressable
-                  onPress={() => {
-                    void handleChangePasswordNow();
-                  }}
-                  disabled={savingPassword}
-                  style={{
-                    marginTop: spacing.md,
-                    height: 46,
-                    borderRadius: radii.md,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: colors.einsteinYellow,
-                    opacity: savingPassword ? 0.7 : 1,
-                  }}
-                >
-                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                    {savingPassword ? "Salvando..." : "Atualizar senha"}
-                  </Text>
-                </Pressable>
-              </View>
+                onNewPasswordChange={setNewPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                onSaveTeacher={() => {
+                  void handleCreateTeacher();
+                }}
+                onAssignTeacher={(teacherId, olympiadId) => {
+                  void handleAssignTeacher(teacherId, olympiadId);
+                }}
+                onRemoveAssignment={(teacherId, olympiadId) => {
+                  void handleRemoveAssignment(teacherId, olympiadId);
+                }}
+                onDeleteTeacher={(teacherId) => {
+                  void handleDeleteTeacher(teacherId);
+                }}
+                onUpdatePassword={() => {
+                  void handleChangePasswordNow();
+                }}
+                onOpenProfileSettings={() => {
+                  router.push("/(tabs)/perfil");
+                }}
+              />
             ) : null}
           </View>
         )}

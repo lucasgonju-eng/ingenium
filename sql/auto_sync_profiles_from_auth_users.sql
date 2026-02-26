@@ -22,7 +22,7 @@ begin
 
   v_grade := nullif(trim(coalesce(new.raw_user_meta_data->>'grade', '')), '');
   v_role := lower(nullif(trim(coalesce(new.raw_user_meta_data->>'role', '')), ''));
-  if v_role not in ('admin', 'coord', 'student') then
+  if v_role not in ('admin', 'coord', 'gestao', 'teacher', 'student') then
     v_role := 'student';
   end if;
 
@@ -54,7 +54,7 @@ select
   ) as full_name,
   nullif(trim(u.raw_user_meta_data->>'grade'), '') as grade,
   case
-    when lower(coalesce(u.raw_user_meta_data->>'role', '')) in ('admin', 'coord', 'student')
+    when lower(coalesce(u.raw_user_meta_data->>'role', '')) in ('admin', 'coord', 'gestao', 'teacher', 'student')
       then lower(u.raw_user_meta_data->>'role')
     else 'student'
   end as role,

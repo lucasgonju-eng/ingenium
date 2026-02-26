@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
@@ -8,60 +8,45 @@ import { fetchMyAccessRole } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
-const ADMIN_LOGIN = "admin";
-const ADMIN_EMAIL = "lucasgonju@gmail.com";
-
-export default function AdminLoginScreen() {
-  const [login, setLogin] = useState("");
+export default function GestaoLoginScreen() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Segurança: nunca redirecionar automaticamente para o admin.
-    // O acesso ao painel deve ocorrer somente após login explícito nesta tela.
-  }, []);
-
-  async function handleAdminLogin() {
+  async function handleGestaoLogin() {
     setErrorText(null);
-    if (!login.trim() || !password) {
-      setErrorText("Preencha login e senha.");
-      Alert.alert("Campos obrigatórios", "Preencha login e senha.");
-      return;
-    }
-
-    const normalizedLogin = login.trim().toLowerCase();
-    if (normalizedLogin !== ADMIN_LOGIN && normalizedLogin !== ADMIN_EMAIL.toLowerCase()) {
-      setErrorText("Use login admin (ou o e-mail admin) para acessar o menu.");
-      Alert.alert("Login inválido", "Use o login admin para acessar o menu administrativo.");
+    if (!email.trim() || !password) {
+      setErrorText("Preencha e-mail e senha.");
+      Alert.alert("Campos obrigatórios", "Preencha e-mail e senha.");
       return;
     }
 
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithPassword({
-        email: ADMIN_EMAIL,
+        email: email.trim().toLowerCase(),
         password,
       });
-
       if (error) {
         setErrorText(error.message);
-        Alert.alert("Erro no login admin", error.message);
+        Alert.alert("Erro no login", error.message);
         return;
       }
 
       const role = await fetchMyAccessRole();
-      if (role !== "admin") {
+      if (role !== "gestao" && role !== "admin") {
         await supabase.auth.signOut();
-        setErrorText("Esta conta não possui permissão de administrador.");
-        Alert.alert("Acesso negado", "Esta conta não possui permissão de administrador.");
+        setErrorText("Esta conta não possui permissão de Gestão.");
+        Alert.alert("Acesso negado", "Esta conta não possui permissão de Gestão.");
         return;
       }
 
-      router.replace("/admin");
+      router.replace("/gestao");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao autenticar no menu admin.";
+      const message = e instanceof Error ? e.message : "Falha ao autenticar no menu gestão.";
       setErrorText(message);
       Alert.alert("Erro", message);
     } finally {
@@ -69,11 +54,41 @@ export default function AdminLoginScreen() {
     }
   }
 
+  async function handleSendMagicLink() {
+    setErrorText(null);
+    if (!email.trim()) {
+      setErrorText("Informe o e-mail para receber o link.");
+      Alert.alert("E-mail obrigatório", "Informe o e-mail da coordenadora.");
+      return;
+    }
+
+    try {
+      setSendingMagicLink(true);
+      const targetEmail = email.trim().toLowerCase();
+      const siteUrl = process.env.EXPO_PUBLIC_SITE_URL ?? (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+      const redirectTo = `${siteUrl.replace(/\/+$/, "")}/gestao/login-link`;
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: targetEmail,
+        options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+      });
+      if (error) throw error;
+
+      Alert.alert("Link enviado", "Enviamos um link de acesso para o e-mail informado.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível enviar o magic link.";
+      setErrorText(message);
+      Alert.alert("Erro", message);
+    } finally {
+      setSendingMagicLink(false);
+    }
+  }
+
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Admin" subtitle="Acesse o menu admin" variant="feed" />
+          <StitchHeader title="Gestão" subtitle="Acesso das coordenadoras" variant="feed" />
         </View>
 
         <View style={{ paddingHorizontal: spacing.md }}>
@@ -88,17 +103,18 @@ export default function AdminLoginScreen() {
             }}
           >
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-              Login administrativo
+              Login de Gestão
             </Text>
 
             <TextInput
-              placeholder="Login"
+              placeholder="E-mail"
               placeholderTextColor="rgba(255,255,255,0.45)"
               autoCapitalize="none"
-              autoComplete="username"
-              value={login}
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
               onChangeText={(value) => {
-                setLogin(value);
+                setEmail(value);
                 if (errorText) setErrorText(null);
               }}
               style={{
@@ -137,7 +153,7 @@ export default function AdminLoginScreen() {
                   if (errorText) setErrorText(null);
                 }}
                 onSubmitEditing={() => {
-                  void handleAdminLogin();
+                  void handleGestaoLogin();
                 }}
                 style={{
                   flex: 1,
@@ -156,7 +172,7 @@ export default function AdminLoginScreen() {
 
             <Pressable
               onPress={() => {
-                void handleAdminLogin();
+                void handleGestaoLogin();
               }}
               disabled={loading}
               style={{
@@ -170,7 +186,29 @@ export default function AdminLoginScreen() {
               }}
             >
               <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                {loading ? "Entrando..." : "Entrar no admin"}
+                {loading ? "Entrando..." : "Entrar na Gestão"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                void handleSendMagicLink();
+              }}
+              disabled={sendingMagicLink}
+              style={{
+                marginTop: spacing.xs,
+                height: 44,
+                borderRadius: radii.md,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                opacity: sendingMagicLink ? 0.7 : 1,
+              }}
+            >
+              <Text style={{ color: colors.white }} weight="semibold">
+                {sendingMagicLink ? "Enviando link..." : "Receber link de acesso"}
               </Text>
             </Pressable>
 

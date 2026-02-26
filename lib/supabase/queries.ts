@@ -20,7 +20,7 @@ export type ProfileRow = {
   avatar_url: string | null;
 };
 
-export type MyAccessRole = "admin" | "coord" | "student" | null;
+export type MyAccessRole = "admin" | "coord" | "gestao" | "teacher" | "student" | null;
 
 export type RegisteredStudentRow = {
   id: string;
@@ -37,6 +37,26 @@ export type RankingStudentRow = {
   grade: string | null;
   total_points: number;
   lobo_class: "bronze" | "silver" | "gold";
+};
+
+export type FullStudentRow = {
+  id: string;
+  full_name: string | null;
+  grade: string | null;
+  class_name: string | null;
+  avatar_url: string | null;
+  role: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type TeacherRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  area: string | null;
+  assignments: Array<{ olympiad_id: string; olympiad_title: string }>;
 };
 
 export async function fetchRankingGeral(limit = 50) {
@@ -328,7 +348,7 @@ export async function fetchMyAccessRole(): Promise<MyAccessRole> {
 
   if (error) throw error;
   const rawRole = String((data as { role?: string } | null)?.role ?? "").trim().toLowerCase();
-  if (rawRole === "admin" || rawRole === "coord" || rawRole === "student") return rawRole;
+  if (rawRole === "admin" || rawRole === "coord" || rawRole === "gestao" || rawRole === "teacher" || rawRole === "student") return rawRole;
   return null;
 }
 
@@ -421,7 +441,10 @@ export async function ensureCurrentUserProfileFromAuthMetadata() {
   const fullName = String(metadata.full_name ?? "").trim() || (user.email?.split("@")[0] ?? "Aluno");
   const grade = String(metadata.grade ?? "").trim() || null;
   const roleRaw = String(metadata.role ?? "").trim().toLowerCase();
-  const role = roleRaw === "admin" || roleRaw === "coord" || roleRaw === "student" ? roleRaw : "student";
+  const role =
+    roleRaw === "admin" || roleRaw === "coord" || roleRaw === "gestao" || roleRaw === "teacher" || roleRaw === "student"
+      ? roleRaw
+      : "student";
 
   const { data, error } = await supabase
     .from("profiles")
@@ -599,4 +622,69 @@ export async function deleteProfileFeedPost(postId: string) {
   if (!data || data.length === 0) {
     throw new Error("Não foi possível excluir a postagem do feed. Ela pode já ter sido removida ou não pertence ao seu usuário.");
   }
+}
+
+export async function fetchRegisteredStudentsFull() {
+  const { data, error } = await supabase.rpc("get_registered_students_full_admin");
+  if (error) throw error;
+  return (data ?? []) as FullStudentRow[];
+}
+
+export async function fetchTeachersWithOlympiads() {
+  const { data, error } = await supabase.rpc("get_teachers_with_olympiads_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<{
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    avatar_url: string | null;
+    area: string | null;
+    assignments: Array<{ olympiad_id?: string; olympiad_title?: string }> | null;
+  }>).map((row) => ({
+    id: row.id,
+    full_name: row.full_name,
+    email: row.email,
+    avatar_url: row.avatar_url,
+    area: row.area,
+    assignments: (row.assignments ?? [])
+      .map((item) => ({
+        olympiad_id: String(item.olympiad_id ?? ""),
+        olympiad_title: String(item.olympiad_title ?? ""),
+      }))
+      .filter((item) => Boolean(item.olympiad_id)),
+  }));
+}
+
+export async function createTeacher(input: { full_name: string; email: string; area?: string | null }) {
+  const { data, error } = await supabase.rpc("create_teacher_admin", {
+    p_full_name: input.full_name,
+    p_email: input.email,
+    p_area: input.area ?? null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function assignTeacherToOlympiad(input: { teacher_id: string; olympiad_id: string }) {
+  const { data, error } = await supabase.rpc("assign_teacher_to_olympiad_admin", {
+    p_teacher_id: input.teacher_id,
+    p_olympiad_id: input.olympiad_id,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function removeTeacherAssignment(input: { teacher_id: string; olympiad_id: string }) {
+  const { error } = await supabase.rpc("remove_teacher_assignment_admin", {
+    p_teacher_id: input.teacher_id,
+    p_olympiad_id: input.olympiad_id,
+  });
+  if (error) throw error;
+}
+
+export async function deleteTeacher(teacherId: string) {
+  const { error } = await supabase.rpc("delete_teacher_admin", {
+    p_teacher_id: teacherId,
+  });
+  if (error) throw error;
 }
