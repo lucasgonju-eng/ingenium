@@ -29,6 +29,11 @@ const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
   { key: "gtm", label: "GTM" },
 ];
+type GtmObservedEvent = {
+  event: string;
+  sentAt: string | null;
+  payloadPreview: string;
+};
 
 export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,7 @@ export default function AdminDashboardScreen() {
   const [gtmLastEventAt, setGtmLastEventAt] = useState<string | null>(null);
   const [gtmLastEventName, setGtmLastEventName] = useState<string | null>(null);
   const [gtmEventCount, setGtmEventCount] = useState(0);
+  const [gtmRecentEvents, setGtmRecentEvents] = useState<GtmObservedEvent[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -133,14 +139,30 @@ export default function AdminDashboardScreen() {
       setGtmConnected(hasScript || hasContainerObject);
       setGtmEventCount(layer.length);
 
+      const observedEvents: GtmObservedEvent[] = [];
       for (let i = layer.length - 1; i >= 0; i -= 1) {
         const item = layer[i];
         if (item && typeof item.event === "string" && item.event.trim()) {
-          setGtmLastEventName(item.event);
-          return;
+          const sentAt = typeof item.sent_at === "string" ? item.sent_at : null;
+          let payloadPreview = "";
+          try {
+            payloadPreview = JSON.stringify(item);
+            if (payloadPreview.length > 200) {
+              payloadPreview = `${payloadPreview.slice(0, 197)}...`;
+            }
+          } catch {
+            payloadPreview = "[payload não serializável]";
+          }
+          observedEvents.push({
+            event: item.event,
+            sentAt,
+            payloadPreview,
+          });
+          if (observedEvents.length >= 8) break;
         }
       }
-      setGtmLastEventName(null);
+      setGtmRecentEvents(observedEvents);
+      setGtmLastEventName(observedEvents[0]?.event ?? null);
     };
 
     const patchDataLayerPush = () => {
@@ -689,17 +711,35 @@ export default function AdminDashboardScreen() {
                   <Text style={{ color: colors.white }} weight="semibold">Enviar evento de teste</Text>
                 </Pressable>
                 <View style={{ marginTop: spacing.sm, gap: 8 }}>
-                  {[
-                    "Evento: lp_view",
-                    "Evento: signup_start",
-                    "Evento: terms_accept",
-                    "Evento: signup_submit",
-                    "Evento: login_success",
-                    "Evento: admin_login_success",
-                    "Evento: gestao_login_success",
-                  ].map((item) => (
+                  <Text style={{ color: "rgba(255,255,255,0.88)" }} weight="bold">
+                    Últimos eventos capturados (tempo real)
+                  </Text>
+                  {gtmRecentEvents.length ? (
+                    gtmRecentEvents.map((item, index) => (
+                      <View
+                        key={`${item.event}-${item.sentAt ?? "sem-data"}-${index}`}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 8,
+                        }}
+                      >
+                        <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                          Evento: {item.event}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                          sent_at: {item.sentAt ?? "não informado"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
+                          payload: {item.payloadPreview}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
                     <View
-                      key={item}
                       style={{
                         borderRadius: radii.md,
                         borderWidth: 1,
@@ -709,11 +749,11 @@ export default function AdminDashboardScreen() {
                         paddingVertical: 8,
                       }}
                     >
-                      <Text style={{ color: "rgba(255,255,255,0.88)" }} weight="semibold">
-                        {item}
+                      <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                        Nenhum evento identificado no dataLayer ainda.
                       </Text>
                     </View>
-                  ))}
+                  )}
                 </View>
               </View>
             ) : null}
