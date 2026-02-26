@@ -82,7 +82,7 @@ if ($fromEmail === "" || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
   respond_json(500, ["ok" => false, "error" => "fromEmail inválido na configuração SMTP."]);
 }
 
-$adminEmail = "lucasgonju@gmail.com";
+$adminEmail = "contato@ingenium.einsteinhub.co";
 $roleLabel = $requestType === "collaborator" ? "colaborador(a)" : "professor(a)";
 $candidateLabel = $displayName !== "" ? $displayName : $fullName;
 

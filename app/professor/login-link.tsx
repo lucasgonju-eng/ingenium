@@ -70,7 +70,11 @@ export default function ProfessorLoginLinkScreen() {
           }
           const latestRequest = await fetchMyLatestAccessRequest();
           if (latestRequest?.status === "pending") {
-            setStatus("Cadastro pendente de confirmação do administrador.");
+            if (window.history?.replaceState) {
+              window.history.replaceState({}, document.title, "/(tabs)/dashboard");
+            }
+            if (!mounted) return;
+            router.replace("/(tabs)/dashboard");
             return;
           }
           if (latestRequest?.status === "rejected") {

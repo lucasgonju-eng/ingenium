@@ -10,6 +10,9 @@ import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
 import {
+  ensureTeacherAccessRequestFromCurrentUser,
+  fetchMyAccessRole,
+  fetchMyLatestAccessRequest,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudents,
   fetchMyProfile,
@@ -72,6 +75,7 @@ export default function DashboardScreen() {
   const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
+  const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
   const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
   async function load() {
@@ -96,6 +100,22 @@ export default function DashboardScreen() {
         "Aluno";
 
       setName(getFirstName(fullName));
+
+      try {
+        const role = await fetchMyAccessRole();
+        if (role !== "teacher") {
+          const metadataPending = Boolean(user?.user_metadata?.teacher_pending);
+          if (metadataPending) {
+            await ensureTeacherAccessRequestFromCurrentUser();
+          }
+          const latestRequest = await fetchMyLatestAccessRequest();
+          setShowTeacherPendingBanner(latestRequest?.status === "pending");
+        } else {
+          setShowTeacherPendingBanner(false);
+        }
+      } catch {
+        setShowTeacherPendingBanner(false);
+      }
 
       const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
@@ -202,6 +222,28 @@ export default function DashboardScreen() {
             Bem-vindo, {name}
           </Text>
         </View>
+
+      {showTeacherPendingBanner ? (
+        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+          <View
+            style={{
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: "rgba(255,199,0,0.45)",
+              backgroundColor: "rgba(255,199,0,0.10)",
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.xs,
+            }}
+          >
+            <Text style={{ color: colors.einsteinYellow }} weight="bold">
+              Cadastro pendente de confirmação do administrador.
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 2 }}>
+              Você já pode atualizar seus dados e foto. Seu perfil será publicado após aprovação do admin.
+            </Text>
+          </View>
+        </View>
+      ) : null}
 
       <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
         <DashboardHero
