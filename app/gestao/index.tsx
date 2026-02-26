@@ -137,6 +137,7 @@ export default function GestaoDashboardPlaceholder() {
       Alert.alert("Campo obrigatório", "Informe o nome da olimpíada pendente.");
       return;
     }
+    let emailSent = false;
     try {
       setSavingTeacher(true);
       setTeacherCreationFeedback(null);
@@ -146,6 +147,8 @@ export default function GestaoDashboardPlaceholder() {
         display_name: teacherDisplayName.trim(),
         subject_area: teacherArea.trim() || null,
       });
+      emailSent = true;
+      setTeacherCreationFeedback("E-mail enviado");
       await createTeacher({
         full_name: teacherFullName.trim(),
         display_name: teacherDisplayName.trim(),
@@ -161,11 +164,15 @@ export default function GestaoDashboardPlaceholder() {
       setSelectedCreateOlympiadId("");
       setTeacherPendingOlympiadName("");
       await reloadTeachers();
-      setTeacherCreationFeedback("E-mail enviado");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
-      setTeacherCreationFeedback(null);
-      Alert.alert("Erro", message);
+      const rateLimited = /429|too many requests/i.test(message);
+      if (rateLimited) {
+        Alert.alert("Aguarde um instante", "Muitas tentativas em sequência. Espere um pouco e tente novamente.");
+      } else {
+        if (!emailSent) setTeacherCreationFeedback(null);
+        Alert.alert("Erro", message);
+      }
     } finally {
       setSavingTeacher(false);
     }
