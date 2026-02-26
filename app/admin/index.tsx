@@ -150,7 +150,7 @@ function summarizeDataLayerPayload(item: Record<string, unknown>): string {
     }
   }
 
-  return pieces.length ? pieces.join(" | ") : "sem campos adicionais relevantes";
+  return pieces.length ? pieces.join(" | ") : "Sem dados adicionais relevantes para decisão.";
 }
 
 export default function AdminDashboardScreen() {
