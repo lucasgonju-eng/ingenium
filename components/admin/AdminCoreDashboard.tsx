@@ -122,6 +122,7 @@ export default function AdminCoreDashboard(props: Props) {
   const avgXp = totalStudents > 0 ? Math.round(totalXp / totalStudents) : 0;
   const withXp = rankingRows.filter((row) => Number(row.total_points || 0) > 0).length;
   const topStudents = rankingRows.slice(0, 10);
+  const canHardDeleteTeachers = enableBulkDelete && typeof onPermanentlyDeleteSelectedTeachers === "function";
   const teacherOptions = teachers.map((teacher) => ({
     id: teacher.id,
     label: teacher.display_name ?? teacher.full_name ?? "Sem nome",
@@ -385,14 +386,24 @@ export default function AdminCoreDashboard(props: Props) {
                   Reativar selecionados ({selectedTeacherIds.length})
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={onPermanentlyDeleteSelectedTeachers}
-                style={[miniActionBtnStyle, { borderColor: "rgba(239,68,68,0.7)", backgroundColor: "rgba(127,29,29,0.45)" }]}
-              >
-                <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
-                  Excluir permanentemente ({selectedTeacherIds.length})
-                </Text>
-              </Pressable>
+              {canHardDeleteTeachers ? (
+                <Pressable
+                  onPress={onPermanentlyDeleteSelectedTeachers}
+                  disabled={selectedTeacherIds.length === 0}
+                  style={[
+                    miniActionBtnStyle,
+                    {
+                      borderColor: "rgba(239,68,68,0.75)",
+                      backgroundColor: "rgba(127,29,29,0.52)",
+                      opacity: selectedTeacherIds.length === 0 ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
+                    Excluir permanentemente ({selectedTeacherIds.length})
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
           <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
