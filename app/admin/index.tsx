@@ -185,6 +185,24 @@ export default function AdminDashboardScreen() {
   const [analyticsPeriodDays, setAnalyticsPeriodDays] = useState<7 | 30 | 90>(30);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  const categoryCardStyles = {
+    uso: {
+      borderColor: "rgba(59,130,246,0.45)",
+      backgroundColor: "rgba(59,130,246,0.09)",
+      titleColor: "#93c5fd",
+    },
+    aquisicao: {
+      borderColor: "rgba(16,185,129,0.45)",
+      backgroundColor: "rgba(16,185,129,0.09)",
+      titleColor: "#86efac",
+    },
+    retencaoRisco: {
+      borderColor: "rgba(245,158,11,0.45)",
+      backgroundColor: "rgba(245,158,11,0.09)",
+      titleColor: "#fcd34d",
+    },
+  } as const;
+
   useEffect(() => {
     let mounted = true;
     async function loadAdminData() {
@@ -943,13 +961,13 @@ export default function AdminDashboardScreen() {
                     style={{
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: categoryCardStyles.uso.borderColor,
+                      backgroundColor: categoryCardStyles.uso.backgroundColor,
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 8,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                    <Text style={{ color: categoryCardStyles.uso.titleColor }} weight="semibold">
                       Uso | Visão geral
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
@@ -962,13 +980,13 @@ export default function AdminDashboardScreen() {
                     style={{
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: categoryCardStyles.aquisicao.borderColor,
+                      backgroundColor: categoryCardStyles.aquisicao.backgroundColor,
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 8,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                    <Text style={{ color: categoryCardStyles.aquisicao.titleColor }} weight="semibold">
                       Aquisição | Páginas de entrada mais acessadas
                     </Text>
                     {(saasAnalytics?.top_pages ?? []).slice(0, 5).map((row) => (
@@ -981,13 +999,13 @@ export default function AdminDashboardScreen() {
                     style={{
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: categoryCardStyles.uso.borderColor,
+                      backgroundColor: categoryCardStyles.uso.backgroundColor,
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 8,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                    <Text style={{ color: categoryCardStyles.uso.titleColor }} weight="semibold">
                       Uso | Horários de pico
                     </Text>
                     {(saasAnalytics?.peak_hours ?? []).slice(0, 5).map((row) => (
@@ -1000,13 +1018,13 @@ export default function AdminDashboardScreen() {
                     style={{
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: categoryCardStyles.aquisicao.borderColor,
+                      backgroundColor: categoryCardStyles.aquisicao.backgroundColor,
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 8,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                    <Text style={{ color: categoryCardStyles.aquisicao.titleColor }} weight="semibold">
                       Aquisição | Dispositivos e localização
                     </Text>
                     {(saasAnalytics?.devices ?? []).slice(0, 3).map((row) => (
@@ -1024,13 +1042,13 @@ export default function AdminDashboardScreen() {
                     style={{
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: categoryCardStyles.retencaoRisco.borderColor,
+                      backgroundColor: categoryCardStyles.retencaoRisco.backgroundColor,
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 8,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                    <Text style={{ color: categoryCardStyles.retencaoRisco.titleColor }} weight="semibold">
                       Retenção e risco | Logins mais e menos ativos
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }} weight="semibold">
