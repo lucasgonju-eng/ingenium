@@ -55,6 +55,8 @@ export default function AdminDashboardScreen() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [gtmConnected, setGtmConnected] = useState(false);
   const [gtmLastEventAt, setGtmLastEventAt] = useState<string | null>(null);
+  const [gtmLastEventName, setGtmLastEventName] = useState<string | null>(null);
+  const [gtmEventCount, setGtmEventCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -108,9 +110,37 @@ export default function AdminDashboardScreen() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const layer = (window as Window & { dataLayer?: unknown[] }).dataLayer;
-    setGtmConnected(Array.isArray(layer));
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    type GtmWindow = Window & {
+      dataLayer?: Array<Record<string, unknown>>;
+      google_tag_manager?: Record<string, unknown>;
+    };
+    const GTM_ID = "GTM-TNHK5MSV";
+
+    const readGtmState = () => {
+      const win = window as GtmWindow;
+      const layer = Array.isArray(win.dataLayer) ? win.dataLayer : [];
+      const hasScript = Boolean(
+        document.querySelector(`script[src*="googletagmanager.com/gtm.js?id=${GTM_ID}"]`),
+      );
+      const hasContainerObject = Boolean(win.google_tag_manager?.[GTM_ID]);
+
+      setGtmConnected(hasScript || hasContainerObject);
+      setGtmEventCount(layer.length);
+
+      for (let i = layer.length - 1; i >= 0; i -= 1) {
+        const item = layer[i];
+        if (item && typeof item.event === "string" && item.event.trim()) {
+          setGtmLastEventName(item.event);
+          return;
+        }
+      }
+      setGtmLastEventName(null);
+    };
+
+    readGtmState();
+    const interval = setInterval(readGtmState, 1200);
+    return () => clearInterval(interval);
   }, []);
 
   async function handleChangePasswordNow() {
@@ -582,6 +612,12 @@ export default function AdminDashboardScreen() {
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
                     Último evento de teste: {gtmLastEventAt ?? "ainda não enviado"}
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+                    Último evento no dataLayer: {gtmLastEventName ?? "não identificado"}
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+                    Total de pushes no dataLayer: {gtmEventCount}
                   </Text>
                 </View>
                 <Pressable
