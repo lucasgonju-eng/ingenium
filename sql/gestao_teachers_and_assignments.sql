@@ -484,6 +484,7 @@ revoke all on function public.remove_teacher_assignment_admin(uuid) from public;
 grant execute on function public.remove_teacher_assignment_admin(uuid) to authenticated;
 grant execute on function public.remove_teacher_assignment_admin(uuid) to service_role;
 
+drop function if exists public.delete_teacher_admin(uuid);
 create or replace function public.delete_teacher_admin(p_teacher_profile_id uuid)
 returns void
 language plpgsql
