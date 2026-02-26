@@ -161,10 +161,7 @@ export default function GestaoDashboardPlaceholder() {
       setSelectedCreateOlympiadId("");
       setTeacherPendingOlympiadName("");
       await reloadTeachers();
-      setTeacherCreationFeedback(
-        `Cadastro realizado com sucesso para ${teacherEmail.trim()}. O professor deve abrir o e-mail e concluir o acesso pelo magic link.`,
-      );
-      Alert.alert("Professor(a) salvo", "Cadastro atualizado e magic link enviado.");
+      setTeacherCreationFeedback("E-mail enviado");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
       setTeacherCreationFeedback(null);
@@ -172,36 +169,6 @@ export default function GestaoDashboardPlaceholder() {
     } finally {
       setSavingTeacher(false);
     }
-  }
-
-  function handleConfirmCreateTeacher() {
-    if (typeof window !== "undefined") {
-      const confirmed = window.confirm(
-        "Confirma o envio do magic link para o professor agora?\n\nClique em OK para confirmar ou Cancelar para editar os dados.",
-      );
-      if (confirmed) {
-        void handleCreateTeacher();
-      }
-      return;
-    }
-
-    Alert.alert(
-      "Confirmar cadastro de professor",
-      "Deseja revisar os dados antes de enviar ou confirmar o envio do magic link agora?",
-      [
-        {
-          text: "Editar",
-          style: "cancel",
-        },
-        {
-          text: "Confirmar envio",
-          style: "default",
-          onPress: () => {
-            void handleCreateTeacher();
-          },
-        },
-      ],
-    );
   }
 
   async function handleAssignTeacher(teacherId: string, olympiadId: string) {
@@ -397,7 +364,7 @@ export default function GestaoDashboardPlaceholder() {
               onNewPasswordChange={setNewPassword}
               onConfirmPasswordChange={setConfirmPassword}
               onSaveTeacher={() => {
-                handleConfirmCreateTeacher();
+                void handleCreateTeacher();
               }}
               onAssignTeacher={(teacherId, olympiadId) => {
                 void handleAssignTeacher(teacherId, olympiadId);
