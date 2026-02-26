@@ -664,7 +664,9 @@ export default function AdminDashboardScreen() {
           ? "Parabéns, seu cadastro foi aprovado! Seja bem-vindo(a) ao InGenium!!"
           : "Cadastro não aprovado nesta etapa.",
       });
+      let emailWarning: string | null = null;
       if (request?.email && request.full_name) {
+        try {
         await sendAccessRequestReviewEmail({
           requestType: request.request_type,
           approved: approve,
@@ -675,13 +677,17 @@ export default function AdminDashboardScreen() {
           intendedOlympiad: request.intended_olympiad,
           adminReviewerEmail: currentUserEmail,
         });
+        } catch (mailErr: unknown) {
+          emailWarning = mailErr instanceof Error ? mailErr.message : "Falha ao enviar e-mail de notificação.";
+        }
       }
       await Promise.all([reloadPendingRequests(), reloadTeachers()]);
+      const baseMessage = approve
+        ? "Solicitação aprovada com sucesso. Professor liberado."
+        : "Solicitação reprovada com sucesso.";
       Alert.alert(
         approve ? "Cadastro aprovado" : "Cadastro reprovado",
-        approve
-          ? "Solicitação aprovada com sucesso. Professor liberado."
-          : "Solicitação reprovada com sucesso.",
+        emailWarning ? `${baseMessage}\n\nAviso de e-mail: ${emailWarning}` : baseMessage,
       );
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao revisar solicitação.";

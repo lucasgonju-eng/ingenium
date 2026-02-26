@@ -86,8 +86,8 @@ $adminEmail = "contato@ingenium.einsteinhub.co";
 $roleLabel = $requestType === "collaborator" ? "colaborador(a)" : "professor(a)";
 $candidateLabel = $displayName !== "" ? $displayName : $fullName;
 
-$subject = "InGenium | Nova pendência de cadastro ({$roleLabel})";
-$html = "
+$adminSubject = "InGenium | Nova pendência de cadastro ({$roleLabel})";
+$adminHtml = "
 <div style='font-family:Arial,sans-serif;background:#0a1b33;color:#ffffff;padding:24px;'>
   <div style='max-width:720px;margin:0 auto;background:#10274a;border:1px solid #1f3d6d;border-radius:12px;padding:20px;'>
     <h2 style='margin:0 0 12px 0;color:#facc15;'>Nova pendência de cadastro</h2>
@@ -101,9 +101,23 @@ $html = "
   </div>
 </div>";
 
-$ok = send_html_mail($adminEmail, $subject, $html, $fromEmail, $fromName);
-if (!$ok) {
-  respond_json(500, ["ok" => false, "error" => "Falha ao enviar e-mail de nova pendência para o admin."]);
+$candidateSubject = "InGenium | Cadastro recebido e em análise";
+$candidateHtml = "
+<div style='font-family:Arial,sans-serif;background:#0a1b33;color:#ffffff;padding:24px;'>
+  <div style='max-width:620px;margin:0 auto;background:#10274a;border:1px solid #1f3d6d;border-radius:12px;padding:20px;'>
+    <h2 style='margin:0 0 12px 0;color:#facc15;'>InGenium</h2>
+    <p style='margin:0 0 10px 0;'>Olá, {$candidateLabel}.</p>
+    <p style='margin:0 0 12px 0;'>Seu cadastro de {$roleLabel} foi recebido com sucesso e está pendente de aprovação do administrador.</p>
+    <p style='margin:0 0 12px 0;'>Você já pode acessar o dashboard e completar seu perfil (dados pessoais e foto) enquanto aguarda a aprovação.</p>
+    <p style='margin:0;color:#cbd5e1;'>Equipe InGenium</p>
+  </div>
+</div>";
+
+$okAdmin = send_html_mail($adminEmail, $adminSubject, $adminHtml, $fromEmail, $fromName);
+$okCandidate = send_html_mail($candidateEmail, $candidateSubject, $candidateHtml, $fromEmail, $fromName);
+
+if (!$okAdmin || !$okCandidate) {
+  respond_json(500, ["ok" => false, "error" => "Falha ao enviar e-mails de nova pendência (admin/professor)."]);
 }
 
 respond_json(200, ["ok" => true]);
