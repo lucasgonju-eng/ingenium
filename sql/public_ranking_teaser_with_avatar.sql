@@ -28,7 +28,7 @@ as $$
       coalesce(pt.lobo_class, 'bronze')::text as lobo_class
     from public.profiles pr
     left join public.points pt on pt.user_id = pr.id
-    where coalesce(lower(pr.role), 'student') not in ('admin', 'coord')
+    where coalesce(lower(pr.role), 'student') = 'student'
       and nullif(trim(coalesce(pr.full_name, '')), '') is not null
   )
   select r.rank, r.full_name, r.avatar_url, r.total_points, r.lobo_class
