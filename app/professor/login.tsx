@@ -93,9 +93,9 @@ export default function ProfessorSignupScreen() {
 
       Alert.alert(
         "Cadastro recebido",
-        "Enviamos um magic link para seu e-mail. Após entrar, seu perfil ficará em análise até confirmação do administrador.",
+        "Enviamos um magic link para seu e-mail. Abra o link recebido para concluir o acesso. Seu perfil ficará em análise até confirmação do administrador.",
       );
-      router.replace("/professor/login-link");
+      router.replace("/professor/login");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao enviar cadastro de professor.";
       Alert.alert("Erro", message);

@@ -43,14 +43,19 @@ export default function ProfessorLoginLinkScreen() {
           const result = await supabase.auth.exchangeCodeForSession(code);
           error = result.error;
         } else if (tokenHash && type) {
-          const otpType = type === "recovery" ? "recovery" : "email";
+          const typeNormalized = type.toLowerCase();
+          const otpType = typeNormalized === "recovery"
+            ? "recovery"
+            : typeNormalized === "magiclink"
+              ? "magiclink"
+              : "email";
           const result = await supabase.auth.verifyOtp({
             type: otpType,
             token_hash: tokenHash,
           });
           error = result.error;
         } else {
-          setStatus("Token de acesso ausente.");
+          setStatus("Token de acesso ausente. Abra novamente o link recebido no e-mail.");
           return;
         }
 
