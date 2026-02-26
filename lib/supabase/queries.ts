@@ -447,8 +447,6 @@ export async function ensureCurrentUserProfileFromAuthMetadata() {
 
   const metadata = user.user_metadata ?? {};
   const fullName = String(metadata.full_name ?? "").trim() || (user.email?.split("@")[0] ?? "Aluno");
-  const displayName = String(metadata.display_name ?? "").trim() || null;
-  const subjectArea = String(metadata.subject_area ?? "").trim() || null;
   const grade = String(metadata.grade ?? "").trim() || null;
   const roleRaw = String(metadata.role ?? "").trim().toLowerCase();
   const role =
@@ -462,8 +460,6 @@ export async function ensureCurrentUserProfileFromAuthMetadata() {
       {
         id: user.id,
         full_name: fullName,
-        display_name: displayName,
-        subject_area: subjectArea,
         grade,
         role,
         updated_at: new Date().toISOString(),
