@@ -67,6 +67,20 @@ export type TeacherRow = {
   }>;
 };
 
+export type SaasAnalyticsOverview = {
+  period_days: number;
+  since_utc: string;
+  total_events: number;
+  total_sessions: number;
+  active_users: number;
+  top_pages: Array<{ page_path: string; visits: number }>;
+  peak_hours: Array<{ hour_slot: string; events: number }>;
+  devices: Array<{ device: string; events: number }>;
+  countries: Array<{ country_name: string; events: number }>;
+  most_accessed_logins: Array<{ user_id: string; full_name: string; accesses: number }>;
+  least_accessed_logins: Array<{ user_id: string; full_name: string; accesses: number }>;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -684,6 +698,33 @@ export async function fetchTeachersWithOlympiads() {
       }))
       .filter((item) => Boolean(item.assignment_id)),
   }));
+}
+
+export async function fetchSaasAnalyticsOverview(days = 30): Promise<SaasAnalyticsOverview | null> {
+  const { data, error } = await supabase.rpc("get_saas_analytics_overview_admin", {
+    p_days: days,
+  });
+  if (error) throw error;
+  if (!data || typeof data !== "object") return null;
+
+  const row = data as Record<string, unknown>;
+  return {
+    period_days: Number(row.period_days ?? days),
+    since_utc: String(row.since_utc ?? new Date().toISOString()),
+    total_events: Number(row.total_events ?? 0),
+    total_sessions: Number(row.total_sessions ?? 0),
+    active_users: Number(row.active_users ?? 0),
+    top_pages: Array.isArray(row.top_pages) ? (row.top_pages as Array<{ page_path: string; visits: number }>) : [],
+    peak_hours: Array.isArray(row.peak_hours) ? (row.peak_hours as Array<{ hour_slot: string; events: number }>) : [],
+    devices: Array.isArray(row.devices) ? (row.devices as Array<{ device: string; events: number }>) : [],
+    countries: Array.isArray(row.countries) ? (row.countries as Array<{ country_name: string; events: number }>) : [],
+    most_accessed_logins: Array.isArray(row.most_accessed_logins)
+      ? (row.most_accessed_logins as Array<{ user_id: string; full_name: string; accesses: number }>)
+      : [],
+    least_accessed_logins: Array.isArray(row.least_accessed_logins)
+      ? (row.least_accessed_logins as Array<{ user_id: string; full_name: string; accesses: number }>)
+      : [],
+  };
 }
 
 export async function sendTeacherMagicLink(input: {

@@ -8,6 +8,7 @@ import {
   assignTeacherToOlympiad,
   createTeacher,
   deleteTeacher,
+  fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudentsFull,
@@ -17,6 +18,7 @@ import {
   fetchOlympiads,
   type FullStudentRow,
   type RankingStudentRow,
+  type SaasAnalyticsOverview,
   type TeacherRow,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
@@ -116,6 +118,7 @@ export default function AdminDashboardScreen() {
   const [gtmLastEventName, setGtmLastEventName] = useState<string | null>(null);
   const [gtmEventCount, setGtmEventCount] = useState(0);
   const [gtmRecentEvents, setGtmRecentEvents] = useState<GtmObservedEvent[]>([]);
+  const [saasAnalytics, setSaasAnalytics] = useState<SaasAnalyticsOverview | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -142,11 +145,12 @@ export default function AdminDashboardScreen() {
           return;
         }
 
-        const [studentsData, rankingData, teachersData, olympiadsData] = await Promise.all([
+        const [studentsData, rankingData, teachersData, olympiadsData, analyticsData] = await Promise.all([
           fetchRegisteredStudentsFull(),
           fetchRankingAllRegisteredStudents(500),
           fetchTeachersWithOlympiads(),
           fetchOlympiads(),
+          fetchSaasAnalyticsOverview(30),
         ]);
         if (!mounted) return;
         setAuthorized(true);
@@ -154,6 +158,7 @@ export default function AdminDashboardScreen() {
         setRankingRows(rankingData);
         setTeachers(teachersData);
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
+        setSaasAnalytics(analyticsData);
       } catch (e: unknown) {
         if (!mounted) return;
         const message = e instanceof Error ? e.message : "Falha ao carregar dashboard admin.";
@@ -764,7 +769,7 @@ export default function AdminDashboardScreen() {
                   {gtmRecentEvents.length ? (
                     gtmRecentEvents.map((item, index) => (
                       <View
-                        key={`${item.event}-${item.sentAt ?? "sem-data"}-${index}`}
+                        key={`${item.event}-${item.eventTime ?? "sem-data"}-${index}`}
                         style={{
                           borderRadius: radii.md,
                           borderWidth: 1,
@@ -804,6 +809,121 @@ export default function AdminDashboardScreen() {
                       </Text>
                     </View>
                   )}
+                </View>
+                <View style={{ marginTop: spacing.md, gap: 8 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.88)" }} weight="bold">
+                    Inteligência SaaS (últimos 30 dias)
+                  </Text>
+                  <View
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                      KPIs
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                      Eventos: {saasAnalytics?.total_events ?? 0} | Sessões: {saasAnalytics?.total_sessions ?? 0} | Usuários ativos:{" "}
+                      {saasAnalytics?.active_users ?? 0}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                      Páginas mais acessadas
+                    </Text>
+                    {(saasAnalytics?.top_pages ?? []).slice(0, 5).map((row) => (
+                      <Text key={`page-${row.page_path}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                        {row.page_path}: {row.visits}
+                      </Text>
+                    ))}
+                  </View>
+                  <View
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                      Horários de pico
+                    </Text>
+                    {(saasAnalytics?.peak_hours ?? []).slice(0, 5).map((row) => (
+                      <Text key={`peak-${row.hour_slot}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                        {row.hour_slot}: {row.events}
+                      </Text>
+                    ))}
+                  </View>
+                  <View
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                      Dispositivos e localização
+                    </Text>
+                    {(saasAnalytics?.devices ?? []).slice(0, 3).map((row) => (
+                      <Text key={`device-${row.device}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                        {row.device}: {row.events}
+                      </Text>
+                    ))}
+                    {(saasAnalytics?.countries ?? []).slice(0, 3).map((row) => (
+                      <Text key={`country-${row.country_name}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                        {row.country_name}: {row.events}
+                      </Text>
+                    ))}
+                  </View>
+                  <View
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                      Logins mais e menos ativos
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }} weight="semibold">
+                      Mais ativos
+                    </Text>
+                    {(saasAnalytics?.most_accessed_logins ?? []).slice(0, 3).map((row) => (
+                      <Text key={`most-${row.user_id}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                        {row.full_name}: {row.accesses}
+                      </Text>
+                    ))}
+                    <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 4 }} weight="semibold">
+                      Menos ativos
+                    </Text>
+                    {(saasAnalytics?.least_accessed_logins ?? []).slice(0, 3).map((row) => (
+                      <Text key={`least-${row.user_id}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                        {row.full_name}: {row.accesses}
+                      </Text>
+                    ))}
+                  </View>
                 </View>
               </View>
             ) : null}
