@@ -302,10 +302,42 @@ export default function AdminCoreDashboard(props: Props) {
       <>
         <View style={sectionCardStyle}>
           <Text style={{ color: colors.white }} weight="bold">Cadastrar professor(a)</Text>
-          <TextInput placeholder="Nome completo" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherFullName} onChangeText={onTeacherFullNameChange} style={inputStyle} />
-          <TextInput placeholder="Nome a ser exibido" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherDisplayName} onChangeText={onTeacherDisplayNameChange} style={inputStyle} />
-          <TextInput placeholder="E-mail" placeholderTextColor="rgba(255,255,255,0.45)" autoCapitalize="none" value={teacherEmail} onChangeText={onTeacherEmailChange} style={inputStyle} />
-          <TextInput placeholder="Área (Disciplina)" placeholderTextColor="rgba(255,255,255,0.45)" value={teacherArea} onChangeText={onTeacherAreaChange} style={inputStyle} />
+          <TextInput
+            id="teacher-full-name"
+            placeholder="Nome completo"
+            placeholderTextColor="rgba(255,255,255,0.45)"
+            value={teacherFullName}
+            onChangeText={onTeacherFullNameChange}
+            style={inputStyle}
+            autoComplete="name"
+          />
+          <TextInput
+            id="teacher-display-name"
+            placeholder="Nome a ser exibido"
+            placeholderTextColor="rgba(255,255,255,0.45)"
+            value={teacherDisplayName}
+            onChangeText={onTeacherDisplayNameChange}
+            style={inputStyle}
+          />
+          <TextInput
+            id="teacher-email"
+            placeholder="E-mail"
+            placeholderTextColor="rgba(255,255,255,0.45)"
+            autoCapitalize="none"
+            value={teacherEmail}
+            onChangeText={onTeacherEmailChange}
+            style={inputStyle}
+            autoComplete="email"
+            keyboardType="email-address"
+          />
+          <TextInput
+            id="teacher-subject-area"
+            placeholder="Área (Disciplina)"
+            placeholderTextColor="rgba(255,255,255,0.45)"
+            value={teacherArea}
+            onChangeText={onTeacherAreaChange}
+            style={inputStyle}
+          />
           <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, fontSize: 12 }}>Olimpíada designada</Text>
           <View style={{ marginTop: 6, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
             {olympiads.map((olympiad) => {
@@ -350,6 +382,7 @@ export default function AdminCoreDashboard(props: Props) {
           </View>
           {selectedCreateOlympiadId === "pending" ? (
             <TextInput
+              id="teacher-pending-olympiad-name"
               placeholder="Nome da olimpíada pendente"
               placeholderTextColor="rgba(255,255,255,0.45)"
               value={teacherPendingOlympiadName}

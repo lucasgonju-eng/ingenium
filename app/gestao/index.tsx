@@ -175,6 +175,16 @@ export default function GestaoDashboardPlaceholder() {
   }
 
   function handleConfirmCreateTeacher() {
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        "Confirma o envio do magic link para o professor agora?\n\nClique em OK para confirmar ou Cancelar para editar os dados.",
+      );
+      if (confirmed) {
+        void handleCreateTeacher();
+      }
+      return;
+    }
+
     Alert.alert(
       "Confirmar cadastro de professor",
       "Deseja revisar os dados antes de enviar ou confirmar o envio do magic link agora?",
