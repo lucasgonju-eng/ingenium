@@ -20,6 +20,7 @@ import {
   type TeacherRow,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
+import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 
@@ -52,6 +53,8 @@ export default function AdminDashboardScreen() {
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
   const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [gtmConnected, setGtmConnected] = useState(false);
+  const [gtmLastEventAt, setGtmLastEventAt] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -102,6 +105,12 @@ export default function AdminDashboardScreen() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const layer = (window as Window & { dataLayer?: unknown[] }).dataLayer;
+    setGtmConnected(Array.isArray(layer));
   }, []);
 
   async function handleChangePasswordNow() {
@@ -551,20 +560,62 @@ export default function AdminDashboardScreen() {
                   padding: spacing.md,
                 }}
               >
-                <Text style={{ color: colors.white }} weight="bold">
-                  GTM (preparação)
-                </Text>
+                <Text style={{ color: colors.white }} weight="bold">GTM (Google Tag Manager)</Text>
                 <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: spacing.xs, lineHeight: 20 }}>
-                  Estrutura pronta para futura configuração de eventos e conversões no Google Tag Manager.
+                  Status da instalação e teste rápido de evento para validar o recebimento no Tag Assistant/GA4.
                 </Text>
+                <View
+                  style={{
+                    marginTop: spacing.sm,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: gtmConnected ? "rgba(34,197,94,0.45)" : "rgba(252,165,165,0.45)",
+                    backgroundColor: gtmConnected ? "rgba(34,197,94,0.08)" : "rgba(252,165,165,0.08)",
+                    padding: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: gtmConnected ? "#86efac" : "#fecaca" }} weight="bold">
+                    {gtmConnected ? "GTM detectado no navegador" : "GTM não detectado no navegador"}
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: 4 }}>
+                    Container: GTM-TNHK5MSV
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+                    Último evento de teste: {gtmLastEventAt ?? "ainda não enviado"}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    const eventAt = new Date().toISOString();
+                    trackEvent("gtm_admin_test_event", {
+                      source: "admin_dashboard",
+                      sent_at: eventAt,
+                    });
+                    setGtmLastEventAt(eventAt);
+                    Alert.alert("Evento enviado", "Disparamos gtm_admin_test_event para validação no GTM/GA4.");
+                  }}
+                  style={{
+                    marginTop: spacing.sm,
+                    height: 42,
+                    borderRadius: radii.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">Enviar evento de teste</Text>
+                </Pressable>
                 <View style={{ marginTop: spacing.sm, gap: 8 }}>
                   {[
                     "Evento: lp_view",
                     "Evento: signup_start",
                     "Evento: terms_accept",
                     "Evento: signup_submit",
-                    "Evento: email_confirmed",
-                    "Evento: first_login",
+                    "Evento: login_success",
+                    "Evento: admin_login_success",
+                    "Evento: gestao_login_success",
                   ].map((item) => (
                     <View
                       key={item}
@@ -626,8 +677,8 @@ export default function AdminDashboardScreen() {
                 onAssignTeacher={(teacherId, olympiadId) => {
                   void handleAssignTeacher(teacherId, olympiadId);
                 }}
-                onRemoveAssignment={(teacherId, olympiadId) => {
-                  void handleRemoveAssignment(teacherId, olympiadId);
+                onRemoveAssignment={(assignmentId) => {
+                  void handleRemoveAssignment(assignmentId);
                 }}
                 onDeleteTeacher={(teacherId) => {
                   void handleDeleteTeacher(teacherId);
