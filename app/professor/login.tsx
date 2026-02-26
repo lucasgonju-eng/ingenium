@@ -31,6 +31,7 @@ export default function ProfessorSignupScreen() {
   const [subjectArea, setSubjectArea] = useState("");
   const [intendedOlympiad, setIntendedOlympiad] = useState("");
   const [loading, setLoading] = useState(false);
+  const [successText, setSuccessText] = useState<string | null>(null);
 
   async function handleSubmit() {
     if (!fullName.trim() || !displayName.trim() || !email.trim() || !cpf.trim() || !subjectArea.trim() || !intendedOlympiad.trim()) {
@@ -44,6 +45,7 @@ export default function ProfessorSignupScreen() {
 
     try {
       setLoading(true);
+      setSuccessText(null);
       await sendTeacherCandidateMagicLink({
         email: email.trim(),
         full_name: fullName.trim(),
@@ -91,11 +93,15 @@ export default function ProfessorSignupScreen() {
         );
       }
 
-      Alert.alert(
-        "Cadastro recebido",
-        "Enviamos um magic link para seu e-mail. Abra o link recebido para concluir o acesso. Seu perfil ficará em análise até confirmação do administrador.",
+      setSuccessText(
+        "Seu cadastro foi realizado. Você deve abrir seu e-mail e concluir através do magic link.",
       );
-      router.replace("/professor/login");
+      setFullName("");
+      setDisplayName("");
+      setEmail("");
+      setCpf("");
+      setSubjectArea("");
+      setIntendedOlympiad("");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao enviar cadastro de professor.";
       Alert.alert("Erro", message);
@@ -125,6 +131,23 @@ export default function ProfessorSignupScreen() {
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
               Solicitar acesso de professor
             </Text>
+            {successText ? (
+              <View
+                style={{
+                  marginTop: spacing.xs,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: "rgba(134,239,172,0.5)",
+                  backgroundColor: "rgba(20,83,45,0.25)",
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.xs,
+                }}
+              >
+                <Text style={{ color: "#86efac" }} weight="semibold">
+                  {successText}
+                </Text>
+              </View>
+            ) : null}
 
             <TextInput
               placeholder="Nome completo"

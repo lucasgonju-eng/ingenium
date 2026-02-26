@@ -61,6 +61,7 @@ type Props = {
   onDeleteSelectedTeachers?: () => void;
   onActivateSelectedStudents?: () => void;
   onActivateSelectedTeachers?: () => void;
+  onPermanentlyDeleteSelectedTeachers?: () => void;
   onSetStudentActive?: (studentId: string, isActive: boolean) => void;
   onSetTeacherActive?: (teacherId: string, isActive: boolean) => void;
 };
@@ -111,6 +112,7 @@ export default function AdminCoreDashboard(props: Props) {
     onDeleteSelectedTeachers,
     onActivateSelectedStudents,
     onActivateSelectedTeachers,
+    onPermanentlyDeleteSelectedTeachers,
     onSetStudentActive,
     onSetTeacherActive,
   } = props;
@@ -381,6 +383,14 @@ export default function AdminCoreDashboard(props: Props) {
               >
                 <Text style={{ color: "#86efac", fontSize: 12 }} weight="bold">
                   Reativar selecionados ({selectedTeacherIds.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onPermanentlyDeleteSelectedTeachers}
+                style={[miniActionBtnStyle, { borderColor: "rgba(239,68,68,0.7)", backgroundColor: "rgba(127,29,29,0.45)" }]}
+              >
+                <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
+                  Excluir permanentemente ({selectedTeacherIds.length})
                 </Text>
               </Pressable>
             </View>

@@ -18,6 +18,7 @@ import {
   sendTeacherMagicLink,
   removeTeacherAssignment,
   fetchOlympiads,
+  hardDeleteUserAdmin,
   setUserActiveAdmin,
   type AccessRequestRow,
   type FullStudentRow,
@@ -605,6 +606,34 @@ export default function AdminDashboardScreen() {
     }
   }
 
+  async function handlePermanentlyDeleteSelectedTeachers() {
+    if (!selectedTeacherIds.length) {
+      Alert.alert("Nenhum professor selecionado", "Marque pelo menos um professor para excluir permanentemente.");
+      return;
+    }
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(
+        `Esta ação é irreversível. Confirma excluir permanentemente ${selectedTeacherIds.length} professor(es) selecionado(s)?`,
+      )
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      for (const id of selectedTeacherIds) {
+        await hardDeleteUserAdmin(id);
+      }
+      setSelectedTeacherIds([]);
+      await Promise.all([reloadTeachers(), reloadStudentsAndRanking(), reloadPendingRequests()]);
+      Alert.alert("Exclusão permanente concluída", "Professores selecionados foram removidos definitivamente.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao excluir professores permanentemente.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSetStudentActive(studentId: string, isActive: boolean) {
     const confirmed = typeof window !== "undefined"
       ? window.confirm(isActive ? "Confirma reativar este aluno?" : "Confirma desativar este aluno?")
@@ -922,6 +951,9 @@ export default function AdminDashboardScreen() {
                 onActivateSelectedTeachers={() => {
                   void handleActivateSelectedTeachers();
                 }}
+                onPermanentlyDeleteSelectedTeachers={() => {
+                  void handlePermanentlyDeleteSelectedTeachers();
+                }}
                 onSetStudentActive={(studentId, isActive) => {
                   void handleSetStudentActive(studentId, isActive);
                 }}
@@ -1008,6 +1040,9 @@ export default function AdminDashboardScreen() {
                 onActivateSelectedTeachers={() => {
                   void handleActivateSelectedTeachers();
                 }}
+                onPermanentlyDeleteSelectedTeachers={() => {
+                  void handlePermanentlyDeleteSelectedTeachers();
+                }}
                 onSetStudentActive={(studentId, isActive) => {
                   void handleSetStudentActive(studentId, isActive);
                 }}
@@ -1093,6 +1128,9 @@ export default function AdminDashboardScreen() {
                 }}
                 onActivateSelectedTeachers={() => {
                   void handleActivateSelectedTeachers();
+                }}
+                onPermanentlyDeleteSelectedTeachers={() => {
+                  void handlePermanentlyDeleteSelectedTeachers();
                 }}
                 onSetStudentActive={(studentId, isActive) => {
                   void handleSetStudentActive(studentId, isActive);

@@ -1073,3 +1073,10 @@ export async function setUserActiveAdmin(userId: string, isActive: boolean) {
   });
   if (error) throw error;
 }
+
+export async function hardDeleteUserAdmin(userId: string) {
+  const { error } = await supabase.rpc("admin_hard_delete_user", {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
