@@ -46,6 +46,7 @@ export type FullStudentRow = {
   class_name: string | null;
   avatar_url: string | null;
   role: string | null;
+  is_active?: boolean | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -57,6 +58,7 @@ export type TeacherRow = {
   email: string | null;
   avatar_url: string | null;
   subject_area: string | null;
+  is_active?: boolean | null;
   assignments: Array<{
     assignment_id: string;
     olympiad_id: string | null;
@@ -670,6 +672,7 @@ export async function fetchTeachersWithOlympiads() {
     email: string | null;
     avatar_url: string | null;
     subject_area: string | null;
+    is_active?: boolean | null;
     assignments:
       | Array<{
           assignment_id?: string;
@@ -687,6 +690,7 @@ export async function fetchTeachersWithOlympiads() {
     email: row.email,
     avatar_url: row.avatar_url,
     subject_area: row.subject_area,
+    is_active: row.is_active ?? true,
     assignments: (row.assignments ?? [])
       .map((item) => ({
         assignment_id: String(item.assignment_id ?? ""),
@@ -823,6 +827,14 @@ export async function deleteTeacher(teacherId: string) {
 export async function deleteUserAccountAdmin(userId: string) {
   const { error } = await supabase.rpc("delete_user_account_admin", {
     p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+export async function setUserActiveAdmin(userId: string, isActive: boolean) {
+  const { error } = await supabase.rpc("admin_set_user_active", {
+    p_user_id: userId,
+    p_is_active: isActive,
   });
   if (error) throw error;
 }

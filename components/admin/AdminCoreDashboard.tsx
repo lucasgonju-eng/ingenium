@@ -33,7 +33,6 @@ type Props = {
   savingPassword: boolean;
   savingTeacher: boolean;
   assigningTeacherId: string | null;
-  deletingTeacherId: string | null;
   olympiads: Array<{ id: string; title: string }>;
   onTeacherFullNameChange: (value: string) => void;
   onTeacherDisplayNameChange: (value: string) => void;
@@ -47,7 +46,6 @@ type Props = {
   onSaveTeacher: () => void;
   onAssignTeacher: (teacherId: string, olympiadId: string) => void;
   onRemoveAssignment: (assignmentId: string) => void;
-  onDeleteTeacher: (teacherId: string) => void;
   onUpdatePassword: () => void;
   onOpenProfileSettings: () => void;
   enableBulkDelete?: boolean;
@@ -61,6 +59,10 @@ type Props = {
   onClearTeacherSelection?: () => void;
   onDeleteSelectedStudents?: () => void;
   onDeleteSelectedTeachers?: () => void;
+  onActivateSelectedStudents?: () => void;
+  onActivateSelectedTeachers?: () => void;
+  onSetStudentActive?: (studentId: string, isActive: boolean) => void;
+  onSetTeacherActive?: (teacherId: string, isActive: boolean) => void;
 };
 
 export default function AdminCoreDashboard(props: Props) {
@@ -81,7 +83,6 @@ export default function AdminCoreDashboard(props: Props) {
     savingPassword,
     savingTeacher,
     assigningTeacherId,
-    deletingTeacherId,
     olympiads,
     onTeacherFullNameChange,
     onTeacherDisplayNameChange,
@@ -95,7 +96,6 @@ export default function AdminCoreDashboard(props: Props) {
     onSaveTeacher,
     onAssignTeacher,
     onRemoveAssignment,
-    onDeleteTeacher,
     onUpdatePassword,
     onOpenProfileSettings,
     enableBulkDelete = false,
@@ -109,6 +109,10 @@ export default function AdminCoreDashboard(props: Props) {
     onClearTeacherSelection,
     onDeleteSelectedStudents,
     onDeleteSelectedTeachers,
+    onActivateSelectedStudents,
+    onActivateSelectedTeachers,
+    onSetStudentActive,
+    onSetTeacherActive,
   } = props;
 
   const totalStudents = students.length;
@@ -229,7 +233,15 @@ export default function AdminCoreDashboard(props: Props) {
                 style={[miniActionBtnStyle, { borderColor: "rgba(252,165,165,0.5)", backgroundColor: "rgba(127,29,29,0.25)" }]}
               >
                 <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
-                  Excluir selecionados ({selectedStudentIds.length})
+                  Desativar selecionados ({selectedStudentIds.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onActivateSelectedStudents}
+                style={[miniActionBtnStyle, { borderColor: "rgba(134,239,172,0.5)", backgroundColor: "rgba(20,83,45,0.25)" }]}
+              >
+                <Text style={{ color: "#86efac", fontSize: 12 }} weight="bold">
+                  Reativar selecionados ({selectedStudentIds.length})
                 </Text>
               </Pressable>
             </View>
@@ -262,6 +274,16 @@ export default function AdminCoreDashboard(props: Props) {
                 <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: 12 }}>
                   Série: {student.grade ?? "Sem série"} • Turma: {student.class_name ?? "Sem turma"}
                 </Text>
+                <View style={{ marginTop: 8, flexDirection: "row", justifyContent: "flex-end" }}>
+                  <Pressable
+                    onPress={() => onSetStudentActive?.(student.id, !(student.is_active ?? true))}
+                    style={{ paddingHorizontal: spacing.xs, paddingVertical: 4 }}
+                  >
+                    <Text style={{ color: student.is_active ?? true ? "#fca5a5" : "#86efac", fontSize: 12 }} weight="semibold">
+                      {student.is_active ?? true ? "Desativar" : "Reativar"}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
           </View>
@@ -350,7 +372,15 @@ export default function AdminCoreDashboard(props: Props) {
                 style={[miniActionBtnStyle, { borderColor: "rgba(252,165,165,0.5)", backgroundColor: "rgba(127,29,29,0.25)" }]}
               >
                 <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
-                  Excluir selecionados ({selectedTeacherIds.length})
+                  Desativar selecionados ({selectedTeacherIds.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onActivateSelectedTeachers}
+                style={[miniActionBtnStyle, { borderColor: "rgba(134,239,172,0.5)", backgroundColor: "rgba(20,83,45,0.25)" }]}
+              >
+                <Text style={{ color: "#86efac", fontSize: 12 }} weight="bold">
+                  Reativar selecionados ({selectedTeacherIds.length})
                 </Text>
               </Pressable>
             </View>
@@ -386,8 +416,10 @@ export default function AdminCoreDashboard(props: Props) {
                       Exibição: {teacher.display_name ?? "Sem nome"} • {teacher.email ?? "Sem e-mail"} {teacher.subject_area ? `• ${teacher.subject_area}` : ""}
                     </Text>
                   </View>
-                  <Pressable onPress={() => onDeleteTeacher(teacher.id)} disabled={deletingTeacherId === teacher.id} style={{ paddingHorizontal: spacing.xs, paddingVertical: 4 }}>
-                    <Text style={{ color: "#fca5a5", fontSize: 12 }} weight="semibold">{deletingTeacherId === teacher.id ? "..." : "Excluir"}</Text>
+                  <Pressable onPress={() => onSetTeacherActive?.(teacher.id, !(teacher.is_active ?? true))} style={{ paddingHorizontal: spacing.xs, paddingVertical: 4 }}>
+                    <Text style={{ color: teacher.is_active ?? true ? "#fca5a5" : "#86efac", fontSize: 12 }} weight="semibold">
+                      {teacher.is_active ?? true ? "Desativar" : "Reativar"}
+                    </Text>
                   </Pressable>
                 </View>
 

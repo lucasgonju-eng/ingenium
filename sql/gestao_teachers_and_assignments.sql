@@ -71,6 +71,7 @@ create policy teacher_assignments_write_privileged
     )
   );
 
+drop function if exists public.get_registered_students_full_admin();
 create or replace function public.get_registered_students_full_admin()
 returns table (
   id uuid,
@@ -79,6 +80,7 @@ returns table (
   class_name text,
   avatar_url text,
   role text,
+  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz
 )
@@ -93,6 +95,7 @@ as $$
     p.class_name,
     p.avatar_url,
     p.role,
+    coalesce(p.is_active, true) as is_active,
     p.created_at,
     p.updated_at
   from public.profiles p
@@ -110,6 +113,7 @@ revoke all on function public.get_registered_students_full_admin() from public;
 grant execute on function public.get_registered_students_full_admin() to authenticated;
 grant execute on function public.get_registered_students_full_admin() to service_role;
 
+drop function if exists public.get_teachers_with_olympiads_admin();
 create or replace function public.get_teachers_with_olympiads_admin()
 returns table (
   teacher_id uuid,
@@ -118,6 +122,7 @@ returns table (
   email text,
   avatar_url text,
   subject_area text,
+  is_active boolean,
   assignments jsonb
 )
 language sql
@@ -127,27 +132,46 @@ as $$
   select
     p.id as teacher_id,
     p.full_name,
-    p.display_name,
+    nullif(to_jsonb(p)->>'display_name', '') as display_name,
     u.email,
     p.avatar_url,
-    p.subject_area,
+    nullif(to_jsonb(p)->>'subject_area', '') as subject_area,
+    coalesce(p.is_active, true) as is_active,
     coalesce(
       jsonb_agg(
         distinct jsonb_build_object(
-          'assignment_id', ta.id,
+          'assignment_id', coalesce(nullif(ta.ta_json->>'id', ''), md5(p.id::text || coalesce(ta.ta_json::text, ''))),
           'olympiad_id', o.id,
           'olympiad_title', o.title,
-          'pending_olympiad_name', ta.pending_olympiad_name,
-          'display_name', coalesce(ta.display_name, p.display_name),
-          'subject_area', coalesce(ta.subject_area, p.subject_area)
+          'pending_olympiad_name', nullif(ta.ta_json->>'pending_olympiad_name', ''),
+          'display_name', coalesce(nullif(ta.ta_json->>'display_name', ''), nullif(to_jsonb(p)->>'display_name', '')),
+          'subject_area', coalesce(nullif(ta.ta_json->>'subject_area', ''), nullif(to_jsonb(p)->>'subject_area', ''))
         )
-      ) filter (where ta.id is not null),
+      ) filter (where ta.ta_json is not null),
       '[]'::jsonb
     ) as assignments
   from public.profiles p
   join auth.users u on u.id = p.id
-  left join public.teacher_olympiad_assignments ta on ta.teacher_profile_id = p.id
-  left join public.olympiads o on o.id = ta.olympiad_id
+  left join lateral (
+    select to_jsonb(ta) as ta_json
+    from public.teacher_olympiad_assignments ta
+    where case
+      when coalesce(
+        nullif(to_jsonb(ta)->>'teacher_profile_id', ''),
+        nullif(to_jsonb(ta)->>'teacher_id', '')
+      ) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then coalesce(
+        nullif(to_jsonb(ta)->>'teacher_profile_id', ''),
+        nullif(to_jsonb(ta)->>'teacher_id', '')
+      )::uuid = p.id
+      else false
+    end
+  ) ta on true
+  left join public.olympiads o on o.id = case
+    when coalesce(ta.ta_json->>'olympiad_id', '') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then (ta.ta_json->>'olympiad_id')::uuid
+    else null
+  end
   where exists (
       select 1
       from public.profiles actor
@@ -155,7 +179,7 @@ as $$
         and coalesce(lower(actor.role), 'student') in ('admin', 'coord', 'gestao')
     )
     and coalesce(lower(p.role), 'student') = 'teacher'
-  group by p.id, p.full_name, p.display_name, u.email, p.avatar_url, p.subject_area
+  group by p.id, p.full_name, to_jsonb(p)->>'display_name', u.email, p.avatar_url, to_jsonb(p)->>'subject_area', p.is_active
   order by p.full_name asc nulls last;
 $$;
 

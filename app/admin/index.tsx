@@ -7,8 +7,6 @@ import { Text } from "../../components/ui/Text";
 import {
   assignTeacherToOlympiad,
   createTeacher,
-  deleteTeacher,
-  deleteUserAccountAdmin,
   fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
@@ -17,6 +15,7 @@ import {
   sendTeacherMagicLink,
   removeTeacherAssignment,
   fetchOlympiads,
+  setUserActiveAdmin,
   type FullStudentRow,
   type RankingStudentRow,
   type SaasAnalyticsOverview,
@@ -174,7 +173,6 @@ export default function AdminDashboardScreen() {
   const [teacherPendingOlympiadName, setTeacherPendingOlympiadName] = useState("");
   const [savingTeacher, setSavingTeacher] = useState(false);
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
-  const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
   const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
@@ -492,39 +490,26 @@ export default function AdminDashboardScreen() {
     }
   }
 
-  async function handleDeleteTeacher(teacherId: string) {
-    try {
-      setDeletingTeacherId(teacherId);
-      await deleteTeacher(teacherId);
-      await reloadTeachers();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao excluir professor(a).";
-      Alert.alert("Erro", message);
-    } finally {
-      setDeletingTeacherId(null);
-    }
-  }
-
   async function handleDeleteSelectedStudents() {
     if (!selectedStudentIds.length) {
-      Alert.alert("Nenhum aluno selecionado", "Marque pelo menos um aluno para excluir.");
+      Alert.alert("Nenhum aluno selecionado", "Marque pelo menos um aluno para desativar.");
       return;
     }
     const confirmed = typeof window !== "undefined"
-      ? window.confirm(`Confirma excluir ${selectedStudentIds.length} aluno(s) selecionado(s)? Esta ação é irreversível.`)
+      ? window.confirm(`Confirma desativar ${selectedStudentIds.length} aluno(s) selecionado(s)?`)
       : true;
     if (!confirmed) return;
 
     try {
       setLoading(true);
       for (const id of selectedStudentIds) {
-        await deleteUserAccountAdmin(id);
+        await setUserActiveAdmin(id, false);
       }
       setSelectedStudentIds([]);
       await reloadStudentsAndRanking();
-      Alert.alert("Exclusão concluída", "Alunos selecionados excluídos com sucesso.");
+      Alert.alert("Desativação concluída", "Alunos selecionados foram desativados com sucesso.");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao excluir alunos selecionados.";
+      const message = e instanceof Error ? e.message : "Falha ao desativar alunos selecionados.";
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
@@ -533,24 +518,114 @@ export default function AdminDashboardScreen() {
 
   async function handleDeleteSelectedTeachers() {
     if (!selectedTeacherIds.length) {
-      Alert.alert("Nenhum professor selecionado", "Marque pelo menos um professor para excluir.");
+      Alert.alert("Nenhum professor selecionado", "Marque pelo menos um professor para desativar.");
       return;
     }
     const confirmed = typeof window !== "undefined"
-      ? window.confirm(`Confirma excluir ${selectedTeacherIds.length} professor(es) selecionado(s)? Esta ação é irreversível.`)
+      ? window.confirm(`Confirma desativar ${selectedTeacherIds.length} professor(es) selecionado(s)?`)
       : true;
     if (!confirmed) return;
 
     try {
       setLoading(true);
       for (const id of selectedTeacherIds) {
-        await deleteUserAccountAdmin(id);
+        await setUserActiveAdmin(id, false);
       }
       setSelectedTeacherIds([]);
       await Promise.all([reloadTeachers(), reloadStudentsAndRanking()]);
-      Alert.alert("Exclusão concluída", "Professores selecionados excluídos com sucesso.");
+      Alert.alert("Desativação concluída", "Professores selecionados foram desativados com sucesso.");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao excluir professores selecionados.";
+      const message = e instanceof Error ? e.message : "Falha ao desativar professores selecionados.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleActivateSelectedStudents() {
+    if (!selectedStudentIds.length) {
+      Alert.alert("Nenhum aluno selecionado", "Marque pelo menos um aluno para reativar.");
+      return;
+    }
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(`Confirma reativar ${selectedStudentIds.length} aluno(s) selecionado(s)?`)
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      for (const id of selectedStudentIds) {
+        await setUserActiveAdmin(id, true);
+      }
+      setSelectedStudentIds([]);
+      await reloadStudentsAndRanking();
+      Alert.alert("Reativação concluída", "Alunos selecionados foram reativados com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao reativar alunos selecionados.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleActivateSelectedTeachers() {
+    if (!selectedTeacherIds.length) {
+      Alert.alert("Nenhum professor selecionado", "Marque pelo menos um professor para reativar.");
+      return;
+    }
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(`Confirma reativar ${selectedTeacherIds.length} professor(es) selecionado(s)?`)
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      for (const id of selectedTeacherIds) {
+        await setUserActiveAdmin(id, true);
+      }
+      setSelectedTeacherIds([]);
+      await Promise.all([reloadTeachers(), reloadStudentsAndRanking()]);
+      Alert.alert("Reativação concluída", "Professores selecionados foram reativados com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao reativar professores selecionados.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetStudentActive(studentId: string, isActive: boolean) {
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(isActive ? "Confirma reativar este aluno?" : "Confirma desativar este aluno?")
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      await setUserActiveAdmin(studentId, isActive);
+      await reloadStudentsAndRanking();
+      Alert.alert("Status atualizado", isActive ? "Aluno reativado com sucesso." : "Aluno desativado com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao atualizar status do aluno.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetTeacherActive(teacherId: string, isActive: boolean) {
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(isActive ? "Confirma reativar este professor?" : "Confirma desativar este professor?")
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      await setUserActiveAdmin(teacherId, isActive);
+      await Promise.all([reloadTeachers(), reloadStudentsAndRanking()]);
+      Alert.alert("Status atualizado", isActive ? "Professor reativado com sucesso." : "Professor desativado com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao atualizar status do professor.";
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
@@ -723,7 +798,6 @@ export default function AdminDashboardScreen() {
                 savingPassword={savingPassword}
                 savingTeacher={savingTeacher}
                 assigningTeacherId={assigningTeacherId}
-                deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
                 onTeacherFullNameChange={setTeacherFullName}
                 onTeacherDisplayNameChange={setTeacherDisplayName}
@@ -747,9 +821,6 @@ export default function AdminDashboardScreen() {
                 }}
                 onRemoveAssignment={(assignmentId) => {
                   void handleRemoveAssignment(assignmentId);
-                }}
-                onDeleteTeacher={(teacherId) => {
-                  void handleDeleteTeacher(teacherId);
                 }}
                 onUpdatePassword={() => {
                   void handleChangePasswordNow();
@@ -779,6 +850,18 @@ export default function AdminDashboardScreen() {
                 }}
                 onDeleteSelectedTeachers={() => {
                   void handleDeleteSelectedTeachers();
+                }}
+                onActivateSelectedStudents={() => {
+                  void handleActivateSelectedStudents();
+                }}
+                onActivateSelectedTeachers={() => {
+                  void handleActivateSelectedTeachers();
+                }}
+                onSetStudentActive={(studentId, isActive) => {
+                  void handleSetStudentActive(studentId, isActive);
+                }}
+                onSetTeacherActive={(teacherId, isActive) => {
+                  void handleSetTeacherActive(teacherId, isActive);
                 }}
               />
             ) : null}
@@ -801,7 +884,6 @@ export default function AdminDashboardScreen() {
                 savingPassword={savingPassword}
                 savingTeacher={savingTeacher}
                 assigningTeacherId={assigningTeacherId}
-                deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
                 onTeacherFullNameChange={setTeacherFullName}
                 onTeacherDisplayNameChange={setTeacherDisplayName}
@@ -825,9 +907,6 @@ export default function AdminDashboardScreen() {
                 }}
                 onRemoveAssignment={(assignmentId) => {
                   void handleRemoveAssignment(assignmentId);
-                }}
-                onDeleteTeacher={(teacherId) => {
-                  void handleDeleteTeacher(teacherId);
                 }}
                 onUpdatePassword={() => {
                   void handleChangePasswordNow();
@@ -857,6 +936,18 @@ export default function AdminDashboardScreen() {
                 }}
                 onDeleteSelectedTeachers={() => {
                   void handleDeleteSelectedTeachers();
+                }}
+                onActivateSelectedStudents={() => {
+                  void handleActivateSelectedStudents();
+                }}
+                onActivateSelectedTeachers={() => {
+                  void handleActivateSelectedTeachers();
+                }}
+                onSetStudentActive={(studentId, isActive) => {
+                  void handleSetStudentActive(studentId, isActive);
+                }}
+                onSetTeacherActive={(teacherId, isActive) => {
+                  void handleSetTeacherActive(teacherId, isActive);
                 }}
               />
             ) : null}
@@ -879,7 +970,6 @@ export default function AdminDashboardScreen() {
                 savingPassword={savingPassword}
                 savingTeacher={savingTeacher}
                 assigningTeacherId={assigningTeacherId}
-                deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
                 onTeacherFullNameChange={setTeacherFullName}
                 onTeacherDisplayNameChange={setTeacherDisplayName}
@@ -903,9 +993,6 @@ export default function AdminDashboardScreen() {
                 }}
                 onRemoveAssignment={(assignmentId) => {
                   void handleRemoveAssignment(assignmentId);
-                }}
-                onDeleteTeacher={(teacherId) => {
-                  void handleDeleteTeacher(teacherId);
                 }}
                 onUpdatePassword={() => {
                   void handleChangePasswordNow();
@@ -935,6 +1022,18 @@ export default function AdminDashboardScreen() {
                 }}
                 onDeleteSelectedTeachers={() => {
                   void handleDeleteSelectedTeachers();
+                }}
+                onActivateSelectedStudents={() => {
+                  void handleActivateSelectedStudents();
+                }}
+                onActivateSelectedTeachers={() => {
+                  void handleActivateSelectedTeachers();
+                }}
+                onSetStudentActive={(studentId, isActive) => {
+                  void handleSetStudentActive(studentId, isActive);
+                }}
+                onSetTeacherActive={(teacherId, isActive) => {
+                  void handleSetTeacherActive(teacherId, isActive);
                 }}
               />
             ) : null}
@@ -1223,7 +1322,6 @@ export default function AdminDashboardScreen() {
                 savingPassword={savingPassword}
                 savingTeacher={savingTeacher}
                 assigningTeacherId={assigningTeacherId}
-                deletingTeacherId={deletingTeacherId}
                 olympiads={olympiads}
                 onTeacherFullNameChange={setTeacherFullName}
                 onTeacherDisplayNameChange={setTeacherDisplayName}
@@ -1247,9 +1345,6 @@ export default function AdminDashboardScreen() {
                 }}
                 onRemoveAssignment={(assignmentId) => {
                   void handleRemoveAssignment(assignmentId);
-                }}
-                onDeleteTeacher={(teacherId) => {
-                  void handleDeleteTeacher(teacherId);
                 }}
                 onUpdatePassword={() => {
                   void handleChangePasswordNow();

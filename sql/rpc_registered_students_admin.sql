@@ -23,6 +23,7 @@ as $$
     p.role
   from public.profiles p
   where coalesce(lower(p.role), 'student') = 'student'
+    and coalesce(p.is_active, true) = true
   order by p.full_name asc nulls last;
 $$;
 
@@ -55,6 +56,7 @@ as $$
   from public.profiles p
   left join public.points pt on pt.user_id = p.id
   where coalesce(lower(p.role), 'student') = 'student'
+    and coalesce(p.is_active, true) = true
   order by p.full_name asc nulls last
   limit greatest(1, least(coalesce(p_limit, 500), 2000));
 $$;

@@ -8,7 +8,6 @@ import { Text } from "../../components/ui/Text";
 import {
   assignTeacherToOlympiad,
   createTeacher,
-  deleteTeacher,
   fetchMyAccessRole,
   fetchOlympiads,
   fetchRankingAllRegisteredStudents,
@@ -45,7 +44,6 @@ export default function GestaoDashboardPlaceholder() {
   const [teacherPendingOlympiadName, setTeacherPendingOlympiadName] = useState("");
   const [savingTeacher, setSavingTeacher] = useState(false);
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
-  const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
   const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -199,19 +197,6 @@ export default function GestaoDashboardPlaceholder() {
     }
   }
 
-  async function handleDeleteTeacher(teacherId: string) {
-    try {
-      setDeletingTeacherId(teacherId);
-      await deleteTeacher(teacherId);
-      await reloadTeachers();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao excluir professor(a).";
-      Alert.alert("Erro", message);
-    } finally {
-      setDeletingTeacherId(null);
-    }
-  }
-
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
@@ -359,7 +344,6 @@ export default function GestaoDashboardPlaceholder() {
               savingPassword={savingPassword}
               savingTeacher={savingTeacher}
               assigningTeacherId={assigningTeacherId}
-              deletingTeacherId={deletingTeacherId}
               olympiads={olympiads}
               onTeacherFullNameChange={setTeacherFullName}
               onTeacherDisplayNameChange={setTeacherDisplayName}
@@ -383,9 +367,6 @@ export default function GestaoDashboardPlaceholder() {
               }}
               onRemoveAssignment={(assignmentId) => {
                 void handleRemoveAssignment(assignmentId);
-              }}
-              onDeleteTeacher={(teacherId) => {
-                void handleDeleteTeacher(teacherId);
               }}
               onUpdatePassword={() => {
                 void handleChangePasswordNow();
