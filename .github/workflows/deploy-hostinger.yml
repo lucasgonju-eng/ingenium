@@ -13,6 +13,7 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       EXPO_PUBLIC_FEED_MOCK: "0"
+      EXPO_PUBLIC_GTM_ID: "GTM-TNHK5MSV"
 
     steps:
       - name: Checkout
@@ -78,7 +79,34 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_FEED_MOCK: "0"
+          EXPO_PUBLIC_GTM_ID: "GTM-TNHK5MSV"
         run: npx expo export -p web
+
+      - name: Inject GTM into index.html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          gtm_id = "GTM-TNHK5MSV"
+          index_path = Path("dist/index.html")
+          html = index_path.read_text(encoding="utf-8")
+
+          head_snippet = f"""<script>(function(w,d,s,l,i){{w[l]=w[l]||[];w[l].push({{'gtm.start':
+          new Date().getTime(),event:'gtm.js'}});var f=d.getElementsByTagName(s)[0],
+          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+          }})(window,document,'script','dataLayer','{gtm_id}');</script>"""
+          body_snippet = f"""<noscript><iframe src="https://www.googletagmanager.com/ns.html?id={gtm_id}"
+          height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>"""
+
+          if "googletagmanager.com/gtm.js" not in html:
+              html = html.replace("</head>", f"{head_snippet}</head>")
+          if "googletagmanager.com/ns.html" not in html:
+              html = html.replace("<body>", f"<body>{body_snippet}")
+
+          index_path.write_text(html, encoding="utf-8")
+          print("GTM snippet injected into dist/index.html")
+          PY
 
       - name: Add SPA fallback (.htaccess)
         run: |
