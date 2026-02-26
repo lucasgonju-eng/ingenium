@@ -4,7 +4,11 @@ import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { notifyAdminNewAccessRequest, sendTeacherCandidateMagicLink } from "../../lib/supabase/queries";
+import {
+  notifyAdminNewAccessRequest,
+  sendTeacherCandidateMagicLink,
+  submitTeacherAccessRequestPublic,
+} from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 function onlyDigits(value: string) {
@@ -48,6 +52,28 @@ export default function ProfessorSignupScreen() {
         subject_area: subjectArea.trim(),
         intended_olympiad: intendedOlympiad.trim(),
       });
+      let requestCreated = false;
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          await submitTeacherAccessRequestPublic({
+            full_name: fullName.trim(),
+            display_name: displayName.trim(),
+            email: email.trim(),
+            cpf: onlyDigits(cpf),
+            subject_area: subjectArea.trim(),
+            intended_olympiad: intendedOlympiad.trim(),
+          });
+          requestCreated = true;
+          break;
+        } catch (e) {
+          lastError = e;
+          await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+        }
+      }
+      if (!requestCreated) {
+        throw lastError instanceof Error ? lastError : new Error("Não foi possível registrar sua pendência de aprovação.");
+      }
       try {
         await notifyAdminNewAccessRequest({
           requestType: "teacher",
@@ -59,7 +85,10 @@ export default function ProfessorSignupScreen() {
           intendedOlympiad: intendedOlympiad.trim(),
         });
       } catch {
-        // Não bloqueia o cadastro do professor se o aviso ao admin falhar.
+        Alert.alert(
+          "Cadastro registrado",
+          "Seu cadastro foi enviado, mas a notificação por e-mail ao admin falhou agora. A pendência permanece no painel Admin > Notificações.",
+        );
       }
 
       Alert.alert(

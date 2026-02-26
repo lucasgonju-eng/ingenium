@@ -139,6 +139,101 @@ revoke all on function public.submit_teacher_access_request(text, text, text, te
 grant execute on function public.submit_teacher_access_request(text, text, text, text, text, text) to authenticated;
 grant execute on function public.submit_teacher_access_request(text, text, text, text, text, text) to service_role;
 
+create or replace function public.submit_teacher_access_request_public(
+  p_full_name text,
+  p_display_name text,
+  p_email text,
+  p_cpf text,
+  p_subject_area text default null,
+  p_intended_olympiad text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+  v_cpf text;
+  v_existing_pending uuid;
+  v_user_id uuid;
+  v_id uuid;
+begin
+  if coalesce(trim(p_full_name), '') = '' then
+    raise exception 'Nome completo é obrigatório.';
+  end if;
+  if coalesce(trim(p_display_name), '') = '' then
+    raise exception 'Nome de exibição é obrigatório.';
+  end if;
+  v_email := lower(trim(coalesce(p_email, '')));
+  if v_email = '' then
+    raise exception 'E-mail é obrigatório.';
+  end if;
+
+  v_cpf := regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g');
+  if char_length(v_cpf) <> 11 then
+    raise exception 'CPF inválido.';
+  end if;
+
+  select ar.id
+  into v_existing_pending
+  from public.access_requests ar
+  where lower(ar.email) = v_email
+    and ar.request_type = 'teacher'
+    and ar.status = 'pending'
+  order by ar.created_at desc
+  limit 1;
+
+  if v_existing_pending is not null then
+    return v_existing_pending;
+  end if;
+
+  select u.id
+  into v_user_id
+  from auth.users u
+  where lower(u.email) = v_email
+  order by u.created_at desc
+  limit 1;
+
+  if v_user_id is null then
+    raise exception 'Conta de autenticação ainda não encontrada para o e-mail informado. Tente novamente em alguns segundos.';
+  end if;
+
+  insert into public.access_requests (
+    request_type,
+    requested_by,
+    full_name,
+    display_name,
+    email,
+    cpf,
+    subject_area,
+    intended_olympiad,
+    status,
+    updated_at
+  )
+  values (
+    'teacher',
+    v_user_id,
+    trim(p_full_name),
+    trim(p_display_name),
+    v_email,
+    v_cpf,
+    nullif(trim(coalesce(p_subject_area, '')), ''),
+    nullif(trim(coalesce(p_intended_olympiad, '')), ''),
+    'pending',
+    now()
+  )
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function public.submit_teacher_access_request_public(text, text, text, text, text, text) from public;
+grant execute on function public.submit_teacher_access_request_public(text, text, text, text, text, text) to anon;
+grant execute on function public.submit_teacher_access_request_public(text, text, text, text, text, text) to authenticated;
+grant execute on function public.submit_teacher_access_request_public(text, text, text, text, text, text) to service_role;
+
 create or replace function public.ensure_teacher_access_request_from_current_user()
 returns uuid
 language plpgsql

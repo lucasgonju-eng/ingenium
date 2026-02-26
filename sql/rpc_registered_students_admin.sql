@@ -22,8 +22,10 @@ as $$
     p.avatar_url,
     p.role
   from public.profiles p
+  left join auth.users u on u.id = p.id
   where coalesce(lower(p.role), 'student') = 'student'
     and coalesce(p.is_active, true) = true
+    and coalesce(lower(u.raw_user_meta_data->>'teacher_pending'), 'false') <> 'true'
   order by p.full_name asc nulls last;
 $$;
 
@@ -54,9 +56,11 @@ as $$
     coalesce(pt.total_points, 0)::bigint as total_points,
     coalesce(pt.lobo_class, 'bronze')::text as lobo_class
   from public.profiles p
+  left join auth.users u on u.id = p.id
   left join public.points pt on pt.user_id = p.id
   where coalesce(lower(p.role), 'student') = 'student'
     and coalesce(p.is_active, true) = true
+    and coalesce(lower(u.raw_user_meta_data->>'teacher_pending'), 'false') <> 'true'
   order by p.full_name asc nulls last
   limit greatest(1, least(coalesce(p_limit, 500), 2000));
 $$;

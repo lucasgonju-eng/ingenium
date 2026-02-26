@@ -99,6 +99,7 @@ as $$
     p.created_at,
     p.updated_at
   from public.profiles p
+  left join auth.users u on u.id = p.id
   where exists (
       select 1
       from public.profiles actor
@@ -106,6 +107,7 @@ as $$
         and coalesce(lower(actor.role), 'student') in ('admin', 'coord', 'gestao')
     )
     and coalesce(lower(p.role), 'student') not in ('admin', 'coord', 'gestao', 'teacher')
+    and coalesce(lower(u.raw_user_meta_data->>'teacher_pending'), 'false') <> 'true'
   order by p.full_name asc nulls last;
 $$;
 

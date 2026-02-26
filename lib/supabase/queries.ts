@@ -825,6 +825,26 @@ export async function submitTeacherAccessRequest(input: {
   return String(data ?? "");
 }
 
+export async function submitTeacherAccessRequestPublic(input: {
+  full_name: string;
+  display_name: string;
+  email: string;
+  cpf: string;
+  subject_area?: string | null;
+  intended_olympiad?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("submit_teacher_access_request_public", {
+    p_full_name: input.full_name,
+    p_display_name: input.display_name,
+    p_email: input.email,
+    p_cpf: input.cpf,
+    p_subject_area: input.subject_area ?? null,
+    p_intended_olympiad: input.intended_olympiad ?? null,
+  });
+  if (error) throw error;
+  return String(data ?? "");
+}
+
 export async function ensureTeacherAccessRequestFromCurrentUser() {
   const { data, error } = await supabase.rpc("ensure_teacher_access_request_from_current_user");
   if (error) throw error;
