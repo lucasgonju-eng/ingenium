@@ -174,6 +174,26 @@ export default function GestaoDashboardPlaceholder() {
     }
   }
 
+  function handleConfirmCreateTeacher() {
+    Alert.alert(
+      "Confirmar cadastro de professor",
+      "Deseja revisar os dados antes de enviar ou confirmar o envio do magic link agora?",
+      [
+        {
+          text: "Editar",
+          style: "cancel",
+        },
+        {
+          text: "Confirmar envio",
+          style: "default",
+          onPress: () => {
+            void handleCreateTeacher();
+          },
+        },
+      ],
+    );
+  }
+
   async function handleAssignTeacher(teacherId: string, olympiadId: string) {
     try {
       setAssigningTeacherId(teacherId);
@@ -367,7 +387,7 @@ export default function GestaoDashboardPlaceholder() {
               onNewPasswordChange={setNewPassword}
               onConfirmPasswordChange={setConfirmPassword}
               onSaveTeacher={() => {
-                void handleCreateTeacher();
+                handleConfirmCreateTeacher();
               }}
               onAssignTeacher={(teacherId, olympiadId) => {
                 void handleAssignTeacher(teacherId, olympiadId);
