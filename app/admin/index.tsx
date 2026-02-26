@@ -119,6 +119,8 @@ export default function AdminDashboardScreen() {
   const [gtmEventCount, setGtmEventCount] = useState(0);
   const [gtmRecentEvents, setGtmRecentEvents] = useState<GtmObservedEvent[]>([]);
   const [saasAnalytics, setSaasAnalytics] = useState<SaasAnalyticsOverview | null>(null);
+  const [analyticsPeriodDays, setAnalyticsPeriodDays] = useState<7 | 30 | 90>(30);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -172,6 +174,27 @@ export default function AdminDashboardScreen() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    async function reloadAnalyticsByPeriod() {
+      if (!authorized) return;
+      try {
+        setAnalyticsLoading(true);
+        const analyticsData = await fetchSaasAnalyticsOverview(analyticsPeriodDays);
+        if (!mounted) return;
+        setSaasAnalytics(analyticsData);
+      } catch {
+        // Não bloqueia o dashboard por falha pontual de analytics.
+      } finally {
+        if (mounted) setAnalyticsLoading(false);
+      }
+    }
+    void reloadAnalyticsByPeriod();
+    return () => {
+      mounted = false;
+    };
+  }, [authorized, analyticsPeriodDays]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -811,9 +834,39 @@ export default function AdminDashboardScreen() {
                   )}
                 </View>
                 <View style={{ marginTop: spacing.md, gap: 8 }}>
-                  <Text style={{ color: "rgba(255,255,255,0.88)" }} weight="bold">
-                    Inteligência SaaS (últimos 30 dias)
-                  </Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.xs }}>
+                    <Text style={{ color: "rgba(255,255,255,0.88)" }} weight="bold">
+                      Inteligência SaaS
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      {[7, 30, 90].map((days) => {
+                        const active = analyticsPeriodDays === days;
+                        return (
+                          <Pressable
+                            key={`period-${days}`}
+                            onPress={() => setAnalyticsPeriodDays(days as 7 | 30 | 90)}
+                            style={{
+                              borderRadius: radii.pill,
+                              borderWidth: 1,
+                              borderColor: active ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                              backgroundColor: active ? "rgba(255,199,0,0.16)" : "rgba(255,255,255,0.04)",
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                            }}
+                          >
+                            <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+                              {days}d
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                  {analyticsLoading ? (
+                    <Text style={{ color: "rgba(255,255,255,0.66)" }}>
+                      Atualizando período...
+                    </Text>
+                  ) : null}
                   <View
                     style={{
                       borderRadius: radii.md,
@@ -828,6 +881,7 @@ export default function AdminDashboardScreen() {
                       KPIs
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                      Período: últimos {analyticsPeriodDays} dias |{" "}
                       Eventos: {saasAnalytics?.total_events ?? 0} | Sessões: {saasAnalytics?.total_sessions ?? 0} | Usuários ativos:{" "}
                       {saasAnalytics?.active_users ?? 0}
                     </Text>
