@@ -177,6 +177,7 @@ export default function AdminDashboardScreen() {
   const [teacherArea, setTeacherArea] = useState("");
   const [selectedCreateOlympiadId, setSelectedCreateOlympiadId] = useState("");
   const [teacherPendingOlympiadName, setTeacherPendingOlympiadName] = useState("");
+  const [teacherCreationFeedback, setTeacherCreationFeedback] = useState<string | null>(null);
   const [savingTeacher, setSavingTeacher] = useState(false);
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
   const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
@@ -443,6 +444,7 @@ export default function AdminDashboardScreen() {
     }
     try {
       setSavingTeacher(true);
+      setTeacherCreationFeedback(null);
       await sendTeacherMagicLink({
         email: teacherEmail.trim(),
         full_name: teacherFullName.trim(),
@@ -464,9 +466,13 @@ export default function AdminDashboardScreen() {
       setSelectedCreateOlympiadId("");
       setTeacherPendingOlympiadName("");
       await reloadTeachers();
+      setTeacherCreationFeedback(
+        `Cadastro realizado com sucesso para ${teacherEmail.trim()}. O professor deve abrir o e-mail e concluir o acesso pelo magic link.`,
+      );
       Alert.alert("Professor(a) salvo", "Cadastro atualizado e magic link enviado.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
+      setTeacherCreationFeedback(null);
       Alert.alert("Erro", message);
     } finally {
       setSavingTeacher(false);
@@ -886,6 +892,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
+                teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -975,6 +982,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
+                teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -1064,6 +1072,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
+                teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -1521,6 +1530,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
+                teacherCreationFeedback={null}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}

@@ -237,23 +237,6 @@ export default function GestaoDashboardPlaceholder() {
           </View>
         ) : null}
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.md }}>
-          {!loading && authorized && !mustChangePassword && activeTab === "professores" && teacherCreationFeedback ? (
-            <View
-              style={{
-                borderRadius: radii.md,
-                borderWidth: 1,
-                borderColor: "rgba(134,239,172,0.5)",
-                backgroundColor: "rgba(20,83,45,0.25)",
-                paddingHorizontal: spacing.sm,
-                paddingVertical: spacing.xs,
-                marginBottom: spacing.sm,
-              }}
-            >
-              <Text style={{ color: "#86efac" }} weight="semibold">
-                {teacherCreationFeedback}
-              </Text>
-            </View>
-          ) : null}
           {loading ? (
             <View style={{ alignItems: "center", marginTop: spacing.lg }}>
               <ActivityIndicator color={colors.einsteinYellow} />
@@ -361,6 +344,7 @@ export default function GestaoDashboardPlaceholder() {
               teacherArea={teacherArea}
               selectedCreateOlympiadId={selectedCreateOlympiadId}
               teacherPendingOlympiadName={teacherPendingOlympiadName}
+              teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
               olympiadSelectionByTeacher={olympiadSelectionByTeacher}
               newPassword={newPassword}
               confirmPassword={confirmPassword}

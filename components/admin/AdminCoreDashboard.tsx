@@ -27,6 +27,7 @@ type Props = {
   teacherArea: string;
   selectedCreateOlympiadId: string;
   teacherPendingOlympiadName: string;
+  teacherCreationFeedback?: string | null;
   olympiadSelectionByTeacher: Record<string, string>;
   newPassword: string;
   confirmPassword: string;
@@ -78,6 +79,7 @@ export default function AdminCoreDashboard(props: Props) {
     teacherArea,
     selectedCreateOlympiadId,
     teacherPendingOlympiadName,
+    teacherCreationFeedback,
     olympiadSelectionByTeacher,
     newPassword,
     confirmPassword,
@@ -358,6 +360,23 @@ export default function AdminCoreDashboard(props: Props) {
           <Pressable onPress={onSaveTeacher} disabled={savingTeacher} style={[actionBtnStyle, { opacity: savingTeacher ? 0.7 : 1 }]}>
             <Text style={{ color: colors.einsteinBlue }} weight="bold">{savingTeacher ? "Salvando..." : "Salvar e enviar magic link"}</Text>
           </Pressable>
+          {teacherCreationFeedback ? (
+            <View
+              style={{
+                marginTop: spacing.xs,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(134,239,172,0.5)",
+                backgroundColor: "rgba(20,83,45,0.25)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+              }}
+            >
+              <Text style={{ color: "#86efac" }} weight="semibold">
+                {teacherCreationFeedback}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={sectionCardStyle}>
