@@ -115,6 +115,11 @@ export default function AdminDashboardScreen() {
       dataLayer?: Array<Record<string, unknown>>;
       google_tag_manager?: Record<string, unknown>;
     };
+    type DataLayerItem = Record<string, unknown>;
+    type PatchedDataLayer = Array<DataLayerItem> & {
+      __ingeniumPatchedPush?: boolean;
+      __ingeniumOriginalPush?: (...items: DataLayerItem[]) => number;
+    };
     const GTM_ID = "GTM-TNHK5MSV";
 
     const readGtmState = () => {
@@ -138,9 +143,49 @@ export default function AdminDashboardScreen() {
       setGtmLastEventName(null);
     };
 
+    const patchDataLayerPush = () => {
+      const win = window as GtmWindow;
+      if (!Array.isArray(win.dataLayer)) {
+        win.dataLayer = [];
+      }
+      const layer = win.dataLayer as PatchedDataLayer;
+      if (layer.__ingeniumPatchedPush) {
+        return;
+      }
+      const originalPush = layer.push.bind(layer);
+      layer.__ingeniumOriginalPush = originalPush as (...items: DataLayerItem[]) => number;
+      layer.push = ((...items: DataLayerItem[]) => {
+        const result = originalPush(...items);
+        readGtmState();
+        return result;
+      }) as typeof layer.push;
+      layer.__ingeniumPatchedPush = true;
+    };
+
+    patchDataLayerPush();
     readGtmState();
-    const interval = setInterval(readGtmState, 1200);
-    return () => clearInterval(interval);
+
+    const script = document.querySelector(`script[src*="googletagmanager.com/gtm.js?id=${GTM_ID}"]`);
+    const onScriptLoad = () => {
+      patchDataLayerPush();
+      readGtmState();
+    };
+    if (script) {
+      script.addEventListener("load", onScriptLoad);
+    }
+
+    return () => {
+      if (script) {
+        script.removeEventListener("load", onScriptLoad);
+      }
+      const win = window as GtmWindow;
+      const layer = Array.isArray(win.dataLayer) ? (win.dataLayer as PatchedDataLayer) : null;
+      if (layer?.__ingeniumPatchedPush && layer.__ingeniumOriginalPush) {
+        layer.push = layer.__ingeniumOriginalPush as typeof layer.push;
+        delete layer.__ingeniumOriginalPush;
+        delete layer.__ingeniumPatchedPush;
+      }
+    };
   }, []);
 
   async function handleChangePasswordNow() {
