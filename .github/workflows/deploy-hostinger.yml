@@ -36,6 +36,13 @@ jobs:
           ASAAS_ENABLE_CHECKOUT_CALLBACK: ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }}
           ASAAS_CHECKOUT_SUCCESS_URL: ${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_ENCRYPTION: ${{ secrets.SMTP_ENCRYPTION }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
+          SMTP_FROM_NAME: ${{ secrets.SMTP_FROM_NAME }}
         run: |
           if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
             echo "::error::Missing EXPO_PUBLIC_SUPABASE_URL (GitHub Secret)."
@@ -71,6 +78,34 @@ jobs:
           fi
           if [ -z "$OPENAI_API_KEY" ]; then
             echo "::error::Missing OPENAI_API_KEY (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_HOST" ]; then
+            echo "::error::Missing SMTP_HOST (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_PORT" ]; then
+            echo "::error::Missing SMTP_PORT (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_ENCRYPTION" ]; then
+            echo "::error::Missing SMTP_ENCRYPTION (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_USERNAME" ]; then
+            echo "::error::Missing SMTP_USERNAME (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_PASSWORD" ]; then
+            echo "::error::Missing SMTP_PASSWORD (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_FROM_EMAIL" ]; then
+            echo "::error::Missing SMTP_FROM_EMAIL (GitHub Secret)."
+            exit 1
+          fi
+          if [ -z "$SMTP_FROM_NAME" ]; then
+            echo "::error::Missing SMTP_FROM_NAME (GitHub Secret)."
             exit 1
           fi
 
@@ -138,6 +173,8 @@ jobs:
           cp hostinger/asaas-create-checkout.php dist/asaas-create-checkout.php
           cp hostinger/asaas-webhook.php dist/asaas-webhook.php
           cp hostinger/ai-feed-audit.php dist/ai-feed-audit.php
+          cp hostinger/access-request-notify.php dist/access-request-notify.php
+          cp hostinger/access-request-pending-notify.php dist/access-request-pending-notify.php
           cat > dist/asaas-config.json <<'EOF'
           {
             "apiKey": "${{ secrets.ASAAS_API_KEY }}",
@@ -150,6 +187,17 @@ jobs:
           cat > dist/ai-audit-config.json <<'EOF'
           {
             "openAiApiKey": "${{ secrets.OPENAI_API_KEY }}"
+          }
+          EOF
+          cat > dist/smtp-config.json <<'EOF'
+          {
+            "smtpHost": "${{ secrets.SMTP_HOST }}",
+            "smtpPort": ${{ secrets.SMTP_PORT }},
+            "smtpEncryption": "${{ secrets.SMTP_ENCRYPTION }}",
+            "smtpUsername": "${{ secrets.SMTP_USERNAME }}",
+            "smtpPassword": "${{ secrets.SMTP_PASSWORD }}",
+            "fromEmail": "${{ secrets.SMTP_FROM_EMAIL }}",
+            "fromName": "${{ secrets.SMTP_FROM_NAME }}"
           }
           EOF
 
