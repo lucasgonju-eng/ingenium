@@ -35,8 +35,71 @@ type GtmObservedEvent = {
   event: string;
   eventTime: string | null;
   eventSource: "app" | "gtm";
+  eventLabel: string;
+  eventHelp: string;
   payloadPreview: string;
 };
+
+function getFriendlyEventInfo(eventName: string) {
+  const map: Record<string, { label: string; help: string }> = {
+    "gtm.js": {
+      label: "Rastreamento iniciado",
+      help: "O sistema de medição do site foi iniciado.",
+    },
+    "gtm.dom": {
+      label: "Página pronta para leitura",
+      help: "A estrutura principal da página terminou de carregar.",
+    },
+    "gtm.load": {
+      label: "Página totalmente carregada",
+      help: "Todos os recursos da página foram finalizados.",
+    },
+    gtm_admin_test_event: {
+      label: "Teste de rastreamento do Admin",
+      help: "Evento de teste disparado manualmente no painel.",
+    },
+    lp_view: {
+      label: "Visita à página inicial",
+      help: "Um usuário visualizou a landing page.",
+    },
+    signup_start: {
+      label: "Início de cadastro",
+      help: "Um usuário começou o fluxo de criação de conta.",
+    },
+    signup_submit: {
+      label: "Cadastro enviado",
+      help: "Um usuário enviou os dados de cadastro.",
+    },
+    terms_accept: {
+      label: "Termos aceitos",
+      help: "Um usuário aceitou os termos e LGPD.",
+    },
+    login_success: {
+      label: "Login de usuário concluído",
+      help: "Um acesso de usuário comum foi autenticado com sucesso.",
+    },
+    admin_login_success: {
+      label: "Login de admin concluído",
+      help: "Um acesso administrativo foi autenticado com sucesso.",
+    },
+    gestao_login_success: {
+      label: "Login de gestão concluído",
+      help: "Um acesso de gestão foi autenticado com sucesso.",
+    },
+  };
+
+  const direct = map[eventName];
+  if (direct) return direct;
+
+  const normalized = eventName.replace(/_/g, " ").trim();
+  const label = normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "Evento registrado";
+  return {
+    label,
+    help: "Evento registrado pelo sistema de monitoramento.",
+  };
+}
 
 function getEventTimeFromDataLayerItem(item: Record<string, unknown>): string | null {
   if (typeof item.sent_at === "string" && item.sent_at.trim()) return item.sent_at;
@@ -226,11 +289,14 @@ export default function AdminDashboardScreen() {
         if (item && typeof item.event === "string" && item.event.trim()) {
           const eventSource: "app" | "gtm" = item.event.startsWith("gtm.") ? "gtm" : "app";
           const eventTime = getEventTimeFromDataLayerItem(item);
+          const eventInfo = getFriendlyEventInfo(item.event);
           const payloadPreview = summarizeDataLayerPayload(item);
           observedEvents.push({
             event: item.event,
             eventTime,
             eventSource,
+            eventLabel: eventInfo.label,
+            eventHelp: eventInfo.help,
             payloadPreview,
           });
           if (observedEvents.length >= 8) break;
@@ -803,10 +869,16 @@ export default function AdminDashboardScreen() {
                         }}
                       >
                         <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
-                          Evento: {item.event}
+                          Evento: {item.eventLabel}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 2 }}>
+                          {item.eventHelp}
                         </Text>
                         <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
                           Origem: {item.eventSource === "app" ? "App InGenium" : "Infra GTM"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
+                          Código técnico: {item.event}
                         </Text>
                         <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
                           Horário: {item.eventTime ?? "sem carimbo de data neste evento"}
