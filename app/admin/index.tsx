@@ -8,6 +8,7 @@ import {
   assignTeacherToOlympiad,
   createTeacher,
   deleteTeacher,
+  deleteUserAccountAdmin,
   fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
@@ -175,6 +176,8 @@ export default function AdminDashboardScreen() {
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
   const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [gtmConnected, setGtmConnected] = useState(false);
   const [gtmLastEventAt, setGtmLastEventAt] = useState<string | null>(null);
@@ -410,6 +413,15 @@ export default function AdminDashboardScreen() {
     setTeachers(teachersData);
   }
 
+  async function reloadStudentsAndRanking() {
+    const [studentsData, rankingData] = await Promise.all([
+      fetchRegisteredStudentsFull(),
+      fetchRankingAllRegisteredStudents(500),
+    ]);
+    setStudents(studentsData);
+    setRankingRows(rankingData);
+  }
+
   async function handleCreateTeacher() {
     if (!teacherFullName.trim() || !teacherDisplayName.trim() || !teacherEmail.trim()) {
       Alert.alert("Campos obrigatórios", "Informe nome completo, nome de exibição e e-mail.");
@@ -490,6 +502,58 @@ export default function AdminDashboardScreen() {
       Alert.alert("Erro", message);
     } finally {
       setDeletingTeacherId(null);
+    }
+  }
+
+  async function handleDeleteSelectedStudents() {
+    if (!selectedStudentIds.length) {
+      Alert.alert("Nenhum aluno selecionado", "Marque pelo menos um aluno para excluir.");
+      return;
+    }
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(`Confirma excluir ${selectedStudentIds.length} aluno(s) selecionado(s)? Esta ação é irreversível.`)
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      for (const id of selectedStudentIds) {
+        await deleteUserAccountAdmin(id);
+      }
+      setSelectedStudentIds([]);
+      await reloadStudentsAndRanking();
+      Alert.alert("Exclusão concluída", "Alunos selecionados excluídos com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao excluir alunos selecionados.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteSelectedTeachers() {
+    if (!selectedTeacherIds.length) {
+      Alert.alert("Nenhum professor selecionado", "Marque pelo menos um professor para excluir.");
+      return;
+    }
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(`Confirma excluir ${selectedTeacherIds.length} professor(es) selecionado(s)? Esta ação é irreversível.`)
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      for (const id of selectedTeacherIds) {
+        await deleteUserAccountAdmin(id);
+      }
+      setSelectedTeacherIds([]);
+      await Promise.all([reloadTeachers(), reloadStudentsAndRanking()]);
+      Alert.alert("Exclusão concluída", "Professores selecionados excluídos com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao excluir professores selecionados.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -693,6 +757,29 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                enableBulkDelete
+                selectedStudentIds={selectedStudentIds}
+                selectedTeacherIds={selectedTeacherIds}
+                onToggleStudentSelection={(studentId) => {
+                  setSelectedStudentIds((prev) =>
+                    prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
+                  );
+                }}
+                onToggleTeacherSelection={(teacherId) => {
+                  setSelectedTeacherIds((prev) =>
+                    prev.includes(teacherId) ? prev.filter((id) => id !== teacherId) : [...prev, teacherId],
+                  );
+                }}
+                onSelectAllStudents={() => setSelectedStudentIds(students.map((s) => s.id))}
+                onClearStudentSelection={() => setSelectedStudentIds([])}
+                onSelectAllTeachers={() => setSelectedTeacherIds(teachers.map((t) => t.id))}
+                onClearTeacherSelection={() => setSelectedTeacherIds([])}
+                onDeleteSelectedStudents={() => {
+                  void handleDeleteSelectedStudents();
+                }}
+                onDeleteSelectedTeachers={() => {
+                  void handleDeleteSelectedTeachers();
+                }}
               />
             ) : null}
 
@@ -748,6 +835,29 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                enableBulkDelete
+                selectedStudentIds={selectedStudentIds}
+                selectedTeacherIds={selectedTeacherIds}
+                onToggleStudentSelection={(studentId) => {
+                  setSelectedStudentIds((prev) =>
+                    prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
+                  );
+                }}
+                onToggleTeacherSelection={(teacherId) => {
+                  setSelectedTeacherIds((prev) =>
+                    prev.includes(teacherId) ? prev.filter((id) => id !== teacherId) : [...prev, teacherId],
+                  );
+                }}
+                onSelectAllStudents={() => setSelectedStudentIds(students.map((s) => s.id))}
+                onClearStudentSelection={() => setSelectedStudentIds([])}
+                onSelectAllTeachers={() => setSelectedTeacherIds(teachers.map((t) => t.id))}
+                onClearTeacherSelection={() => setSelectedTeacherIds([])}
+                onDeleteSelectedStudents={() => {
+                  void handleDeleteSelectedStudents();
+                }}
+                onDeleteSelectedTeachers={() => {
+                  void handleDeleteSelectedTeachers();
+                }}
               />
             ) : null}
 
@@ -802,6 +912,29 @@ export default function AdminDashboardScreen() {
                 }}
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
+                }}
+                enableBulkDelete
+                selectedStudentIds={selectedStudentIds}
+                selectedTeacherIds={selectedTeacherIds}
+                onToggleStudentSelection={(studentId) => {
+                  setSelectedStudentIds((prev) =>
+                    prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
+                  );
+                }}
+                onToggleTeacherSelection={(teacherId) => {
+                  setSelectedTeacherIds((prev) =>
+                    prev.includes(teacherId) ? prev.filter((id) => id !== teacherId) : [...prev, teacherId],
+                  );
+                }}
+                onSelectAllStudents={() => setSelectedStudentIds(students.map((s) => s.id))}
+                onClearStudentSelection={() => setSelectedStudentIds([])}
+                onSelectAllTeachers={() => setSelectedTeacherIds(teachers.map((t) => t.id))}
+                onClearTeacherSelection={() => setSelectedTeacherIds([])}
+                onDeleteSelectedStudents={() => {
+                  void handleDeleteSelectedStudents();
+                }}
+                onDeleteSelectedTeachers={() => {
+                  void handleDeleteSelectedTeachers();
                 }}
               />
             ) : null}

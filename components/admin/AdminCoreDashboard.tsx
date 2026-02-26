@@ -50,6 +50,17 @@ type Props = {
   onDeleteTeacher: (teacherId: string) => void;
   onUpdatePassword: () => void;
   onOpenProfileSettings: () => void;
+  enableBulkDelete?: boolean;
+  selectedStudentIds?: string[];
+  selectedTeacherIds?: string[];
+  onToggleStudentSelection?: (studentId: string) => void;
+  onToggleTeacherSelection?: (teacherId: string) => void;
+  onSelectAllStudents?: () => void;
+  onClearStudentSelection?: () => void;
+  onSelectAllTeachers?: () => void;
+  onClearTeacherSelection?: () => void;
+  onDeleteSelectedStudents?: () => void;
+  onDeleteSelectedTeachers?: () => void;
 };
 
 export default function AdminCoreDashboard(props: Props) {
@@ -87,6 +98,17 @@ export default function AdminCoreDashboard(props: Props) {
     onDeleteTeacher,
     onUpdatePassword,
     onOpenProfileSettings,
+    enableBulkDelete = false,
+    selectedStudentIds = [],
+    selectedTeacherIds = [],
+    onToggleStudentSelection,
+    onToggleTeacherSelection,
+    onSelectAllStudents,
+    onClearStudentSelection,
+    onSelectAllTeachers,
+    onClearTeacherSelection,
+    onDeleteSelectedStudents,
+    onDeleteSelectedTeachers,
   } = props;
 
   const totalStudents = students.length;
@@ -194,10 +216,49 @@ export default function AdminCoreDashboard(props: Props) {
 
         <View style={sectionCardStyle}>
           <Text style={{ color: colors.white }} weight="bold">Lista completa de alunos</Text>
+          {enableBulkDelete ? (
+            <View style={{ marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+              <Pressable onPress={onSelectAllStudents} style={miniActionBtnStyle}>
+                <Text style={miniActionTextStyle} weight="semibold">Marcar todos</Text>
+              </Pressable>
+              <Pressable onPress={onClearStudentSelection} style={miniActionBtnStyle}>
+                <Text style={miniActionTextStyle} weight="semibold">Limpar seleção</Text>
+              </Pressable>
+              <Pressable
+                onPress={onDeleteSelectedStudents}
+                style={[miniActionBtnStyle, { borderColor: "rgba(252,165,165,0.5)", backgroundColor: "rgba(127,29,29,0.25)" }]}
+              >
+                <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
+                  Excluir selecionados ({selectedStudentIds.length})
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
           <View style={{ marginTop: spacing.sm, gap: 8 }}>
             {students.map((student) => (
               <View key={student.id} style={{ borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.03)", padding: spacing.sm }}>
-                <Text style={{ color: colors.white }} weight="semibold">{student.full_name ?? "Sem nome"}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                  {enableBulkDelete ? (
+                    <Pressable
+                      onPress={() => onToggleStudentSelection?.(student.id)}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: "rgba(255,255,255,0.35)",
+                        backgroundColor: selectedStudentIds.includes(student.id) ? "rgba(255,199,0,0.25)" : "transparent",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text style={{ color: selectedStudentIds.includes(student.id) ? colors.einsteinYellow : "rgba(255,255,255,0.7)", fontSize: 12 }} weight="bold">
+                        {selectedStudentIds.includes(student.id) ? "✓" : ""}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  <Text style={{ color: colors.white, flex: 1 }} weight="semibold">{student.full_name ?? "Sem nome"}</Text>
+                </View>
                 <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: 12 }}>
                   Série: {student.grade ?? "Sem série"} • Turma: {student.class_name ?? "Sem turma"}
                 </Text>
@@ -276,12 +337,51 @@ export default function AdminCoreDashboard(props: Props) {
 
         <View style={sectionCardStyle}>
           <Text style={{ color: colors.white }} weight="bold">Professores e olimpíadas designadas</Text>
+          {enableBulkDelete ? (
+            <View style={{ marginTop: spacing.xs, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+              <Pressable onPress={onSelectAllTeachers} style={miniActionBtnStyle}>
+                <Text style={miniActionTextStyle} weight="semibold">Marcar todos</Text>
+              </Pressable>
+              <Pressable onPress={onClearTeacherSelection} style={miniActionBtnStyle}>
+                <Text style={miniActionTextStyle} weight="semibold">Limpar seleção</Text>
+              </Pressable>
+              <Pressable
+                onPress={onDeleteSelectedTeachers}
+                style={[miniActionBtnStyle, { borderColor: "rgba(252,165,165,0.5)", backgroundColor: "rgba(127,29,29,0.25)" }]}
+              >
+                <Text style={{ color: "#fecaca", fontSize: 12 }} weight="bold">
+                  Excluir selecionados ({selectedTeacherIds.length})
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
           <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
             {teachers.map((teacher) => (
               <View key={teacher.id} style={{ borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.03)", padding: spacing.sm }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.xs }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.white }} weight="semibold">{teacher.full_name ?? "Sem nome"}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                      {enableBulkDelete ? (
+                        <Pressable
+                          onPress={() => onToggleTeacherSelection?.(teacher.id)}
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor: "rgba(255,255,255,0.35)",
+                            backgroundColor: selectedTeacherIds.includes(teacher.id) ? "rgba(255,199,0,0.25)" : "transparent",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Text style={{ color: selectedTeacherIds.includes(teacher.id) ? colors.einsteinYellow : "rgba(255,255,255,0.7)", fontSize: 12 }} weight="bold">
+                            {selectedTeacherIds.includes(teacher.id) ? "✓" : ""}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      <Text style={{ color: colors.white, flex: 1 }} weight="semibold">{teacher.full_name ?? "Sem nome"}</Text>
+                    </View>
                     <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 2, fontSize: 12 }}>
                       Exibição: {teacher.display_name ?? "Sem nome"} • {teacher.email ?? "Sem e-mail"} {teacher.subject_area ? `• ${teacher.subject_area}` : ""}
                     </Text>
@@ -502,4 +602,18 @@ const actionBtnStyle = {
   alignItems: "center" as const,
   justifyContent: "center" as const,
   backgroundColor: colors.einsteinYellow,
+};
+
+const miniActionBtnStyle = {
+  borderRadius: radii.pill,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.06)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: 6,
+};
+
+const miniActionTextStyle = {
+  color: "rgba(255,255,255,0.86)",
+  fontSize: 12,
 };

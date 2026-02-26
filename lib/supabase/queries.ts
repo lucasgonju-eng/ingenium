@@ -819,3 +819,10 @@ export async function deleteTeacher(teacherId: string) {
   });
   if (error) throw error;
 }
+
+export async function deleteUserAccountAdmin(userId: string) {
+  const { error } = await supabase.rpc("delete_user_account_admin", {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
