@@ -5,7 +5,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
-import { fetchPublicRankingTeaser } from "../../lib/supabase/queries";
+import { fetchOlympiads, fetchPublicRankingTeaser } from "../../lib/supabase/queries";
 import { colors, radii, shadows, spacing, typography } from "../../lib/theme/tokens";
 import { copy } from "../../content/copy";
 
@@ -49,17 +49,22 @@ export default function MarketingLandingScreen() {
       const today = new Date().toISOString().slice(0, 10);
       const [teaser, olympiadsResult] = await Promise.all([
         fetchPublicRankingTeaser(10),
-        supabase
-          .from("olympiads")
-          .select("id,title,category,status,registration_deadline")
-          .gte("registration_deadline", today)
-          .order("registration_deadline", { ascending: true })
-          .limit(6),
+        fetchOlympiads(),
       ]);
 
-      if (olympiadsResult.error) throw olympiadsResult.error;
       setRows(teaser as TeaserRow[]);
-      setOlympiads((olympiadsResult.data ?? []) as LandingOlympiadRow[]);
+      const upcomingOlympiads = (olympiadsResult as LandingOlympiadRow[])
+        .filter((item) => {
+          if (!item.registration_deadline) return false;
+          return item.registration_deadline >= today;
+        })
+        .sort((a, b) => {
+          const da = a.registration_deadline ?? "9999-12-31";
+          const db = b.registration_deadline ?? "9999-12-31";
+          return da.localeCompare(db);
+        })
+        .slice(0, 4);
+      setOlympiads(upcomingOlympiads);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar dados da página";
       Alert.alert("Erro", message);
@@ -337,13 +342,34 @@ export default function MarketingLandingScreen() {
                     {item.title}
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2, fontSize: 12 }}>
-                    {item.category ?? "Olimpíada"} {item.status ? `• ${item.status}` : ""}
+                    {item.category ?? "Olimpíada"} • Inscrição até {formatShortDate(item.registration_deadline)}
                   </Text>
                 </View>
                 <Text style={{ color: "rgba(255,255,255,0.78)" }}>🔔</Text>
               </View>
             ))
           )}
+          <Pressable
+            onPress={() => {
+              if (hasSession) {
+                router.push("/(tabs)/olimpiadas");
+                return;
+              }
+              router.push("/(auth)/login");
+            }}
+            style={{
+              marginTop: spacing.xs,
+              height: 42,
+              borderRadius: radii.md,
+              backgroundColor: "rgba(255,255,255,0.08)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: colors.white }} weight="semibold">
+              Ver todas →
+            </Text>
+          </Pressable>
         </View>
 
         <View
