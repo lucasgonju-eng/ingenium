@@ -950,7 +950,7 @@ export default function AdminDashboardScreen() {
                     }}
                   >
                     <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
-                      KPIs
+                      Uso | Visão geral
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
                       Período: últimos {analyticsPeriodDays} dias |{" "}
@@ -969,7 +969,7 @@ export default function AdminDashboardScreen() {
                     }}
                   >
                     <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
-                      Páginas mais acessadas
+                      Aquisição | Páginas de entrada mais acessadas
                     </Text>
                     {(saasAnalytics?.top_pages ?? []).slice(0, 5).map((row) => (
                       <Text key={`page-${row.page_path}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
@@ -988,7 +988,7 @@ export default function AdminDashboardScreen() {
                     }}
                   >
                     <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
-                      Horários de pico
+                      Uso | Horários de pico
                     </Text>
                     {(saasAnalytics?.peak_hours ?? []).slice(0, 5).map((row) => (
                       <Text key={`peak-${row.hour_slot}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
@@ -1007,7 +1007,7 @@ export default function AdminDashboardScreen() {
                     }}
                   >
                     <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
-                      Dispositivos e localização
+                      Aquisição | Dispositivos e localização
                     </Text>
                     {(saasAnalytics?.devices ?? []).slice(0, 3).map((row) => (
                       <Text key={`device-${row.device}`} style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
@@ -1031,7 +1031,7 @@ export default function AdminDashboardScreen() {
                     }}
                   >
                     <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
-                      Logins mais e menos ativos
+                      Retenção e risco | Logins mais e menos ativos
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }} weight="semibold">
                       Mais ativos
