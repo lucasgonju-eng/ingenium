@@ -454,23 +454,31 @@ export async function ensureCurrentUserProfileFromAuthMetadata() {
       ? roleRaw
       : "student";
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .upsert(
-      {
-        id: user.id,
-        full_name: fullName,
-        grade,
-        role,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" },
-    )
-    .select("id")
-    .single();
+  const primaryPayload = {
+    id: user.id,
+    full_name: fullName,
+    grade,
+    role,
+    updated_at: new Date().toISOString(),
+  };
+  const fallbackPayload = {
+    id: user.id,
+    full_name: fullName,
+    updated_at: new Date().toISOString(),
+  };
 
-  if (error) throw error;
-  return data;
+  const primary = await supabase.from("profiles").upsert(primaryPayload, { onConflict: "id" }).select("id").single();
+  if (!primary.error) return primary.data;
+
+  const fallback = await supabase.from("profiles").upsert(fallbackPayload, { onConflict: "id" }).select("id").single();
+  if (!fallback.error) return fallback.data;
+
+  // Nunca quebra o login por divergência de schema/perfil.
+  console.warn("Falha ao sincronizar profile a partir do auth metadata.", {
+    primaryError: primary.error.message,
+    fallbackError: fallback.error.message,
+  });
+  return null;
 }
 
 export type FeedPost = {
