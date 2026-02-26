@@ -45,6 +45,7 @@ export default function GestaoDashboardPlaceholder() {
   const [savingTeacher, setSavingTeacher] = useState(false);
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
   const [olympiadSelectionByTeacher, setOlympiadSelectionByTeacher] = useState<Record<string, string>>({});
+  const [teacherCreationFeedback, setTeacherCreationFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -138,6 +139,7 @@ export default function GestaoDashboardPlaceholder() {
     }
     try {
       setSavingTeacher(true);
+      setTeacherCreationFeedback(null);
       await sendTeacherMagicLink({
         email: teacherEmail.trim(),
         full_name: teacherFullName.trim(),
@@ -159,9 +161,13 @@ export default function GestaoDashboardPlaceholder() {
       setSelectedCreateOlympiadId("");
       setTeacherPendingOlympiadName("");
       await reloadTeachers();
+      setTeacherCreationFeedback(
+        `Cadastro realizado com sucesso para ${teacherEmail.trim()}. O professor deve abrir o e-mail e concluir o acesso pelo magic link.`,
+      );
       Alert.alert("Professor(a) salvo", "Cadastro atualizado e magic link enviado.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao salvar professor(a).";
+      setTeacherCreationFeedback(null);
       Alert.alert("Erro", message);
     } finally {
       setSavingTeacher(false);
@@ -231,6 +237,23 @@ export default function GestaoDashboardPlaceholder() {
           </View>
         ) : null}
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.md }}>
+          {!loading && authorized && !mustChangePassword && activeTab === "professores" && teacherCreationFeedback ? (
+            <View
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(134,239,172,0.5)",
+                backgroundColor: "rgba(20,83,45,0.25)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+                marginBottom: spacing.sm,
+              }}
+            >
+              <Text style={{ color: "#86efac" }} weight="semibold">
+                {teacherCreationFeedback}
+              </Text>
+            </View>
+          ) : null}
           {loading ? (
             <View style={{ alignItems: "center", marginTop: spacing.lg }}>
               <ActivityIndicator color={colors.einsteinYellow} />
