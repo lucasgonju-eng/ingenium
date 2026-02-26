@@ -117,11 +117,6 @@ export default function OlimpiadasListScreen() {
           <View style={{ paddingTop: spacing.sm }}>
             <StitchHeader
               title="Olimpíadas"
-              rightSlot={
-                <View style={{ width: 40, height: 40, borderRadius: radii.pill, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" }}>
-                  <Text style={{ color: "white", fontSize: 18 }}>☰</Text>
-                </View>
-              }
             />
 
             <View
