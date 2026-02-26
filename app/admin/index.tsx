@@ -7,15 +7,19 @@ import { Text } from "../../components/ui/Text";
 import {
   assignTeacherToOlympiad,
   createTeacher,
+  fetchPendingAccessRequestsAdmin,
   fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudentsFull,
   fetchTeachersWithOlympiads,
+  reviewAccessRequestAdmin,
+  sendAccessRequestReviewEmail,
   sendTeacherMagicLink,
   removeTeacherAssignment,
   fetchOlympiads,
   setUserActiveAdmin,
+  type AccessRequestRow,
   type FullStudentRow,
   type RankingStudentRow,
   type SaasAnalyticsOverview,
@@ -26,9 +30,10 @@ import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 
-type AdminTab = ReturnType<typeof getAdminCoreTabs>[number]["key"] | "gtm";
+type AdminTab = ReturnType<typeof getAdminCoreTabs>[number]["key"] | "gtm" | "notificacoes";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
+  { key: "notificacoes", label: "Notificações" },
   { key: "gtm", label: "GTM" },
 ];
 type GtmObservedEvent = {
@@ -185,6 +190,9 @@ export default function AdminDashboardScreen() {
   const [saasAnalytics, setSaasAnalytics] = useState<SaasAnalyticsOverview | null>(null);
   const [analyticsPeriodDays, setAnalyticsPeriodDays] = useState<7 | 30 | 90>(30);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<AccessRequestRow[]>([]);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   const categoryCardStyles = {
     uso: {
@@ -217,6 +225,7 @@ export default function AdminDashboardScreen() {
           router.replace("/admin/login");
           return;
         }
+        setCurrentUserEmail(user.email ?? null);
 
         const mustChange = Boolean(user.user_metadata?.admin_must_change_password);
         setMustChangePassword(mustChange);
@@ -229,12 +238,13 @@ export default function AdminDashboardScreen() {
           return;
         }
 
-        const [studentsData, rankingData, teachersData, olympiadsData, analyticsData] = await Promise.all([
+        const [studentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData] = await Promise.all([
           fetchRegisteredStudentsFull(),
           fetchRankingAllRegisteredStudents(500),
           fetchTeachersWithOlympiads(),
           fetchOlympiads(),
           fetchSaasAnalyticsOverview(30),
+          fetchPendingAccessRequestsAdmin(),
         ]);
         if (!mounted) return;
         setAuthorized(true);
@@ -243,6 +253,7 @@ export default function AdminDashboardScreen() {
         setTeachers(teachersData);
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
         setSaasAnalytics(analyticsData);
+        setPendingRequests(requestsData);
       } catch (e: unknown) {
         if (!mounted) return;
         const message = e instanceof Error ? e.message : "Falha ao carregar dashboard admin.";
@@ -629,6 +640,54 @@ export default function AdminDashboardScreen() {
       Alert.alert("Erro", message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function reloadPendingRequests() {
+    const requests = await fetchPendingAccessRequestsAdmin();
+    setPendingRequests(requests);
+  }
+
+  async function handleReviewRequest(requestId: string, approve: boolean) {
+    const confirmed = typeof window !== "undefined"
+      ? window.confirm(approve ? "Confirma aprovar este cadastro?" : "Confirma reprovar este cadastro?")
+      : true;
+    if (!confirmed) return;
+
+    try {
+      setReviewingRequestId(requestId);
+      const request = pendingRequests.find((item) => item.id === requestId);
+      await reviewAccessRequestAdmin({
+        request_id: requestId,
+        approve,
+        review_notes: approve
+          ? "Parabéns, seu cadastro foi aprovado! Seja bem-vindo(a) ao InGenium!!"
+          : "Cadastro não aprovado nesta etapa.",
+      });
+      if (request?.email && request.full_name) {
+        await sendAccessRequestReviewEmail({
+          requestType: request.request_type,
+          approved: approve,
+          fullName: request.full_name,
+          displayName: request.display_name,
+          candidateEmail: request.email,
+          subjectArea: request.subject_area,
+          intendedOlympiad: request.intended_olympiad,
+          adminReviewerEmail: currentUserEmail,
+        });
+      }
+      await Promise.all([reloadPendingRequests(), reloadTeachers()]);
+      Alert.alert(
+        approve ? "Cadastro aprovado" : "Cadastro reprovado",
+        approve
+          ? "Solicitação aprovada com sucesso. Professor liberado."
+          : "Solicitação reprovada com sucesso.",
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao revisar solicitação.";
+      Alert.alert("Erro", message);
+    } finally {
+      setReviewingRequestId(null);
     }
   }
 
@@ -1300,6 +1359,108 @@ export default function AdminDashboardScreen() {
                       </Text>
                     ))}
                   </View>
+                </View>
+              </View>
+            ) : null}
+
+            {activeTab === "notificacoes" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">Pendências de cadastro</Text>
+                <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs }}>
+                  Solicitações de professores e colaboradores aguardando decisão administrativa.
+                </Text>
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  {pendingRequests.length === 0 ? (
+                    <View
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: colors.borderSoft,
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        padding: spacing.sm,
+                      }}
+                    >
+                      <Text style={{ color: "rgba(255,255,255,0.78)" }}>Nenhuma pendência no momento.</Text>
+                    </View>
+                  ) : (
+                    pendingRequests.map((request) => (
+                      <View
+                        key={request.id}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          padding: spacing.sm,
+                        }}
+                      >
+                        <Text style={{ color: colors.white }} weight="semibold">
+                          {request.full_name ?? "Sem nome"} ({request.request_type === "teacher" ? "Professor(a)" : "Colaborador(a)"})
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                          Exibição: {request.display_name ?? "Sem nome"} • {request.email ?? "Sem e-mail"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                          CPF: {request.cpf ?? "Não informado"} • Área: {request.subject_area ?? "Não informada"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                          Olimpíada pretendida: {request.intended_olympiad ?? "Não informada"}
+                        </Text>
+                        <View style={{ marginTop: spacing.xs, flexDirection: "row", gap: spacing.xs }}>
+                          <Pressable
+                            onPress={() => {
+                              void handleReviewRequest(request.id, true);
+                            }}
+                            disabled={reviewingRequestId === request.id}
+                            style={{
+                              flex: 1,
+                              height: 38,
+                              borderRadius: radii.md,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderWidth: 1,
+                              borderColor: "rgba(134,239,172,0.5)",
+                              backgroundColor: "rgba(20,83,45,0.25)",
+                              opacity: reviewingRequestId === request.id ? 0.7 : 1,
+                            }}
+                          >
+                            <Text style={{ color: "#86efac" }} weight="bold">
+                              Aprovar
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => {
+                              void handleReviewRequest(request.id, false);
+                            }}
+                            disabled={reviewingRequestId === request.id}
+                            style={{
+                              flex: 1,
+                              height: 38,
+                              borderRadius: radii.md,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderWidth: 1,
+                              borderColor: "rgba(252,165,165,0.5)",
+                              backgroundColor: "rgba(127,29,29,0.25)",
+                              opacity: reviewingRequestId === request.id ? 0.7 : 1,
+                            }}
+                          >
+                            <Text style={{ color: "#fecaca" }} weight="bold">
+                              Reprovar
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))
+                  )}
                 </View>
               </View>
             ) : null}

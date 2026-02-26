@@ -150,19 +150,6 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
               {isMarketingHome ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
                   <Pressable
-                    onPress={() => router.push("/admin/login")}
-                    style={{
-                      height: 34,
-                      paddingHorizontal: spacing.sm,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={{ color: "rgba(255,255,255,0.22)", fontSize: typography.small.fontSize }} weight="semibold">
-                      Admin
-                    </Text>
-                  </Pressable>
-                  <Pressable
                     onPress={() => router.push("/gestao/login")}
                     style={{
                       height: 34,
@@ -177,6 +164,23 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                   >
                     <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
                       Gestão
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push("/professor/login")}
+                    style={{
+                      height: 34,
+                      borderRadius: radii.pill,
+                      paddingHorizontal: spacing.sm,
+                      backgroundColor: "rgba(255,255,255,0.10)",
+                      borderWidth: 1,
+                      borderColor: "rgba(255,255,255,0.14)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                      Professores
                     </Text>
                   </Pressable>
                 </View>
@@ -201,6 +205,22 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
               )}
 
               <View style={{ alignItems: "flex-end" }}>
+                {isMarketingHome ? (
+                  <Pressable
+                    onPress={() => router.push("/admin/login")}
+                    style={{
+                      height: 20,
+                      paddingHorizontal: 2,
+                      marginBottom: 4,
+                      alignItems: "flex-end",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.14)", fontSize: 10 }} weight="semibold">
+                      admin
+                    </Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   onPress={() => setMenuOpen((prev) => !prev)}
                   style={{

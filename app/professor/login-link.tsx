@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { fetchMyAccessRole } from "../../lib/supabase/queries";
+import { fetchMyAccessRole, fetchMyLatestAccessRequest } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, spacing } from "../../lib/theme/tokens";
 
@@ -57,6 +57,15 @@ export default function ProfessorLoginLinkScreen() {
 
         const role = await fetchMyAccessRole();
         if (role !== "teacher") {
+          const latestRequest = await fetchMyLatestAccessRequest();
+          if (latestRequest?.status === "pending") {
+            setStatus("Cadastro pendente de confirmação do administrador.");
+            return;
+          }
+          if (latestRequest?.status === "rejected") {
+            setStatus("Cadastro reprovado pelo administrador. Entre em contato com a equipe InGenium.");
+            return;
+          }
           await supabase.auth.signOut();
           setStatus("Conta sem permissão de professor.");
           return;

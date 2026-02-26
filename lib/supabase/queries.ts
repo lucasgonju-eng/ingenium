@@ -69,6 +69,21 @@ export type TeacherRow = {
   }>;
 };
 
+export type AccessRequestRow = {
+  id: string;
+  request_type: "teacher" | "collaborator";
+  full_name: string | null;
+  display_name: string | null;
+  email: string | null;
+  cpf: string | null;
+  subject_area: string | null;
+  intended_olympiad: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  reviewed_at: string | null;
+  review_notes: string | null;
+};
+
 export type SaasAnalyticsOverview = {
   period_days: number;
   since_utc: string;
@@ -756,6 +771,154 @@ export async function sendTeacherMagicLink(input: {
     },
   });
   if (error) throw error;
+}
+
+export async function sendTeacherCandidateMagicLink(input: {
+  email: string;
+  full_name: string;
+  display_name: string;
+  subject_area?: string | null;
+}) {
+  const targetEmail = input.email.trim().toLowerCase();
+  const siteUrl =
+    process.env.EXPO_PUBLIC_SITE_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+  const redirectTo = `${siteUrl.replace(/\/+$/, "")}/professor/login-link`;
+  const { error } = await supabase.auth.signInWithOtp({
+    email: targetEmail,
+    options: {
+      emailRedirectTo: redirectTo,
+      shouldCreateUser: true,
+      data: {
+        role: "student",
+        teacher_pending: true,
+        full_name: input.full_name.trim(),
+        display_name: input.display_name.trim(),
+        subject_area: input.subject_area?.trim() || null,
+      },
+    },
+  });
+  if (error) throw error;
+}
+
+export async function submitTeacherAccessRequest(input: {
+  full_name: string;
+  display_name: string;
+  email: string;
+  cpf: string;
+  subject_area?: string | null;
+  intended_olympiad?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("submit_teacher_access_request", {
+    p_full_name: input.full_name,
+    p_display_name: input.display_name,
+    p_email: input.email,
+    p_cpf: input.cpf,
+    p_subject_area: input.subject_area ?? null,
+    p_intended_olympiad: input.intended_olympiad ?? null,
+  });
+  if (error) throw error;
+  return String(data ?? "");
+}
+
+export async function fetchPendingAccessRequestsAdmin() {
+  const { data, error } = await supabase.rpc("list_pending_access_requests_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    request_type: (String(row.request_type ?? "teacher") as "teacher" | "collaborator"),
+    full_name: row.full_name ? String(row.full_name) : null,
+    display_name: row.display_name ? String(row.display_name) : null,
+    email: row.email ? String(row.email) : null,
+    cpf: row.cpf ? String(row.cpf) : null,
+    subject_area: row.subject_area ? String(row.subject_area) : null,
+    intended_olympiad: row.intended_olympiad ? String(row.intended_olympiad) : null,
+    status: (String(row.status ?? "pending") as "pending" | "approved" | "rejected"),
+    created_at: String(row.created_at ?? new Date().toISOString()),
+    reviewed_at: row.reviewed_at ? String(row.reviewed_at) : null,
+    review_notes: row.review_notes ? String(row.review_notes) : null,
+  })) as AccessRequestRow[];
+}
+
+export async function reviewAccessRequestAdmin(input: {
+  request_id: string;
+  approve: boolean;
+  review_notes?: string | null;
+}) {
+  const { error } = await supabase.rpc("review_access_request_admin", {
+    p_request_id: input.request_id,
+    p_approve: input.approve,
+    p_review_notes: input.review_notes ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function sendAccessRequestReviewEmail(input: {
+  requestType: "teacher" | "collaborator";
+  approved: boolean;
+  fullName: string;
+  displayName?: string | null;
+  candidateEmail: string;
+  subjectArea?: string | null;
+  intendedOlympiad?: string | null;
+  adminReviewerEmail?: string | null;
+}) {
+  const endpoint =
+    process.env.EXPO_PUBLIC_ACCESS_REQUEST_NOTIFY_URL ??
+    (typeof window !== "undefined"
+      ? `${window.location.origin.replace(/\/+$/, "")}/access-request-notify.php`
+      : "https://ingenium.einsteinhub.co/access-request-notify.php");
+
+  const payload = {
+    requestType: input.requestType,
+    approved: input.approved,
+    fullName: input.fullName,
+    displayName: input.displayName ?? null,
+    candidateEmail: input.candidateEmail,
+    subjectArea: input.subjectArea ?? null,
+    intendedOlympiad: input.intendedOlympiad ?? null,
+    adminReviewerEmail: input.adminReviewerEmail ?? null,
+    approvedMessage: "Parabéns, seu cadastro foi aprovado! Seja bem-vindo(a) ao InGenium!!",
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await response.text();
+  let parsed: { ok?: boolean; error?: string } | null = null;
+  try {
+    parsed = JSON.parse(text) as { ok?: boolean; error?: string };
+  } catch {
+    parsed = null;
+  }
+
+  if (!response.ok || !parsed?.ok) {
+    throw new Error(parsed?.error || `Falha ao enviar e-mail de aprovação/reprovação (${response.status}).`);
+  }
+}
+
+export async function fetchMyLatestAccessRequest() {
+  const { data, error } = await supabase.rpc("get_my_latest_access_request");
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    request_type: (String(row.request_type ?? "teacher") as "teacher" | "collaborator"),
+    full_name: row.full_name ? String(row.full_name) : null,
+    display_name: row.display_name ? String(row.display_name) : null,
+    email: row.email ? String(row.email) : null,
+    cpf: row.cpf ? String(row.cpf) : null,
+    subject_area: row.subject_area ? String(row.subject_area) : null,
+    intended_olympiad: row.intended_olympiad ? String(row.intended_olympiad) : null,
+    status: (String(row.status ?? "pending") as "pending" | "approved" | "rejected"),
+    created_at: String(row.created_at ?? new Date().toISOString()),
+    reviewed_at: row.reviewed_at ? String(row.reviewed_at) : null,
+    review_notes: row.review_notes ? String(row.review_notes) : null,
+  } as AccessRequestRow;
 }
 
 export async function createTeacher(input: {
