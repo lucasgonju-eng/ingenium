@@ -798,9 +798,9 @@ export default function AdminDashboardScreen() {
                   padding: spacing.md,
                 }}
               >
-                <Text style={{ color: colors.white }} weight="bold">GTM (Google Tag Manager)</Text>
+                <Text style={{ color: colors.white }} weight="bold">Monitoramento de acesso (GTM)</Text>
                 <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: spacing.xs, lineHeight: 20 }}>
-                  Status da instalação e teste rápido de evento para validar o recebimento no Tag Assistant/GA4.
+                  Acompanhamento técnico e gerencial dos eventos de uso do SaaS.
                 </Text>
                 <View
                   style={{
@@ -813,19 +813,19 @@ export default function AdminDashboardScreen() {
                   }}
                 >
                   <Text style={{ color: gtmConnected ? "#86efac" : "#fecaca" }} weight="bold">
-                    {gtmConnected ? "GTM detectado no navegador" : "GTM não detectado no navegador"}
+                    {gtmConnected ? "Rastreamento ativo no navegador" : "Rastreamento inativo no navegador"}
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: 4 }}>
-                    Container: GTM-TNHK5MSV
+                    Container GTM: GTM-TNHK5MSV
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
-                    Último evento de teste: {gtmLastEventAt ?? "ainda não enviado"}
+                    Último teste manual: {gtmLastEventAt ?? "ainda não executado"}
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
-                    Último evento no dataLayer: {gtmLastEventName ?? "não identificado"}
+                    Último registro capturado: {gtmLastEventName ?? "não identificado"}
                   </Text>
                   <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
-                    Total de pushes no dataLayer: {gtmEventCount}
+                    Total de registros capturados: {gtmEventCount}
                   </Text>
                 </View>
                 <Pressable
@@ -836,7 +836,7 @@ export default function AdminDashboardScreen() {
                       sent_at: eventAt,
                     });
                     setGtmLastEventAt(eventAt);
-                    Alert.alert("Evento enviado", "Disparamos gtm_admin_test_event para validação no GTM/GA4.");
+                    Alert.alert("Teste executado", "Evento de teste enviado para validação de rastreamento.");
                   }}
                   style={{
                     marginTop: spacing.sm,
@@ -849,11 +849,11 @@ export default function AdminDashboardScreen() {
                     borderColor: colors.borderSoft,
                   }}
                 >
-                  <Text style={{ color: colors.white }} weight="semibold">Enviar evento de teste</Text>
+                  <Text style={{ color: colors.white }} weight="semibold">Executar teste de rastreamento</Text>
                 </Pressable>
                 <View style={{ marginTop: spacing.sm, gap: 8 }}>
                   <Text style={{ color: "rgba(255,255,255,0.88)" }} weight="bold">
-                    Últimos eventos capturados (tempo real)
+                    Registros recentes (tempo real)
                   </Text>
                   {gtmRecentEvents.length ? (
                     gtmRecentEvents.map((item, index) => (
@@ -900,7 +900,7 @@ export default function AdminDashboardScreen() {
                       }}
                     >
                       <Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                        Nenhum evento identificado no dataLayer ainda.
+                        Nenhum registro disponível no monitoramento em tempo real.
                       </Text>
                     </View>
                   )}
