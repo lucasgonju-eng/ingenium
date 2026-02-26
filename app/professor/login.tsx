@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { sendTeacherCandidateMagicLink, submitTeacherAccessRequest } from "../../lib/supabase/queries";
+import { notifyAdminNewAccessRequest, sendTeacherCandidateMagicLink } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 function onlyDigits(value: string) {
@@ -44,17 +44,23 @@ export default function ProfessorSignupScreen() {
         email: email.trim(),
         full_name: fullName.trim(),
         display_name: displayName.trim(),
-        subject_area: subjectArea.trim(),
-      });
-
-      await submitTeacherAccessRequest({
-        full_name: fullName.trim(),
-        display_name: displayName.trim(),
-        email: email.trim(),
         cpf: onlyDigits(cpf),
         subject_area: subjectArea.trim(),
         intended_olympiad: intendedOlympiad.trim(),
       });
+      try {
+        await notifyAdminNewAccessRequest({
+          requestType: "teacher",
+          fullName: fullName.trim(),
+          displayName: displayName.trim(),
+          candidateEmail: email.trim(),
+          cpf: onlyDigits(cpf),
+          subjectArea: subjectArea.trim(),
+          intendedOlympiad: intendedOlympiad.trim(),
+        });
+      } catch {
+        // Não bloqueia o cadastro do professor se o aviso ao admin falhar.
+      }
 
       Alert.alert(
         "Cadastro recebido",

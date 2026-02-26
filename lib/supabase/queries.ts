@@ -777,7 +777,9 @@ export async function sendTeacherCandidateMagicLink(input: {
   email: string;
   full_name: string;
   display_name: string;
+  cpf: string;
   subject_area?: string | null;
+  intended_olympiad?: string | null;
 }) {
   const targetEmail = input.email.trim().toLowerCase();
   const siteUrl =
@@ -794,7 +796,9 @@ export async function sendTeacherCandidateMagicLink(input: {
         teacher_pending: true,
         full_name: input.full_name.trim(),
         display_name: input.display_name.trim(),
+        cpf: input.cpf.trim(),
         subject_area: input.subject_area?.trim() || null,
+        intended_olympiad: input.intended_olympiad?.trim() || null,
       },
     },
   });
@@ -817,6 +821,12 @@ export async function submitTeacherAccessRequest(input: {
     p_subject_area: input.subject_area ?? null,
     p_intended_olympiad: input.intended_olympiad ?? null,
   });
+  if (error) throw error;
+  return String(data ?? "");
+}
+
+export async function ensureTeacherAccessRequestFromCurrentUser() {
+  const { data, error } = await supabase.rpc("ensure_teacher_access_request_from_current_user");
   if (error) throw error;
   return String(data ?? "");
 }
@@ -851,6 +861,48 @@ export async function reviewAccessRequestAdmin(input: {
     p_review_notes: input.review_notes ?? null,
   });
   if (error) throw error;
+}
+
+export async function notifyAdminNewAccessRequest(input: {
+  requestType: "teacher" | "collaborator";
+  fullName: string;
+  displayName?: string | null;
+  candidateEmail: string;
+  cpf?: string | null;
+  subjectArea?: string | null;
+  intendedOlympiad?: string | null;
+}) {
+  const endpoint =
+    process.env.EXPO_PUBLIC_ACCESS_REQUEST_PENDING_NOTIFY_URL ??
+    (typeof window !== "undefined"
+      ? `${window.location.origin.replace(/\/+$/, "")}/access-request-pending-notify.php`
+      : "https://ingenium.einsteinhub.co/access-request-pending-notify.php");
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestType: input.requestType,
+      fullName: input.fullName,
+      displayName: input.displayName ?? null,
+      candidateEmail: input.candidateEmail,
+      cpf: input.cpf ?? null,
+      subjectArea: input.subjectArea ?? null,
+      intendedOlympiad: input.intendedOlympiad ?? null,
+    }),
+  });
+
+  const text = await response.text();
+  let parsed: { ok?: boolean; error?: string } | null = null;
+  try {
+    parsed = JSON.parse(text) as { ok?: boolean; error?: string };
+  } catch {
+    parsed = null;
+  }
+
+  if (!response.ok || !parsed?.ok) {
+    throw new Error(parsed?.error || `Falha ao enviar e-mail de nova pendência (${response.status}).`);
+  }
 }
 
 export async function sendAccessRequestReviewEmail(input: {

@@ -4,7 +4,11 @@ import { ActivityIndicator, Alert, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { fetchMyAccessRole, fetchMyLatestAccessRequest } from "../../lib/supabase/queries";
+import {
+  ensureTeacherAccessRequestFromCurrentUser,
+  fetchMyAccessRole,
+  fetchMyLatestAccessRequest,
+} from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, spacing } from "../../lib/theme/tokens";
 
@@ -55,8 +59,15 @@ export default function ProfessorLoginLinkScreen() {
           return;
         }
 
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
         const role = await fetchMyAccessRole();
         if (role !== "teacher") {
+          const metadataPending = Boolean(currentUser?.user_metadata?.teacher_pending);
+          if (metadataPending) {
+            await ensureTeacherAccessRequestFromCurrentUser();
+          }
           const latestRequest = await fetchMyLatestAccessRequest();
           if (latestRequest?.status === "pending") {
             setStatus("Cadastro pendente de confirmação do administrador.");

@@ -139,6 +139,106 @@ revoke all on function public.submit_teacher_access_request(text, text, text, te
 grant execute on function public.submit_teacher_access_request(text, text, text, text, text, text) to authenticated;
 grant execute on function public.submit_teacher_access_request(text, text, text, text, text, text) to service_role;
 
+create or replace function public.ensure_teacher_access_request_from_current_user()
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_role text;
+  v_metadata jsonb;
+  v_full_name text;
+  v_display_name text;
+  v_email text;
+  v_cpf text;
+  v_subject_area text;
+  v_intended_olympiad text;
+  v_existing_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+
+  select coalesce(lower(role), 'student') into v_role from public.profiles where id = v_user_id;
+  if v_role = 'teacher' then
+    return null;
+  end if;
+
+  select raw_user_meta_data, email
+  into v_metadata, v_email
+  from auth.users
+  where id = v_user_id;
+
+  v_full_name := nullif(trim(coalesce(v_metadata->>'full_name', '')), '');
+  if v_full_name is null then
+    select nullif(trim(coalesce(full_name, '')), '') into v_full_name from public.profiles where id = v_user_id;
+  end if;
+  if v_full_name is null then
+    v_full_name := split_part(coalesce(v_email, 'professor'), '@', 1);
+  end if;
+
+  v_display_name := nullif(trim(coalesce(v_metadata->>'display_name', '')), '');
+  if v_display_name is null then
+    v_display_name := v_full_name;
+  end if;
+
+  v_subject_area := nullif(trim(coalesce(v_metadata->>'subject_area', '')), '');
+  v_intended_olympiad := nullif(trim(coalesce(v_metadata->>'intended_olympiad', '')), '');
+  v_cpf := regexp_replace(coalesce(v_metadata->>'cpf', ''), '\D', '', 'g');
+  if char_length(v_cpf) <> 11 then
+    v_cpf := null;
+  end if;
+
+  select ar.id
+  into v_existing_id
+  from public.access_requests ar
+  where ar.requested_by = v_user_id
+    and ar.request_type = 'teacher'
+    and ar.status = 'pending'
+  order by ar.created_at desc
+  limit 1;
+
+  if v_existing_id is not null then
+    return v_existing_id;
+  end if;
+
+  insert into public.access_requests (
+    request_type,
+    requested_by,
+    full_name,
+    display_name,
+    email,
+    cpf,
+    subject_area,
+    intended_olympiad,
+    status,
+    updated_at
+  )
+  values (
+    'teacher',
+    v_user_id,
+    v_full_name,
+    v_display_name,
+    lower(coalesce(v_email, '')),
+    v_cpf,
+    v_subject_area,
+    v_intended_olympiad,
+    'pending',
+    now()
+  )
+  returning id into v_existing_id;
+
+  return v_existing_id;
+end;
+$$;
+
+revoke all on function public.ensure_teacher_access_request_from_current_user() from public;
+grant execute on function public.ensure_teacher_access_request_from_current_user() to authenticated;
+grant execute on function public.ensure_teacher_access_request_from_current_user() to service_role;
+
 create or replace function public.get_my_latest_access_request()
 returns setof public.access_requests
 language sql
