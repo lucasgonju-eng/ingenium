@@ -750,22 +750,41 @@ export default function AdminDashboardScreen() {
 
     if (!lines.length) return [];
 
-    const firstLine = lines[0].toLowerCase();
-    const hasHeader =
-      firstLine.includes("matr") ||
-      firstLine.includes("enrollment") ||
-      firstLine.includes("nome") ||
-      firstLine.includes("name");
-    const dataLines = hasHeader ? lines.slice(1) : lines;
+    const normalizeHeaderText = (value: string) =>
+      value
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
-    return dataLines
+    return lines
       .map((line) => {
         const parts = line.split(/[;,\t|]/).map((part) => part.trim().replace(/^"|"$/g, ""));
-        const enrollmentNumber = (parts[0] ?? "").replace(/\D/g, "");
-        const fullName = (parts.slice(1).join(" ") ?? "").trim();
-        return { enrollment_number: enrollmentNumber, full_name: fullName };
+        const colA = parts[0] ?? "";
+        const colB = parts[1] ?? "";
+        const colANormalized = normalizeHeaderText(colA);
+        const colBNormalized = normalizeHeaderText(colB);
+
+        const isHeaderLine =
+          (colANormalized.includes("nome") && colBNormalized.includes("matric")) ||
+          (colANormalized.includes("matric") && colBNormalized.includes("nome"));
+        if (isHeaderLine) return null;
+
+        const digitsA = colA.replace(/\D/g, "");
+        const digitsB = colB.replace(/\D/g, "");
+        const alphaA = colA.replace(/[^A-Za-zÀ-ÿ\s]/g, "").trim();
+        const alphaB = colB.replace(/[^A-Za-zÀ-ÿ\s]/g, "").trim();
+
+        // Formato principal recebido: Nome;Matricula;Serie;Turma
+        if (alphaA.length >= 3 && digitsB.length >= 4) {
+          return { enrollment_number: digitsB, full_name: colA.trim() };
+        }
+        // Fallback para formato invertido: Matricula;Nome
+        if (digitsA.length >= 4 && alphaB.length >= 3) {
+          return { enrollment_number: digitsA, full_name: colB.trim() };
+        }
+        return null;
       })
-      .filter((row) => row.enrollment_number && row.full_name);
+      .filter((row): row is { enrollment_number: string; full_name: string } => Boolean(row));
   }
 
   function openCsvPicker() {
@@ -780,7 +799,12 @@ export default function AdminDashboardScreen() {
     if (!file) return;
     if (Platform.OS !== "web") return;
     try {
-      const text = await file.text();
+      const arrayBuffer = await file.arrayBuffer();
+      let text = new TextDecoder("utf-8", { fatal: false }).decode(arrayBuffer);
+      // Muitos relatórios escolares vêm em Windows-1252; fallback evita nomes com caracteres quebrados.
+      if (text.includes("�") || text.includes("Ã") || text.includes("§")) {
+        text = new TextDecoder("windows-1252").decode(arrayBuffer);
+      }
       const parsedRows = parseEnrollmentImportText(text);
       if (!parsedRows.length) {
         Alert.alert("CSV sem dados válidos", "Use colunas no formato: matrícula;nome completo.");
