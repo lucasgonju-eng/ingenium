@@ -456,7 +456,7 @@ export default function MarketingLandingScreen() {
                 ETAPA 1 - COLÉGIO EINSTEIN
               </Text>
               <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
-                Premiação Top 3 - Total R$ 800
+                Premiação Top 3
               </Text>
 
               <View style={{ gap: 4 }}>
