@@ -10,6 +10,7 @@ import {
   fetchPendingAccessRequestsAdmin,
   importStudentEnrollments2026Admin,
   listStudentEnrollments2026Admin,
+  listStudentSignupMismatchCrmAdmin,
   fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
@@ -27,6 +28,7 @@ import {
   type RankingStudentRow,
   type SaasAnalyticsOverview,
   type StudentEnrollment2026Row,
+  type StudentSignupMismatchCrmRow,
   type TeacherRow,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
@@ -209,6 +211,7 @@ export default function AdminDashboardScreen() {
   const [enrollmentRows, setEnrollmentRows] = useState<StudentEnrollment2026Row[]>([]);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentImporting, setEnrollmentImporting] = useState(false);
+  const [mismatchCrmRows, setMismatchCrmRows] = useState<StudentSignupMismatchCrmRow[]>([]);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const [crmSearch, setCrmSearch] = useState("");
   const [crmDeletingUserId, setCrmDeletingUserId] = useState<string | null>(null);
@@ -273,6 +276,12 @@ export default function AdminDashboardScreen() {
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
         setSaasAnalytics(analyticsData);
         setPendingRequests(requestsData);
+        try {
+          const mismatchData = await listStudentSignupMismatchCrmAdmin();
+          if (mounted) setMismatchCrmRows(mismatchData);
+        } catch {
+          if (mounted) setMismatchCrmRows([]);
+        }
         try {
           const enrollmentData = await listStudentEnrollments2026Admin();
           if (mounted) setEnrollmentRows(enrollmentData);
@@ -738,6 +747,16 @@ export default function AdminDashboardScreen() {
       Alert.alert("Erro", message);
     } finally {
       setEnrollmentLoading(false);
+    }
+  }
+
+  async function reloadMismatchCrmRows() {
+    try {
+      const rows = await listStudentSignupMismatchCrmAdmin();
+      setMismatchCrmRows(rows);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao carregar CRM de tentativas inválidas.";
+      Alert.alert("Erro", message);
     }
   }
 
@@ -1733,6 +1752,72 @@ export default function AdminDashboardScreen() {
                 <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
                   Lista de inscrições de alunos para triagem administrativa e remoção de cadastros indevidos.
                 </Text>
+                <View
+                  style={{
+                    marginTop: spacing.sm,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,199,0,0.35)",
+                    backgroundColor: "rgba(255,199,0,0.08)",
+                    padding: spacing.sm,
+                    gap: spacing.xs,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.xs }}>
+                    <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                      Tentativas não elegíveis (base 2026)
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        void reloadMismatchCrmRows();
+                      }}
+                      style={{
+                        borderRadius: radii.pill,
+                        borderWidth: 1,
+                        borderColor: "rgba(255,255,255,0.28)",
+                        backgroundColor: "rgba(255,255,255,0.08)",
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ color: colors.white, fontSize: 12 }} weight="semibold">
+                        Atualizar
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {mismatchCrmRows.length === 0 ? (
+                    <Text style={{ color: "rgba(255,255,255,0.74)" }}>Nenhuma tentativa registrada até o momento.</Text>
+                  ) : (
+                    mismatchCrmRows.slice(0, 80).map((lead) => (
+                      <View
+                        key={`mismatch-${lead.id}`}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: "rgba(255,255,255,0.16)",
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          padding: spacing.sm,
+                        }}
+                      >
+                        <Text style={{ color: colors.white }} weight="semibold">
+                          {lead.full_name}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                          E-mail: {lead.email} • Matrícula: {lead.enrollment_number ?? "não informada"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                          Série: {lead.grade ?? "não informada"} • CPF: {lead.cpf ?? "não informado"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                          Tentativa: {formatCrmDate(lead.attempted_at)}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                          Motivo: {lead.mismatch_reason}
+                        </Text>
+                      </View>
+                    ))
+                  )}
+                </View>
                 <TextInput
                   placeholder="Buscar por nome, série, turma ou ID"
                   placeholderTextColor="rgba(255,255,255,0.45)"

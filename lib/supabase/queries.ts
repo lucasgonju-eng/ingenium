@@ -113,6 +113,18 @@ export type EnrollmentValidationResult = {
   matched_name: string | null;
 };
 
+export type StudentSignupMismatchCrmRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  cpf: string | null;
+  whatsapp: string | null;
+  grade: string | null;
+  enrollment_number: string | null;
+  mismatch_reason: string;
+  attempted_at: string;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -804,6 +816,75 @@ export async function validateStudentEnrollment2026(input: {
     reason: String((row as { reason?: string } | null)?.reason ?? "Validação indisponível."),
     matched_name: (row as { matched_name?: string | null } | null)?.matched_name ?? null,
   };
+}
+
+export async function logStudentSignupMismatchCrm(input: {
+  full_name: string;
+  email: string;
+  cpf?: string | null;
+  whatsapp?: string | null;
+  grade?: string | null;
+  enrollment_number?: string | null;
+  mismatch_reason?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("log_student_signup_mismatch_crm", {
+    p_full_name: input.full_name,
+    p_email: input.email,
+    p_cpf: input.cpf ?? null,
+    p_whatsapp: input.whatsapp ?? null,
+    p_grade: input.grade ?? null,
+    p_enrollment_number: input.enrollment_number ?? null,
+    p_mismatch_reason: input.mismatch_reason ?? null,
+  });
+  if (error) throw error;
+  return String(data ?? "");
+}
+
+export async function listStudentSignupMismatchCrmAdmin() {
+  const { data, error } = await supabase.rpc("list_student_signup_mismatch_crm_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    full_name: String(row.full_name ?? ""),
+    email: String(row.email ?? ""),
+    cpf: row.cpf ? String(row.cpf) : null,
+    whatsapp: row.whatsapp ? String(row.whatsapp) : null,
+    grade: row.grade ? String(row.grade) : null,
+    enrollment_number: row.enrollment_number ? String(row.enrollment_number) : null,
+    mismatch_reason: String(row.mismatch_reason ?? ""),
+    attempted_at: String(row.attempted_at ?? new Date().toISOString()),
+  })) as StudentSignupMismatchCrmRow[];
+}
+
+export async function sendStudentMismatchEmail(input: {
+  fullName: string;
+  candidateEmail: string;
+}) {
+  const endpoint =
+    process.env.EXPO_PUBLIC_STUDENT_MISMATCH_NOTIFY_URL ??
+    (typeof window !== "undefined"
+      ? `${window.location.origin.replace(/\/+$/, "")}/student-mismatch-notify.php`
+      : "https://ingenium.einsteinhub.co/student-mismatch-notify.php");
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fullName: input.fullName,
+      candidateEmail: input.candidateEmail,
+    }),
+  });
+
+  const text = await response.text();
+  let parsed: { ok?: boolean; error?: string } | null = null;
+  try {
+    parsed = JSON.parse(text) as { ok?: boolean; error?: string };
+  } catch {
+    parsed = null;
+  }
+  if (!response.ok || !parsed?.ok) {
+    throw new Error(parsed?.error || `Falha ao enviar e-mail de não elegibilidade (${response.status}).`);
+  }
 }
 
 export async function sendTeacherMagicLink(input: {

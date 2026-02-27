@@ -6,7 +6,11 @@ import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
 import { trackEvent } from "../../lib/analytics/gtm";
-import { validateStudentEnrollment2026 } from "../../lib/supabase/queries";
+import {
+  logStudentSignupMismatchCrm,
+  sendStudentMismatchEmail,
+  validateStudentEnrollment2026,
+} from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -89,6 +93,28 @@ export default function CadastroScreen() {
         enrollment_number: onlyDigits(matricula),
       });
       if (!enrollmentValidation.is_match) {
+        let crmLeadId: string | null = null;
+        try {
+          crmLeadId = await logStudentSignupMismatchCrm({
+            full_name: nome.trim(),
+            email: email.trim(),
+            cpf: onlyDigits(cpf),
+            whatsapp: onlyDigits(whatsapp) || null,
+            grade: serie || null,
+            enrollment_number: onlyDigits(matricula),
+            mismatch_reason: enrollmentValidation.reason,
+          });
+        } catch {
+          // Não impede o bloqueio do cadastro caso o registro CRM falhe.
+        }
+        try {
+          await sendStudentMismatchEmail({
+            fullName: nome.trim(),
+            candidateEmail: email.trim(),
+          });
+        } catch {
+          // Não impede o bloqueio do cadastro caso o e-mail falhe.
+        }
         Alert.alert(
           "Matrícula não validada",
           "Você não está matriculado no Colégio Einstein porque o número de matrícula não corresponde ao nome do aluno.",
@@ -96,6 +122,7 @@ export default function CadastroScreen() {
         trackEvent("signup_enrollment_mismatch", {
           reason: enrollmentValidation.reason,
           enrollment_number: onlyDigits(matricula),
+          crm_lead_id: crmLeadId,
         });
         return;
       }
