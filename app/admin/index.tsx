@@ -31,9 +31,10 @@ import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 
-type AdminTab = ReturnType<typeof getAdminCoreTabs>[number]["key"] | "gtm" | "notificacoes";
+type AdminTab = ReturnType<typeof getAdminCoreTabs>[number]["key"] | "crm-inscricoes" | "gtm" | "notificacoes";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
+  { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "notificacoes", label: "Notificações" },
   { key: "gtm", label: "GTM" },
 ];
@@ -195,6 +196,8 @@ export default function AdminDashboardScreen() {
   const [pendingRequests, setPendingRequests] = useState<AccessRequestRow[]>([]);
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [crmSearch, setCrmSearch] = useState("");
+  const [crmDeletingUserId, setCrmDeletingUserId] = useState<string | null>(null);
 
   const categoryCardStyles = {
     uso: {
@@ -678,6 +681,28 @@ export default function AdminDashboardScreen() {
     }
   }
 
+  async function handleHardDeleteStudent(studentId: string) {
+    const student = students.find((item) => item.id === studentId);
+    const studentName = student?.full_name?.trim() || "este aluno";
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm(`Esta ação é irreversível. Confirma excluir permanentemente ${studentName}?`)
+        : true;
+    if (!confirmed) return;
+
+    try {
+      setCrmDeletingUserId(studentId);
+      await hardDeleteUserAdmin(studentId);
+      await reloadStudentsAndRanking();
+      Alert.alert("Exclusão permanente concluída", `${studentName} foi removido definitivamente.`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao excluir inscrição permanentemente.";
+      Alert.alert("Erro", message);
+    } finally {
+      setCrmDeletingUserId(null);
+    }
+  }
+
   async function reloadPendingRequests() {
     const requests = await fetchPendingAccessRequestsAdmin();
     setPendingRequests(requests);
@@ -730,6 +755,34 @@ export default function AdminDashboardScreen() {
     } finally {
       setReviewingRequestId(null);
     }
+  }
+
+  const crmRows = [...students]
+    .filter((row) => {
+      const query = crmSearch.trim().toLowerCase();
+      if (!query) return true;
+      const name = row.full_name?.toLowerCase() ?? "";
+      const grade = row.grade?.toLowerCase() ?? "";
+      const className = row.class_name?.toLowerCase() ?? "";
+      return name.includes(query) || grade.includes(query) || className.includes(query) || row.id.toLowerCase().includes(query);
+    })
+    .sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+
+  function formatCrmDate(dateValue?: string | null) {
+    if (!dateValue) return "Data não disponível";
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "Data não disponível";
+    return date.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   return (
@@ -1513,6 +1566,113 @@ export default function AdminDashboardScreen() {
                         </View>
                       </View>
                     ))
+                  )}
+                </View>
+              </View>
+            ) : null}
+
+            {activeTab === "crm-inscricoes" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  CRM Inscrições
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
+                  Lista de inscrições de alunos para triagem administrativa e remoção de cadastros indevidos.
+                </Text>
+                <TextInput
+                  placeholder="Buscar por nome, série, turma ou ID"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  value={crmSearch}
+                  onChangeText={setCrmSearch}
+                  style={{
+                    marginTop: spacing.sm,
+                    height: 44,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.74)" }}>
+                    Total exibido: {crmRows.length}
+                  </Text>
+                  {crmRows.length === 0 ? (
+                    <View
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: colors.borderSoft,
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        padding: spacing.sm,
+                      }}
+                    >
+                      <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                        Nenhuma inscrição encontrada para os filtros atuais.
+                      </Text>
+                    </View>
+                  ) : (
+                    crmRows.map((student) => {
+                      const deleting = crmDeletingUserId === student.id;
+                      return (
+                        <View
+                          key={`crm-${student.id}`}
+                          style={{
+                            borderRadius: radii.md,
+                            borderWidth: 1,
+                            borderColor: colors.borderSoft,
+                            backgroundColor: "rgba(255,255,255,0.03)",
+                            padding: spacing.sm,
+                          }}
+                        >
+                          <Text style={{ color: colors.white }} weight="semibold">
+                            {student.full_name ?? "Sem nome"}
+                          </Text>
+                          <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+                            Série: {student.grade ?? "Não informada"} • Turma: {student.class_name ?? "Não informada"}
+                          </Text>
+                          <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 2 }}>
+                            Inscrição: {formatCrmDate(student.created_at)}
+                          </Text>
+                          <Text style={{ color: "rgba(255,255,255,0.6)", marginTop: 2 }}>ID: {student.id}</Text>
+                          <View style={{ marginTop: spacing.xs, flexDirection: "row", gap: spacing.xs }}>
+                            <Pressable
+                              onPress={() => {
+                                void handleHardDeleteStudent(student.id);
+                              }}
+                              disabled={deleting}
+                              style={{
+                                height: 38,
+                                borderRadius: radii.md,
+                                paddingHorizontal: spacing.sm,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderWidth: 1,
+                                borderColor: "rgba(252,165,165,0.5)",
+                                backgroundColor: "rgba(127,29,29,0.25)",
+                                opacity: deleting ? 0.7 : 1,
+                              }}
+                            >
+                              <Text style={{ color: "#fecaca" }} weight="bold">
+                                {deleting ? "Excluindo..." : "Excluir permanentemente"}
+                              </Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      );
+                    })
                   )}
                 </View>
               </View>
