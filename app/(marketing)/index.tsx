@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import { Text } from "../../components/ui/Text";
@@ -38,6 +38,7 @@ export default function MarketingLandingScreen() {
   const [rows, setRows] = useState<TeaserRow[]>([]);
   const [olympiads, setOlympiads] = useState<LandingOlympiadRow[]>([]);
   const [hasSession, setHasSession] = useState(false);
+  const [showPrizePopup, setShowPrizePopup] = useState(true);
 
   async function load() {
     try {
@@ -84,15 +85,16 @@ export default function MarketingLandingScreen() {
 
   return (
     <StitchScreenFrame>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md }}
-      >
-        <View style={{ paddingTop: spacing.xs }}>
-          <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 21 }}>
-            {copy.program.headline}
-          </Text>
-        </View>
+      <>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md }}
+        >
+          <View style={{ paddingTop: spacing.xs }}>
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 21 }}>
+              {copy.program.headline}
+            </Text>
+          </View>
 
         <View
           style={{
@@ -429,7 +431,97 @@ export default function MarketingLandingScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+
+        <Modal visible={showPrizePopup} transparent animationType="fade" onRequestClose={() => setShowPrizePopup(false)}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.72)",
+              justifyContent: "center",
+              paddingHorizontal: spacing.md,
+            }}
+          >
+            <View
+              style={{
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+                gap: spacing.sm,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="bold">
+                ETAPA 1 - COLÉGIO EINSTEIN
+              </Text>
+              <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+                Premiação Top 3 - Total R$ 800
+              </Text>
+
+              <View style={{ gap: 4 }}>
+                <Text style={{ color: "rgba(255,255,255,0.9)" }}>🥇 1º lugar: R$ 450 (cartão pré-pago/PIX prêmio)</Text>
+                <Text style={{ color: "rgba(255,255,255,0.9)" }}>🥈 2º lugar: R$ 250 (voucher para tênis)</Text>
+                <Text style={{ color: "rgba(255,255,255,0.9)" }}>🥉 3º lugar: R$ 100 (combo cinema + lanche)</Text>
+              </View>
+
+              <View
+                style={{
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,80,80,0.5)",
+                  backgroundColor: "rgba(255,80,80,0.14)",
+                  padding: spacing.sm,
+                }}
+              >
+                <Text style={{ color: "#FFD7D7", textAlign: "center" }} weight="bold">
+                  APENAS ALUNOS DO PLANO PRO PARTICIPAM DA PREMIAÇÃO.
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: spacing.xs }}>
+                <Pressable
+                  onPress={() => setShowPrizePopup(false)}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    borderRadius: radii.md,
+                    backgroundColor: "rgba(255,255,255,0.1)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">
+                    Fechar
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setShowPrizePopup(false);
+                    if (hasSession) {
+                      router.push("/(tabs)/planos");
+                      return;
+                    }
+                    router.push("/(auth)/cadastro");
+                  }}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    borderRadius: radii.md,
+                    backgroundColor: colors.einsteinYellow,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                    Quero Plano PRO
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </>
     </StitchScreenFrame>
   );
 }
