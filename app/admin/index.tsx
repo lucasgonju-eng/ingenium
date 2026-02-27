@@ -8,6 +8,8 @@ import {
   assignTeacherToOlympiad,
   createTeacher,
   fetchPendingAccessRequestsAdmin,
+  importStudentEnrollments2026Admin,
+  listStudentEnrollments2026Admin,
   fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
@@ -24,6 +26,7 @@ import {
   type FullStudentRow,
   type RankingStudentRow,
   type SaasAnalyticsOverview,
+  type StudentEnrollment2026Row,
   type TeacherRow,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
@@ -31,10 +34,16 @@ import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 
-type AdminTab = ReturnType<typeof getAdminCoreTabs>[number]["key"] | "crm-inscricoes" | "gtm" | "notificacoes";
+type AdminTab =
+  | ReturnType<typeof getAdminCoreTabs>[number]["key"]
+  | "crm-inscricoes"
+  | "importacao-2026"
+  | "gtm"
+  | "notificacoes";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
   { key: "crm-inscricoes", label: "CRM Inscrições" },
+  { key: "importacao-2026", label: "Importação 2026" },
   { key: "notificacoes", label: "Notificações" },
   { key: "gtm", label: "GTM" },
 ];
@@ -196,6 +205,10 @@ export default function AdminDashboardScreen() {
   const [pendingRequests, setPendingRequests] = useState<AccessRequestRow[]>([]);
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [enrollmentImportText, setEnrollmentImportText] = useState("");
+  const [enrollmentRows, setEnrollmentRows] = useState<StudentEnrollment2026Row[]>([]);
+  const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+  const [enrollmentImporting, setEnrollmentImporting] = useState(false);
   const [crmSearch, setCrmSearch] = useState("");
   const [crmDeletingUserId, setCrmDeletingUserId] = useState<string | null>(null);
 
@@ -259,6 +272,12 @@ export default function AdminDashboardScreen() {
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
         setSaasAnalytics(analyticsData);
         setPendingRequests(requestsData);
+        try {
+          const enrollmentData = await listStudentEnrollments2026Admin();
+          if (mounted) setEnrollmentRows(enrollmentData);
+        } catch {
+          if (mounted) setEnrollmentRows([]);
+        }
       } catch (e: unknown) {
         if (!mounted) return;
         const message = e instanceof Error ? e.message : "Falha ao carregar dashboard admin.";
@@ -706,6 +725,63 @@ export default function AdminDashboardScreen() {
   async function reloadPendingRequests() {
     const requests = await fetchPendingAccessRequestsAdmin();
     setPendingRequests(requests);
+  }
+
+  async function reloadEnrollmentRows() {
+    setEnrollmentLoading(true);
+    try {
+      const rows = await listStudentEnrollments2026Admin();
+      setEnrollmentRows(rows);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao carregar a base de matrículas 2026.";
+      Alert.alert("Erro", message);
+    } finally {
+      setEnrollmentLoading(false);
+    }
+  }
+
+  function parseEnrollmentImportText(raw: string) {
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const parts = line.split(/[;,\t|]/).map((part) => part.trim());
+        const enrollmentNumber = (parts[0] ?? "").replace(/\D/g, "");
+        const fullName = (parts.slice(1).join(" ") ?? "").trim();
+        return { enrollment_number: enrollmentNumber, full_name: fullName };
+      })
+      .filter((row) => row.enrollment_number && row.full_name);
+  }
+
+  async function handleImportEnrollments2026() {
+    const parsedRows = parseEnrollmentImportText(enrollmentImportText);
+    if (!parsedRows.length) {
+      Alert.alert("Lista vazia", "Cole linhas no formato: matrícula;nome completo.");
+      return;
+    }
+
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm(`Confirma importar ${parsedRows.length} registro(s) da base 2026?`)
+        : true;
+    if (!confirmed) return;
+
+    try {
+      setEnrollmentImporting(true);
+      const result = await importStudentEnrollments2026Admin(parsedRows);
+      await reloadEnrollmentRows();
+      Alert.alert(
+        "Importação concluída",
+        `Processados: ${result.total_count} | Novos: ${result.imported_count} | Atualizados: ${result.updated_count}`,
+      );
+      setEnrollmentImportText("");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao importar base de matrículas 2026.";
+      Alert.alert("Erro", message);
+    } finally {
+      setEnrollmentImporting(false);
+    }
   }
 
   async function handleReviewRequest(requestId: string, approve: boolean) {
@@ -1674,6 +1750,120 @@ export default function AdminDashboardScreen() {
                       );
                     })
                   )}
+                </View>
+              </View>
+            ) : null}
+
+            {activeTab === "importacao-2026" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Base de alunos matriculados - 2026
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
+                  Cole a lista completa no formato: matrícula;nome completo (uma linha por aluno).
+                </Text>
+
+                <TextInput
+                  multiline
+                  numberOfLines={8}
+                  value={enrollmentImportText}
+                  onChangeText={setEnrollmentImportText}
+                  placeholder={"20260001;Maria da Silva\n20260002;João Pedro Souza"}
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  style={{
+                    marginTop: spacing.sm,
+                    minHeight: 150,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: spacing.sm,
+                    textAlignVertical: "top",
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+
+                <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
+                  <Pressable
+                    onPress={() => {
+                      void handleImportEnrollments2026();
+                    }}
+                    disabled={enrollmentImporting}
+                    style={{
+                      height: 42,
+                      borderRadius: radii.md,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: spacing.md,
+                      backgroundColor: colors.einsteinYellow,
+                      opacity: enrollmentImporting ? 0.7 : 1,
+                    }}
+                  >
+                    <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                      {enrollmentImporting ? "Importando..." : "Importar lista 2026"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      void reloadEnrollmentRows();
+                    }}
+                    disabled={enrollmentLoading}
+                    style={{
+                      height: 42,
+                      borderRadius: radii.md,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: spacing.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                      opacity: enrollmentLoading ? 0.7 : 1,
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      Atualizar lista
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.75)" }}>
+                    Registros cadastrados: {enrollmentRows.length}
+                  </Text>
+                  {enrollmentRows.slice(0, 200).map((row) => (
+                    <View
+                      key={`enrollment-${row.id}`}
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: colors.borderSoft,
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        padding: spacing.sm,
+                      }}
+                    >
+                      <Text style={{ color: colors.white }} weight="semibold">
+                        {row.full_name}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
+                        Matrícula: {row.enrollment_number} • Ano letivo: {row.school_year}
+                      </Text>
+                    </View>
+                  ))}
+                  {enrollmentRows.length > 200 ? (
+                    <Text style={{ color: "rgba(255,255,255,0.6)" }}>
+                      Exibindo os 200 primeiros registros. Use a atualização após nova importação.
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             ) : null}

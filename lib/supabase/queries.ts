@@ -98,6 +98,21 @@ export type SaasAnalyticsOverview = {
   least_accessed_logins: Array<{ user_id: string; full_name: string; accesses: number }>;
 };
 
+export type StudentEnrollment2026Row = {
+  id: string;
+  enrollment_number: string;
+  full_name: string;
+  school_year: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EnrollmentValidationResult = {
+  is_match: boolean;
+  reason: string;
+  matched_name: string | null;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -743,6 +758,51 @@ export async function fetchSaasAnalyticsOverview(days = 30): Promise<SaasAnalyti
     least_accessed_logins: Array.isArray(row.least_accessed_logins)
       ? (row.least_accessed_logins as Array<{ user_id: string; full_name: string; accesses: number }>)
       : [],
+  };
+}
+
+export async function listStudentEnrollments2026Admin() {
+  const { data, error } = await supabase.rpc("list_student_enrollments_2026_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    enrollment_number: String(row.enrollment_number ?? ""),
+    full_name: String(row.full_name ?? ""),
+    school_year: Number(row.school_year ?? 2026),
+    created_at: String(row.created_at ?? new Date().toISOString()),
+    updated_at: String(row.updated_at ?? new Date().toISOString()),
+  })) as StudentEnrollment2026Row[];
+}
+
+export async function importStudentEnrollments2026Admin(
+  rows: Array<{ enrollment_number: string; full_name: string }>,
+) {
+  const { data, error } = await supabase.rpc("import_student_enrollments_2026_admin", {
+    p_rows: rows,
+  });
+  if (error) throw error;
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    imported_count: Number((result as { imported_count?: number } | null)?.imported_count ?? 0),
+    updated_count: Number((result as { updated_count?: number } | null)?.updated_count ?? 0),
+    total_count: Number((result as { total_count?: number } | null)?.total_count ?? 0),
+  };
+}
+
+export async function validateStudentEnrollment2026(input: {
+  full_name: string;
+  enrollment_number: string;
+}): Promise<EnrollmentValidationResult> {
+  const { data, error } = await supabase.rpc("validate_student_enrollment_2026", {
+    p_full_name: input.full_name,
+    p_enrollment_number: input.enrollment_number,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    is_match: Boolean((row as { is_match?: boolean } | null)?.is_match),
+    reason: String((row as { reason?: string } | null)?.reason ?? "Validação indisponível."),
+    matched_name: (row as { matched_name?: string | null } | null)?.matched_name ?? null,
   };
 }
 

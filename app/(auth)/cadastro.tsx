@@ -6,6 +6,7 @@ import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
 import { trackEvent } from "../../lib/analytics/gtm";
+import { validateStudentEnrollment2026 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -35,6 +36,7 @@ export default function CadastroScreen() {
   const [nome, setNome] = useState("");
   const [serie, setSerie] = useState<(typeof SERIES_OPTIONS)[number] | "">("");
   const [cpf, setCpf] = useState("");
+  const [matricula, setMatricula] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
@@ -54,10 +56,15 @@ export default function CadastroScreen() {
   }, []);
 
   const handleSignUp = async () => {
-    if (!nome || !serie || !cpf || !email || !password) {
-      Alert.alert("Campos obrigatórios", "Preencha nome completo, série, CPF, e-mail e senha.");
+    if (!nome || !serie || !cpf || !matricula || !email || !password) {
+      Alert.alert("Campos obrigatórios", "Preencha nome completo, série, CPF, matrícula, e-mail e senha.");
       return;
     }
+    if (onlyDigits(matricula).length < 4) {
+      Alert.alert("Matrícula inválida", "Informe a matrícula completa do aluno.");
+      return;
+    }
+
     if (onlyDigits(cpf).length !== 11) {
       Alert.alert("CPF inválido", "Digite um CPF válido com 11 números.");
       return;
@@ -77,6 +84,22 @@ export default function CadastroScreen() {
         return;
       }
 
+      const enrollmentValidation = await validateStudentEnrollment2026({
+        full_name: nome.trim(),
+        enrollment_number: onlyDigits(matricula),
+      });
+      if (!enrollmentValidation.is_match) {
+        Alert.alert(
+          "Matrícula não validada",
+          "Você não está matriculado no Colégio Einstein porque o número de matrícula não corresponde ao nome do aluno.",
+        );
+        trackEvent("signup_enrollment_mismatch", {
+          reason: enrollmentValidation.reason,
+          enrollment_number: onlyDigits(matricula),
+        });
+        return;
+      }
+
       const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -86,6 +109,7 @@ export default function CadastroScreen() {
             full_name: nome.trim(),
             grade: serie,
             cpf: onlyDigits(cpf),
+            enrollment_number: onlyDigits(matricula),
             whatsapp: onlyDigits(whatsapp) || null,
             role: "student",
           },
@@ -224,6 +248,24 @@ export default function CadastroScreen() {
               keyboardType="number-pad"
               value={cpf}
               onChangeText={(value) => setCpf(formatCpf(value))}
+              style={{
+                marginTop: spacing.xs,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+            <TextInput
+              placeholder="Número de matrícula"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              keyboardType="number-pad"
+              value={matricula}
+              onChangeText={(value) => setMatricula(onlyDigits(value))}
               style={{
                 marginTop: spacing.xs,
                 height: 46,
