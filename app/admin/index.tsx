@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
@@ -209,6 +209,7 @@ export default function AdminDashboardScreen() {
   const [enrollmentRows, setEnrollmentRows] = useState<StudentEnrollment2026Row[]>([]);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentImporting, setEnrollmentImporting] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const [crmSearch, setCrmSearch] = useState("");
   const [crmDeletingUserId, setCrmDeletingUserId] = useState<string | null>(null);
 
@@ -741,17 +742,62 @@ export default function AdminDashboardScreen() {
   }
 
   function parseEnrollmentImportText(raw: string) {
-    return raw
+    const cleaned = raw.replace(/^\uFEFF/, "");
+    const lines = cleaned
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter(Boolean)
+      .filter(Boolean);
+
+    if (!lines.length) return [];
+
+    const firstLine = lines[0].toLowerCase();
+    const hasHeader =
+      firstLine.includes("matr") ||
+      firstLine.includes("enrollment") ||
+      firstLine.includes("nome") ||
+      firstLine.includes("name");
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+
+    return dataLines
       .map((line) => {
-        const parts = line.split(/[;,\t|]/).map((part) => part.trim());
+        const parts = line.split(/[;,\t|]/).map((part) => part.trim().replace(/^"|"$/g, ""));
         const enrollmentNumber = (parts[0] ?? "").replace(/\D/g, "");
         const fullName = (parts.slice(1).join(" ") ?? "").trim();
         return { enrollment_number: enrollmentNumber, full_name: fullName };
       })
       .filter((row) => row.enrollment_number && row.full_name);
+  }
+
+  function openCsvPicker() {
+    if (Platform.OS !== "web") {
+      Alert.alert("Disponível no web", "O upload de CSV está disponível no painel web do admin.");
+      return;
+    }
+    csvInputRef.current?.click();
+  }
+
+  async function handleCsvFileSelected(file: File | null) {
+    if (!file) return;
+    if (Platform.OS !== "web") return;
+    try {
+      const text = await file.text();
+      const parsedRows = parseEnrollmentImportText(text);
+      if (!parsedRows.length) {
+        Alert.alert("CSV sem dados válidos", "Use colunas no formato: matrícula;nome completo.");
+        return;
+      }
+      setEnrollmentImportText(
+        parsedRows.map((row) => `${row.enrollment_number};${row.full_name}`).join("\n"),
+      );
+      Alert.alert("CSV carregado", `${parsedRows.length} registro(s) prontos para importação.`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao ler arquivo CSV.";
+      Alert.alert("Erro", message);
+    } finally {
+      if (csvInputRef.current) {
+        csvInputRef.current.value = "";
+      }
+    }
   }
 
   async function handleImportEnrollments2026() {
@@ -1795,6 +1841,23 @@ export default function AdminDashboardScreen() {
 
                 <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
                   <Pressable
+                    onPress={openCsvPicker}
+                    style={{
+                      height: 42,
+                      borderRadius: radii.md,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: spacing.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      Subir CSV
+                    </Text>
+                  </Pressable>
+                  <Pressable
                     onPress={() => {
                       void handleImportEnrollments2026();
                     }}
@@ -1835,6 +1898,18 @@ export default function AdminDashboardScreen() {
                     </Text>
                   </Pressable>
                 </View>
+                {Platform.OS === "web" ? (
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    style={{ display: "none" }}
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0] ?? null;
+                      void handleCsvFileSelected(file);
+                    }}
+                  />
+                ) : null}
 
                 <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
                   <Text style={{ color: "rgba(255,255,255,0.75)" }}>
