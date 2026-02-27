@@ -70,9 +70,9 @@ export const copy = {
       },
     ],
     goldAwards: [
+      "Troféu Lobo de Ouro",
       "Certificado oficial InGenium - Classe Ouro",
       "Jaqueta numerada do ano (colecionável)",
-      "Troféu Lobo de Ouro",
       "Nome em mural físico + Hall digital",
     ],
     goldTop3Awards: [

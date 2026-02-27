@@ -285,20 +285,25 @@ export default function MarketingLandingScreen() {
           <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
             Premiação - Lobo de Ouro
           </Text>
-          {copy.program.goldAwards.map((award) => (
+          {copy.program.goldAwards.map((award) => {
+            const isMainAward = award === "Troféu Lobo de Ouro";
+            return (
             <View
               key={award}
               style={{
                 borderRadius: radii.md,
                 borderWidth: 1,
-                borderColor: colors.borderSoft,
+                borderColor: isMainAward ? "rgba(255,199,0,0.45)" : colors.borderSoft,
                 backgroundColor: colors.surfacePanel,
                 padding: spacing.md,
               }}
             >
-              <Text style={{ color: "rgba(255,255,255,0.84)" }}>{award}</Text>
+              <Text style={{ color: isMainAward ? colors.einsteinYellow : "rgba(255,255,255,0.84)" }} weight={isMainAward ? "bold" : "regular"}>
+                {award}
+              </Text>
             </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={{ gap: spacing.sm }}>
