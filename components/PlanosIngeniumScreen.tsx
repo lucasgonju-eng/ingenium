@@ -305,6 +305,8 @@ export default function PlanosIngeniumScreen() {
             {planosContent.finalTitle}
           </Text>
           <Pressable
+            onPress={() => void handleProCheckout()}
+            disabled={creatingProCheckout}
             style={{
               marginTop: spacing.md,
               height: 54,
@@ -312,10 +314,11 @@ export default function PlanosIngeniumScreen() {
               backgroundColor: colors.einsteinYellow,
               alignItems: "center",
               justifyContent: "center",
+              opacity: creatingProCheckout ? 0.7 : 1,
             }}
           >
             <Text style={{ color: colors.einsteinBlue, fontSize: 16 }} weight="bold">
-              {planosContent.finalCta}
+              {creatingProCheckout ? "Abrindo checkout..." : planosContent.finalCta}
             </Text>
           </Pressable>
           <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, textAlign: "center" }}>
