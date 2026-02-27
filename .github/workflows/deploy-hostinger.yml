@@ -175,6 +175,7 @@ jobs:
           cp hostinger/ai-feed-audit.php dist/ai-feed-audit.php
           cp hostinger/access-request-notify.php dist/access-request-notify.php
           cp hostinger/access-request-pending-notify.php dist/access-request-pending-notify.php
+          cp hostinger/student-mismatch-notify.php dist/student-mismatch-notify.php
           cat > dist/asaas-config.json <<'EOF'
           {
             "apiKey": "${{ secrets.ASAAS_API_KEY }}",
