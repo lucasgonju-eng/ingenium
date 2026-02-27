@@ -26,6 +26,10 @@ type LandingOlympiadRow = {
   registration_deadline: string | null;
 };
 
+function canUseWebStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
 function formatShortDate(value: string | null) {
   if (!value) return "Sem data";
   const date = new Date(value);
@@ -38,7 +42,15 @@ export default function MarketingLandingScreen() {
   const [rows, setRows] = useState<TeaserRow[]>([]);
   const [olympiads, setOlympiads] = useState<LandingOlympiadRow[]>([]);
   const [hasSession, setHasSession] = useState(false);
-  const [showPrizePopup, setShowPrizePopup] = useState(true);
+  const [showPrizePopup, setShowPrizePopup] = useState(false);
+  const [prizePopupStorageKey, setPrizePopupStorageKey] = useState<string | null>(null);
+
+  function dismissPrizePopup() {
+    if (prizePopupStorageKey && canUseWebStorage()) {
+      window.localStorage.setItem(prizePopupStorageKey, "1");
+    }
+    setShowPrizePopup(false);
+  }
 
   async function load() {
     try {
@@ -47,6 +59,15 @@ export default function MarketingLandingScreen() {
       const { data } = await supabase.auth.getSession();
       const ok = Boolean(data.session);
       setHasSession(ok);
+      if (!ok || !data.session?.user?.id) {
+        setPrizePopupStorageKey(null);
+        setShowPrizePopup(false);
+      } else {
+        const storageKey = `ingenium.lp.etapa1.prize_popup_seen.${data.session.user.id}`;
+        setPrizePopupStorageKey(storageKey);
+        const alreadySeen = canUseWebStorage() ? window.localStorage.getItem(storageKey) === "1" : false;
+        setShowPrizePopup(!alreadySeen);
+      }
 
       const today = new Date().toISOString().slice(0, 10);
       const [teaser, olympiadsResult] = await Promise.all([
@@ -433,7 +454,7 @@ export default function MarketingLandingScreen() {
         </View>
         </ScrollView>
 
-        <Modal visible={showPrizePopup} transparent animationType="fade" onRequestClose={() => setShowPrizePopup(false)}>
+        <Modal visible={showPrizePopup} transparent animationType="fade" onRequestClose={dismissPrizePopup}>
           <View
             style={{
               flex: 1,
@@ -481,7 +502,7 @@ export default function MarketingLandingScreen() {
 
               <View style={{ flexDirection: "row", gap: spacing.xs }}>
                 <Pressable
-                  onPress={() => setShowPrizePopup(false)}
+                  onPress={dismissPrizePopup}
                   style={{
                     flex: 1,
                     height: 44,
@@ -497,7 +518,7 @@ export default function MarketingLandingScreen() {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    setShowPrizePopup(false);
+                    dismissPrizePopup();
                     if (hasSession) {
                       router.push("/(tabs)/planos");
                       return;
