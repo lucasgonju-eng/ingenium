@@ -44,10 +44,11 @@ export default function MarketingLandingScreen() {
   const [hasSession, setHasSession] = useState(false);
   const [showPrizePopup, setShowPrizePopup] = useState(false);
   const [prizePopupStorageKey, setPrizePopupStorageKey] = useState<string | null>(null);
+  const [prizePopupSeenValue, setPrizePopupSeenValue] = useState<string | null>(null);
 
   function dismissPrizePopup() {
-    if (prizePopupStorageKey && canUseWebStorage()) {
-      window.localStorage.setItem(prizePopupStorageKey, "1");
+    if (prizePopupStorageKey && prizePopupSeenValue && canUseWebStorage()) {
+      window.localStorage.setItem(prizePopupStorageKey, prizePopupSeenValue);
     }
     setShowPrizePopup(false);
   }
@@ -61,11 +62,15 @@ export default function MarketingLandingScreen() {
       setHasSession(ok);
       if (!ok || !data.session?.user?.id) {
         setPrizePopupStorageKey(null);
+        setPrizePopupSeenValue(null);
         setShowPrizePopup(false);
       } else {
         const storageKey = `ingenium.lp.etapa1.prize_popup_seen.${data.session.user.id}`;
+        const currentLoginMarker =
+          data.session.user.last_sign_in_at ?? data.session.expires_at?.toString() ?? "logged-session";
         setPrizePopupStorageKey(storageKey);
-        const alreadySeen = canUseWebStorage() ? window.localStorage.getItem(storageKey) === "1" : false;
+        setPrizePopupSeenValue(currentLoginMarker);
+        const alreadySeen = canUseWebStorage() ? window.localStorage.getItem(storageKey) === currentLoginMarker : false;
         setShowPrizePopup(!alreadySeen);
       }
 
