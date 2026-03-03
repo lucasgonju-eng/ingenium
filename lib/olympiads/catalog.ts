@@ -431,8 +431,20 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     schedule: {
       timezone: "America/Sao_Paulo",
       displayTimezoneLabel: "horário de Brasília",
+      registrationStart: "2026-01-19",
       calendarStatus: "Inscrições OP 2026 abertas (consultar calendário oficial)",
       calendarYearConfirmed: false,
+      calendarEvents: [
+        { key: "inscricoes_abertas_2026", label: "Inscrições abertas (OP 2026)", date: "2026-01-19" },
+        { key: "fim_1_periodo_inscricao", label: "Fim do 1º período de inscrição (valores reduzidos)", date: "2026-03-13" },
+        { key: "inicio_2_periodo_inscricao", label: "Início do 2º período de inscrição", date: "2026-03-14" },
+        { key: "inicio_inscricoes", label: "Início das inscrições", date: "2026-03-16" },
+        {
+          key: "candidatura_polo_segunda_fase",
+          label: "Início da candidatura a polo da 2ª fase (opcional)",
+          date: "2026-05-13",
+        },
+      ],
       calendarNote:
         "O portal oficial da OP informa inscrições abertas para 2026 e publica atualizações de calendário no próprio site. Mantemos aqui como 'em breve' até consolidar todas as datas oficiais em formato único.",
     },
@@ -587,9 +599,18 @@ function getFirstEventDate(schedule: OlympiadSchedule) {
 }
 
 function getStatusFromSchedule(schedule: OlympiadSchedule) {
+  const calendarStatusHint = (schedule.calendarStatus ?? "").toLowerCase();
+  if (calendarStatusHint.includes("inscri") && calendarStatusHint.includes("abert")) {
+    return "open";
+  }
+
   if (schedule.calendarYearConfirmed === false) return "upcoming";
 
   const now = new Date();
+  if (schedule.registrationStart && !schedule.registrationDeadline) {
+    const start = new Date(`${schedule.registrationStart}T00:00:00`);
+    return now >= start ? "open" : "upcoming";
+  }
   if (schedule.registrationStart && schedule.registrationDeadline) {
     const start = new Date(`${schedule.registrationStart}T00:00:00`);
     const end = endOfDay(schedule.registrationDeadline);

@@ -126,7 +126,16 @@ export default function OlimpiadaDetalheScreen() {
 
   const canRegister = useMemo(() => {
     if (catalogItem) {
-      return new Date(`${catalogItem.schedule.registrationDeadline}T23:59:59`).getTime() >= Date.now();
+      const now = Date.now();
+      if (catalogItem.schedule.registrationStart) {
+        const startAt = new Date(`${catalogItem.schedule.registrationStart}T00:00:00`).getTime();
+        if (!Number.isNaN(startAt) && now < startAt) return false;
+      }
+      if (catalogItem.schedule.registrationDeadline) {
+        const endAt = new Date(`${catalogItem.schedule.registrationDeadline}T23:59:59`).getTime();
+        if (!Number.isNaN(endAt)) return endAt >= now;
+      }
+      return true;
     }
     if (!olympiad) return false;
     const isOpen = olympiad.status === "open" || olympiad.status === "published";
@@ -272,7 +281,7 @@ export default function OlimpiadaDetalheScreen() {
   const ctaLabel = catalogItem
     ? !canRegister
       ? "Inscrições encerradas"
-      : "Quero participar"
+      : "Inscrever-se"
     : enrolled
       ? "Inscrito ✅"
       : !canRegister
@@ -587,7 +596,7 @@ export default function OlimpiadaDetalheScreen() {
                 }}
               >
                 <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                  Quero participar
+                  Inscrever-se / Plano PRO
                 </Text>
               </Pressable>
             </View>
