@@ -9,6 +9,7 @@ import { trackEvent } from "../../lib/analytics/gtm";
 import {
   sendStudentPendingStatusEmail,
   submitStudentSignupPendingRequest,
+  upsertStudentSignupCrmLead,
   validateStudentEnrollment2026,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
@@ -123,6 +124,22 @@ export default function CadastroScreen() {
         Alert.alert("Erro no cadastro", error.message);
         trackEvent("signup_error", { message: error.message });
         return;
+      }
+
+      try {
+        await upsertStudentSignupCrmLead({
+          full_name: nome.trim(),
+          email: email.trim(),
+          cpf: onlyDigits(cpf),
+          whatsapp: onlyDigits(whatsapp) || null,
+          grade: serie || null,
+          enrollment_number: onlyDigits(matricula),
+          lifecycle_status: isPendingValidation ? "enrollment_pending" : "created_unverified",
+          auth_user_id: signUpData.user?.id ?? null,
+          notes: "Cadastro criado no Auth; aguardando confirmação de e-mail e/ou validação de matrícula.",
+        });
+      } catch {
+        // Não bloqueia o cadastro caso o CRM lead falhe.
       }
 
       if (isPendingValidation) {

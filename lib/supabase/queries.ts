@@ -924,6 +924,32 @@ export async function submitStudentSignupPendingRequest(input: {
   return String(data ?? "");
 }
 
+export async function upsertStudentSignupCrmLead(input: {
+  full_name: string;
+  email: string;
+  cpf?: string | null;
+  whatsapp?: string | null;
+  grade?: string | null;
+  enrollment_number?: string | null;
+  lifecycle_status?: "created_unverified" | "enrollment_pending" | "approved" | "rejected" | "active";
+  auth_user_id?: string | null;
+  notes?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("upsert_student_signup_crm_lead", {
+    p_full_name: input.full_name,
+    p_email: input.email,
+    p_cpf: input.cpf ?? null,
+    p_whatsapp: input.whatsapp ?? null,
+    p_grade: input.grade ?? null,
+    p_enrollment_number: input.enrollment_number ?? null,
+    p_lifecycle_status: input.lifecycle_status ?? "created_unverified",
+    p_auth_user_id: input.auth_user_id ?? null,
+    p_notes: input.notes ?? null,
+  });
+  if (error) throw error;
+  return String(data ?? "");
+}
+
 export async function listStudentSignupPendingRequestsAdmin() {
   const { data, error } = await supabase.rpc("list_student_signup_pending_requests_admin");
   if (error) throw error;
