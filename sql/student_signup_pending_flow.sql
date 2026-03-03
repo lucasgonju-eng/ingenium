@@ -168,7 +168,7 @@ as $$
       select 1
       from public.profiles actor
       where actor.id = auth.uid()
-        and coalesce(lower(actor.role), 'student') = 'admin'
+        and coalesce(lower(actor.role), 'student') in ('admin', 'coord', 'gestao')
     )
     and r.status = 'pending'
   order by r.attempted_at desc;
@@ -204,7 +204,7 @@ begin
   from public.profiles
   where id = auth.uid();
 
-  if v_actor_role <> 'admin' then
+  if v_actor_role not in ('admin', 'coord', 'gestao') then
     raise exception 'Sem permissão para revisar pendências de alunos.';
   end if;
 
