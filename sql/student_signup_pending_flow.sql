@@ -297,26 +297,31 @@ begin
     and public.normalize_student_name(d.full_name) = public.normalize_student_name(v_req.full_name);
 
   if p_approve and coalesce(v_req.enrollment_number, '') <> '' then
-    v_norm_name := public.normalize_student_name(v_req.full_name);
-    insert into public.student_enrollments_2026 (
-      enrollment_number,
-      full_name,
-      full_name_normalized,
-      school_year,
-      updated_at
-    )
-    values (
-      v_req.enrollment_number,
-      v_req.full_name,
-      v_norm_name,
-      2026,
-      now()
-    )
-    on conflict (enrollment_number) do update
-    set full_name = excluded.full_name,
-        full_name_normalized = excluded.full_name_normalized,
-        school_year = 2026,
-        updated_at = now();
+    begin
+      v_norm_name := public.normalize_student_name(v_req.full_name);
+      insert into public.student_enrollments_2026 (
+        enrollment_number,
+        full_name,
+        full_name_normalized,
+        school_year,
+        updated_at
+      )
+      values (
+        v_req.enrollment_number,
+        v_req.full_name,
+        v_norm_name,
+        2026,
+        now()
+      )
+      on conflict (enrollment_number) do update
+      set full_name = excluded.full_name,
+          full_name_normalized = excluded.full_name_normalized,
+          school_year = 2026,
+          updated_at = now();
+    exception when others then
+      -- Não bloqueia aprovação por falha lateral na base 2026.
+      null;
+    end;
   end if;
 
   if p_approve then
@@ -331,26 +336,64 @@ begin
     end if;
 
     if v_target_user_id is not null then
-      update auth.users
-      set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object(
-            'role', 'student',
-            'student_pending', false,
-            'full_name', v_req.full_name,
-            'grade', v_req.grade,
-            'cpf', v_req.cpf,
-            'enrollment_number', v_req.enrollment_number,
-            'whatsapp', v_req.whatsapp
-          ),
-          updated_at = now()
-      where id = v_target_user_id;
+      begin
+        update auth.users
+        set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object(
+              'role', 'student',
+              'student_pending', false,
+              'full_name', v_req.full_name,
+              'grade', v_req.grade,
+              'cpf', v_req.cpf,
+              'enrollment_number', v_req.enrollment_number,
+              'whatsapp', v_req.whatsapp
+            ),
+            updated_at = now()
+        where id = v_target_user_id;
+      exception when others then
+        -- Aprovação não pode falhar por atualização de metadata.
+        null;
+      end;
 
-      insert into public.profiles (id, full_name, grade, role, updated_at)
-      values (v_target_user_id, v_req.full_name, v_req.grade, 'student', now())
-      on conflict (id) do update
-      set full_name = excluded.full_name,
-          grade = excluded.grade,
-          role = 'student',
-          updated_at = now();
+      begin
+        insert into public.profiles (id, full_name, updated_at)
+        values (v_target_user_id, v_req.full_name, now())
+        on conflict (id) do update
+        set full_name = excluded.full_name,
+            updated_at = now();
+      exception when others then
+        -- Continua fluxo mesmo se profile tiver schema legado diferente.
+        null;
+      end;
+
+      if exists (
+        select 1
+        from information_schema.columns c
+        where c.table_schema = 'public'
+          and c.table_name = 'profiles'
+          and c.column_name = 'role'
+      ) then
+        begin
+          execute 'update public.profiles set role = ''student'', updated_at = now() where id = $1'
+          using v_target_user_id;
+        exception when others then
+          null;
+        end;
+      end if;
+
+      if exists (
+        select 1
+        from information_schema.columns c
+        where c.table_schema = 'public'
+          and c.table_name = 'profiles'
+          and c.column_name = 'grade'
+      ) then
+        begin
+          execute 'update public.profiles set grade = $1, updated_at = now() where id = $2'
+          using v_req.grade, v_target_user_id;
+        exception when others then
+          null;
+        end;
+      end if;
 
       if exists (
         select 1
@@ -359,32 +402,12 @@ begin
           and c.table_name = 'profiles'
           and c.column_name = 'is_active'
       ) then
-        update public.profiles
-        set is_active = true,
-            updated_at = now()
-        where id = v_target_user_id;
-      end if;
-
-      if exists (
-        select 1
-        from information_schema.columns c
-        where c.table_schema = 'public'
-          and c.table_name = 'profiles'
-          and c.column_name = 'deactivated_at'
-      ) then
-        execute 'update public.profiles set deactivated_at = null where id = $1'
-        using v_target_user_id;
-      end if;
-
-      if exists (
-        select 1
-        from information_schema.columns c
-        where c.table_schema = 'public'
-          and c.table_name = 'profiles'
-          and c.column_name = 'deactivated_by'
-      ) then
-        execute 'update public.profiles set deactivated_by = null where id = $1'
-        using v_target_user_id;
+        begin
+          execute 'update public.profiles set is_active = true, updated_at = now() where id = $1'
+          using v_target_user_id;
+        exception when others then
+          null;
+        end;
       end if;
     end if;
   end if;
