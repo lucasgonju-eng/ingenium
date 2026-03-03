@@ -431,10 +431,10 @@ export const olympiadCatalog: OlympiadCatalogItem[] = [
     schedule: {
       timezone: "America/Sao_Paulo",
       displayTimezoneLabel: "horário de Brasília",
-      calendarStatus: "Inscrições abertas (OP 2026)",
-      calendarYearConfirmed: true,
+      calendarStatus: "Inscrições OP 2026 abertas (consultar calendário oficial)",
+      calendarYearConfirmed: false,
       calendarNote:
-        "A OP 2026 já está com inscrições abertas no portal oficial. Consulte calendário e regulamento da edição vigente para acompanhar atualizações.",
+        "O portal oficial da OP informa inscrições abertas para 2026 e publica atualizações de calendário no próprio site. Mantemos aqui como 'em breve' até consolidar todas as datas oficiais em formato único.",
     },
     listBadges: ["Inscrições abertas", "Nacional"],
     tags: ["Linguagens", "Português", "Redação", "Leitura", "Nacional", "OP 2026"],
