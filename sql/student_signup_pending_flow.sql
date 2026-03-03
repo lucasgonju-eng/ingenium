@@ -262,4 +262,44 @@ revoke all on function public.review_student_signup_pending_request_admin(uuid, 
 grant execute on function public.review_student_signup_pending_request_admin(uuid, boolean, text) to authenticated;
 grant execute on function public.review_student_signup_pending_request_admin(uuid, boolean, text) to service_role;
 
+do $$
+begin
+  if to_regclass('public.student_signup_mismatch_crm') is not null then
+    insert into public.student_signup_pending_requests (
+      full_name,
+      email,
+      cpf,
+      whatsapp,
+      grade,
+      enrollment_number,
+      mismatch_reason,
+      status,
+      attempted_at,
+      created_at,
+      updated_at
+    )
+    select
+      m.full_name,
+      m.email,
+      m.cpf,
+      m.whatsapp,
+      m.grade,
+      m.enrollment_number,
+      coalesce(nullif(trim(m.mismatch_reason), ''), 'Divergência na validação da matrícula 2026.') as mismatch_reason,
+      'pending'::text,
+      coalesce(m.attempted_at, m.created_at, now()) as attempted_at,
+      coalesce(m.created_at, now()) as created_at,
+      now() as updated_at
+    from public.student_signup_mismatch_crm m
+    where not exists (
+      select 1
+      from public.student_signup_pending_requests p
+      where lower(p.email) = lower(m.email)
+        and coalesce(p.enrollment_number, '') = coalesce(m.enrollment_number, '')
+        and p.status = 'pending'
+    );
+  end if;
+end;
+$$;
+
 commit;
