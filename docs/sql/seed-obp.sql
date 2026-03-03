@@ -1,6 +1,6 @@
--- OBP — Olimpíada do Bem Público (FGV)
--- 2026 ainda não publicado: inserir olimpíada com status de calendário "a confirmar".
--- Este seed NÃO insere eventos oficiais de 2026.
+-- OP — Olimpíada de Português
+-- OP 2026 com inscrições abertas no portal oficial.
+-- Este seed mantém datas nulas na tabela base (calendário detalhado vive no catálogo).
 
 insert into public.olympiads (
   id,
@@ -14,9 +14,9 @@ insert into public.olympiads (
 )
 values (
   'obp',
-  'OBP — Olimpíada do Bem Público (FGV)',
-  'Competição de escrita e argumentação com etapa de apresentação oral (pitch).',
-  'Linguagens / Redação / Cidadania',
+  'OP — Olimpíada de Português',
+  'Competição nacional de Língua Portuguesa para Fundamental II e Ensino Médio.',
+  'Linguagens / Língua Portuguesa',
   'upcoming',
   null,
   null,
@@ -32,12 +32,4 @@ set
   end_date = excluded.end_date,
   registration_deadline = excluded.registration_deadline;
 
--- Histórico 2025 (opcional): se existir tabela/flag de histórico, inserir com is_historical=true.
--- Exemplo (ajuste para seu schema):
--- insert into public.olympiad_events (olympiad_id, key, label, starts_at, ends_at, is_historical)
--- values
---   ('obp', 'inscricoes', 'Inscrições', '2025-08-11', '2025-09-30', true),
---   ('obp', 'submissao_redacoes', 'Submissão de redações', '2025-09-08', '2025-10-10', true),
---   ('obp', 'pitches', 'Pitches', '2025-12-08', '2025-12-19', true),
---   ('obp', 'medalhistas_ate', 'Medalhistas (até)', '2025-12-23', null, true),
---   ('obp', 'cerimonia_ate', 'Cerimônia (até)', '2026-02-14', null, true);
+-- Observação: o ID legado 'obp' foi mantido para compatibilidade com dados já existentes.
