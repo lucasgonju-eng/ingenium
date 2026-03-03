@@ -284,7 +284,7 @@ if ($action === "approved") {
       <h2 style='margin:0 0 12px 0;color:#facc15;'>InGenium Einstein</h2>
       <p style='margin:0 0 10px 0;'>Olá, {$safeName}.</p>
       <p style='margin:0 0 12px 0;'>Sua inscrição foi validada e confirmada com sucesso.</p>
-      <p style='margin:0 0 12px 0;'>Você já pode concluir seu cadastro normalmente no site.</p>
+      <p style='margin:0 0 12px 0;'>Seu acesso ao SaaS já está liberado. Entre com seu e-mail e senha para começar.</p>
       <p style='margin:0;color:#cbd5e1;'>Equipe InGenium</p>
     </div>
   </div>";

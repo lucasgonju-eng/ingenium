@@ -92,7 +92,40 @@ export default function CadastroScreen() {
         full_name: nome.trim(),
         enrollment_number: onlyDigits(matricula),
       });
-      if (!enrollmentValidation.is_match) {
+      const isPendingValidation = !enrollmentValidation.is_match;
+
+      const { data: signUpData, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo,
+          data: {
+            full_name: nome.trim(),
+            grade: serie,
+            cpf: onlyDigits(cpf),
+            enrollment_number: onlyDigits(matricula),
+            whatsapp: onlyDigits(whatsapp) || null,
+            role: "student",
+            student_pending: isPendingValidation,
+          },
+        },
+      });
+
+      if (error) {
+        const msg = String(error.message ?? "").toLowerCase();
+        if (msg.includes("rate limit") || msg.includes("over_email_send_rate_limit") || msg.includes("too many requests")) {
+          Alert.alert(
+            "Limite de envio atingido",
+            "Muitas confirmações foram solicitadas em pouco tempo. Aguarde alguns minutos e tente novamente ou use outro horário.",
+          );
+          return;
+        }
+        Alert.alert("Erro no cadastro", error.message);
+        trackEvent("signup_error", { message: error.message });
+        return;
+      }
+
+      if (isPendingValidation) {
         let pendingRequestId: string | null = null;
         try {
           pendingRequestId = await submitStudentSignupPendingRequest({
@@ -103,6 +136,7 @@ export default function CadastroScreen() {
             grade: serie || null,
             enrollment_number: onlyDigits(matricula),
             mismatch_reason: enrollmentValidation.reason,
+            requested_by: signUpData.user?.id ?? null,
           });
         } catch {
           // Não impede o bloqueio do cadastro caso o registro CRM falhe.
@@ -121,43 +155,14 @@ export default function CadastroScreen() {
         }
         Alert.alert(
           "Inscrição em validação",
-          "Não conseguimos confirmar automaticamente sua matrícula. Sua inscrição ficou pendente e será validada pela equipe do InGenium. Você receberá um e-mail quando a validação for concluída.",
+          "Seu cadastro foi recebido e está pendente de validação administrativa. Após aprovação, o acesso ao SaaS será liberado e você receberá e-mail de confirmação.",
         );
         trackEvent("signup_enrollment_pending", {
           reason: enrollmentValidation.reason,
           enrollment_number: onlyDigits(matricula),
           pending_request_id: pendingRequestId,
         });
-        return;
-      }
-
-      const { error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          emailRedirectTo,
-          data: {
-            full_name: nome.trim(),
-            grade: serie,
-            cpf: onlyDigits(cpf),
-            enrollment_number: onlyDigits(matricula),
-            whatsapp: onlyDigits(whatsapp) || null,
-            role: "student",
-          },
-        },
-      });
-
-      if (error) {
-        const msg = String(error.message ?? "").toLowerCase();
-        if (msg.includes("rate limit") || msg.includes("over_email_send_rate_limit") || msg.includes("too many requests")) {
-          Alert.alert(
-            "Limite de envio atingido",
-            "Muitas confirmações foram solicitadas em pouco tempo. Aguarde alguns minutos e tente novamente ou use outro horário.",
-          );
-          return;
-        }
-        Alert.alert("Erro no cadastro", error.message);
-        trackEvent("signup_error", { message: error.message });
+        router.replace("/(auth)/login");
         return;
       }
 

@@ -908,6 +908,7 @@ export async function submitStudentSignupPendingRequest(input: {
   grade?: string | null;
   enrollment_number?: string | null;
   mismatch_reason?: string | null;
+  requested_by?: string | null;
 }) {
   const { data, error } = await supabase.rpc("submit_student_signup_pending_request", {
     p_full_name: input.full_name,
@@ -917,6 +918,7 @@ export async function submitStudentSignupPendingRequest(input: {
     p_grade: input.grade ?? null,
     p_enrollment_number: input.enrollment_number ?? null,
     p_mismatch_reason: input.mismatch_reason ?? null,
+    p_requested_by: input.requested_by ?? null,
   });
   if (error) throw error;
   return String(data ?? "");

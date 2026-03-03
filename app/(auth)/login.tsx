@@ -47,7 +47,17 @@ export default function LoginScreen() {
       }
 
       // Garante leitura do usuário autenticado mais recente antes de navegar.
-      await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (Boolean(currentUser?.user_metadata?.student_pending)) {
+        await supabase.auth.signOut();
+        Alert.alert(
+          "Inscrição em validação",
+          "Seu cadastro está pendente de validação administrativa. Assim que aprovado, o acesso ao SaaS será liberado.",
+        );
+        return;
+      }
       await ensureCurrentUserProfileFromAuthMetadata();
 
       const pendingTerms = getLocalSignupTermsAcceptance();

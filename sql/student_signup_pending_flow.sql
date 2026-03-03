@@ -2,6 +2,7 @@ begin;
 
 create table if not exists public.student_signup_pending_requests (
   id uuid primary key default gen_random_uuid(),
+  requested_by uuid null references auth.users(id) on delete set null,
   full_name text not null,
   email text not null,
   cpf text null,
@@ -27,6 +28,12 @@ create index if not exists idx_student_signup_pending_email
 create index if not exists idx_student_signup_pending_enrollment
   on public.student_signup_pending_requests (enrollment_number);
 
+alter table public.student_signup_pending_requests
+  add column if not exists requested_by uuid null references auth.users(id) on delete set null;
+
+create index if not exists idx_student_signup_pending_requested_by
+  on public.student_signup_pending_requests (requested_by);
+
 alter table public.student_signup_pending_requests enable row level security;
 
 drop policy if exists student_signup_pending_requests_deny_all on public.student_signup_pending_requests;
@@ -43,7 +50,8 @@ create or replace function public.submit_student_signup_pending_request(
   p_whatsapp text default null,
   p_grade text default null,
   p_enrollment_number text default null,
-  p_mismatch_reason text default null
+  p_mismatch_reason text default null,
+  p_requested_by uuid default null
 )
 returns uuid
 language plpgsql
@@ -59,6 +67,8 @@ declare
   v_enrollment text;
   v_reason text;
   v_existing_id uuid;
+  v_requested_by uuid;
+  v_norm_name text;
 begin
   v_full_name := nullif(trim(coalesce(p_full_name, '')), '');
   v_email := lower(nullif(trim(coalesce(p_email, '')), ''));
@@ -67,6 +77,15 @@ begin
   v_grade := nullif(trim(coalesce(p_grade, '')), '');
   v_enrollment := nullif(regexp_replace(coalesce(p_enrollment_number, ''), '\D', '', 'g'), '');
   v_reason := nullif(trim(coalesce(p_mismatch_reason, '')), '');
+  v_requested_by := null;
+
+  if p_requested_by is not null then
+    select u.id
+      into v_requested_by
+    from auth.users u
+    where u.id = p_requested_by
+    limit 1;
+  end if;
 
   if v_full_name is null then
     raise exception 'Nome completo é obrigatório.';
@@ -77,13 +96,19 @@ begin
   if v_reason is null then
     v_reason := 'Não elegível para matrícula Einstein 2026.';
   end if;
+  v_norm_name := public.normalize_student_name(v_full_name);
 
   select r.id
     into v_existing_id
   from public.student_signup_pending_requests r
-  where lower(r.email) = v_email
-    and coalesce(r.enrollment_number, '') = coalesce(v_enrollment, '')
-    and r.status = 'pending'
+  where r.status = 'pending'
+    and (
+      (
+        lower(r.email) = v_email
+        and coalesce(r.enrollment_number, '') = coalesce(v_enrollment, '')
+      )
+      or public.normalize_student_name(r.full_name) = v_norm_name
+    )
   order by r.attempted_at desc
   limit 1;
 
@@ -93,14 +118,32 @@ begin
         cpf = v_cpf,
         whatsapp = v_whatsapp,
         grade = v_grade,
+        requested_by = coalesce(v_requested_by, requested_by),
         mismatch_reason = v_reason,
         attempted_at = now(),
         updated_at = now()
     where id = v_existing_id;
+
+    with ranked as (
+      select
+        id,
+        row_number() over (
+          partition by public.normalize_student_name(full_name)
+          order by attempted_at desc, created_at desc, id desc
+        ) as rn
+      from public.student_signup_pending_requests
+      where status = 'pending'
+    )
+    delete from public.student_signup_pending_requests t
+    using ranked r
+    where t.id = r.id
+      and r.rn > 1;
+
     return v_existing_id;
   end if;
 
   insert into public.student_signup_pending_requests (
+    requested_by,
     full_name,
     email,
     cpf,
@@ -113,6 +156,7 @@ begin
     updated_at
   )
   values (
+    v_requested_by,
     v_full_name,
     v_email,
     v_cpf,
@@ -126,14 +170,30 @@ begin
   )
   returning id into v_existing_id;
 
+  -- Deduplica pendências por nome (mantém a tentativa mais recente).
+  with ranked as (
+    select
+      id,
+      row_number() over (
+        partition by public.normalize_student_name(full_name)
+        order by attempted_at desc, created_at desc, id desc
+      ) as rn
+    from public.student_signup_pending_requests
+    where status = 'pending'
+  )
+  delete from public.student_signup_pending_requests t
+  using ranked r
+  where t.id = r.id
+    and r.rn > 1;
+
   return v_existing_id;
 end;
 $$;
 
-revoke all on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text) from public;
-grant execute on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text) to anon;
-grant execute on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text) to authenticated;
-grant execute on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text) to service_role;
+revoke all on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text, uuid) from public;
+grant execute on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text, uuid) to anon;
+grant execute on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text, uuid) to authenticated;
+grant execute on function public.submit_student_signup_pending_request(text, text, text, text, text, text, text, uuid) to service_role;
 
 create or replace function public.list_student_signup_pending_requests_admin()
 returns table (
@@ -198,6 +258,7 @@ declare
   v_actor_role text;
   v_req public.student_signup_pending_requests%rowtype;
   v_norm_name text;
+  v_target_user_id uuid;
 begin
   select coalesce(lower(role), 'student')
     into v_actor_role
@@ -230,6 +291,11 @@ begin
       updated_at = now()
   where id = p_request_id;
 
+  delete from public.student_signup_pending_requests d
+  where d.id <> v_req.id
+    and d.status = 'pending'
+    and public.normalize_student_name(d.full_name) = public.normalize_student_name(v_req.full_name);
+
   if p_approve and coalesce(v_req.enrollment_number, '') <> '' then
     v_norm_name := public.normalize_student_name(v_req.full_name);
     insert into public.student_enrollments_2026 (
@@ -253,6 +319,56 @@ begin
         updated_at = now();
   end if;
 
+  if p_approve then
+    v_target_user_id := v_req.requested_by;
+    if v_target_user_id is null then
+      select u.id
+        into v_target_user_id
+      from auth.users u
+      where lower(u.email) = lower(v_req.email)
+      order by u.created_at desc
+      limit 1;
+    end if;
+
+    if v_target_user_id is not null then
+      update auth.users
+      set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object(
+            'role', 'student',
+            'student_pending', false,
+            'full_name', v_req.full_name,
+            'grade', v_req.grade,
+            'cpf', v_req.cpf,
+            'enrollment_number', v_req.enrollment_number,
+            'whatsapp', v_req.whatsapp
+          ),
+          updated_at = now()
+      where id = v_target_user_id;
+
+      insert into public.profiles (id, full_name, grade, role, updated_at)
+      values (v_target_user_id, v_req.full_name, v_req.grade, 'student', now())
+      on conflict (id) do update
+      set full_name = excluded.full_name,
+          grade = excluded.grade,
+          role = 'student',
+          updated_at = now();
+
+      if exists (
+        select 1
+        from information_schema.columns c
+        where c.table_schema = 'public'
+          and c.table_name = 'profiles'
+          and c.column_name = 'is_active'
+      ) then
+        update public.profiles
+        set is_active = true,
+            deactivated_at = null,
+            deactivated_by = null,
+            updated_at = now()
+        where id = v_target_user_id;
+      end if;
+    end if;
+  end if;
+
   return query
   select v_req.id, v_req.full_name, v_req.email, v_req.enrollment_number, p_approve;
 end;
@@ -266,6 +382,7 @@ do $$
 begin
   if to_regclass('public.student_signup_mismatch_crm') is not null then
     insert into public.student_signup_pending_requests (
+      requested_by,
       full_name,
       email,
       cpf,
@@ -279,6 +396,7 @@ begin
       updated_at
     )
     select
+      null::uuid,
       m.full_name,
       m.email,
       m.cpf,
@@ -301,5 +419,20 @@ begin
   end if;
 end;
 $$;
+
+with ranked_pending_names as (
+  select
+    id,
+    row_number() over (
+      partition by public.normalize_student_name(full_name)
+      order by attempted_at desc, created_at desc, id desc
+    ) as rn
+  from public.student_signup_pending_requests
+  where status = 'pending'
+)
+delete from public.student_signup_pending_requests p
+using ranked_pending_names r
+where p.id = r.id
+  and r.rn > 1;
 
 commit;
