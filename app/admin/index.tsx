@@ -10,7 +10,10 @@ import {
   fetchPendingAccessRequestsAdmin,
   importStudentEnrollments2026Admin,
   listStudentEnrollments2026Admin,
+  listStudentSignupPendingRequestsAdmin,
   listStudentSignupMismatchCrmAdmin,
+  reviewStudentSignupPendingRequestAdmin,
+  sendStudentPendingStatusEmail,
   fetchSaasAnalyticsOverview,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
@@ -28,6 +31,7 @@ import {
   type RankingStudentRow,
   type SaasAnalyticsOverview,
   type StudentEnrollment2026Row,
+  type StudentSignupPendingRequestRow,
   type StudentSignupMismatchCrmRow,
   type TeacherRow,
 } from "../../lib/supabase/queries";
@@ -38,12 +42,14 @@ import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/Adm
 
 type AdminTab =
   | ReturnType<typeof getAdminCoreTabs>[number]["key"]
+  | "alunos-pendentes"
   | "crm-inscricoes"
   | "importacao-2026"
   | "gtm"
   | "notificacoes";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
+  { key: "alunos-pendentes", label: "Alunos Pendentes" },
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
   { key: "notificacoes", label: "Notificações" },
@@ -206,6 +212,8 @@ export default function AdminDashboardScreen() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<AccessRequestRow[]>([]);
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+  const [pendingStudentRows, setPendingStudentRows] = useState<StudentSignupPendingRequestRow[]>([]);
+  const [reviewingPendingStudentId, setReviewingPendingStudentId] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [enrollmentImportText, setEnrollmentImportText] = useState("");
   const [enrollmentRows, setEnrollmentRows] = useState<StudentEnrollment2026Row[]>([]);
@@ -281,6 +289,12 @@ export default function AdminDashboardScreen() {
           if (mounted) setMismatchCrmRows(mismatchData);
         } catch {
           if (mounted) setMismatchCrmRows([]);
+        }
+        try {
+          const pendingStudentsData = await listStudentSignupPendingRequestsAdmin();
+          if (mounted) setPendingStudentRows(pendingStudentsData);
+        } catch {
+          if (mounted) setPendingStudentRows([]);
         }
         try {
           const enrollmentData = await listStudentEnrollments2026Admin();
@@ -757,6 +771,63 @@ export default function AdminDashboardScreen() {
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar CRM de tentativas inválidas.";
       Alert.alert("Erro", message);
+    }
+  }
+
+  async function reloadPendingStudentRows() {
+    try {
+      const rows = await listStudentSignupPendingRequestsAdmin();
+      setPendingStudentRows(rows);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao carregar alunos pendentes.";
+      Alert.alert("Erro", message);
+    }
+  }
+
+  async function handleReviewPendingStudent(requestId: string, approve: boolean) {
+    const request = pendingStudentRows.find((row) => row.id === requestId);
+    const studentName = request?.full_name ?? "este aluno";
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm(
+            approve
+              ? `Confirma aprovar a validação de ${studentName}?`
+              : `Confirma reprovar a validação de ${studentName}?`,
+          )
+        : true;
+    if (!confirmed) return;
+
+    try {
+      setReviewingPendingStudentId(requestId);
+      const review = await reviewStudentSignupPendingRequestAdmin({
+        request_id: requestId,
+        approve,
+        review_notes: approve ? "Validação manual aprovada pela equipe admin." : "Validação manual reprovada.",
+      });
+      try {
+        await sendStudentPendingStatusEmail({
+          action: approve ? "approved" : "rejected",
+          fullName: review.full_name,
+          candidateEmail: review.email,
+          enrollmentNumber: review.enrollment_number,
+          grade: request?.grade ?? null,
+          reason: request?.mismatch_reason ?? null,
+        });
+      } catch {
+        // Não bloqueia a revisão administrativa se o e-mail falhar.
+      }
+      await Promise.all([reloadPendingStudentRows(), reloadEnrollmentRows()]);
+      Alert.alert(
+        approve ? "Pendência aprovada" : "Pendência reprovada",
+        approve
+          ? "A validação foi aprovada. O aluno recebeu um e-mail de confirmação."
+          : "A validação foi reprovada. O aluno recebeu um e-mail com orientações.",
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao revisar pendência de aluno.";
+      Alert.alert("Erro", message);
+    } finally {
+      setReviewingPendingStudentId(null);
     }
   }
 
@@ -1722,6 +1793,140 @@ export default function AdminDashboardScreen() {
                               borderColor: "rgba(252,165,165,0.5)",
                               backgroundColor: "rgba(127,29,29,0.25)",
                               opacity: reviewingRequestId === request.id ? 0.7 : 1,
+                            }}
+                          >
+                            <Text style={{ color: "#fecaca" }} weight="bold">
+                              Reprovar
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
+            ) : null}
+
+            {activeTab === "alunos-pendentes" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.xs }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.white }} weight="bold">
+                      Alunos pendentes de validação
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
+                      Cadastros sem validação automática de matrícula/nome aguardando revisão administrativa.
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      void reloadPendingStudentRows();
+                    }}
+                    style={{
+                      borderRadius: radii.pill,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.08)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 6,
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      Atualizar
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                    Total pendente: {pendingStudentRows.length}
+                  </Text>
+                  {pendingStudentRows.length === 0 ? (
+                    <View
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: colors.borderSoft,
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        padding: spacing.sm,
+                      }}
+                    >
+                      <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+                        Nenhuma pendência de aluno no momento.
+                      </Text>
+                    </View>
+                  ) : (
+                    pendingStudentRows.map((row) => (
+                      <View
+                        key={`pending-student-${row.id}`}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          padding: spacing.sm,
+                        }}
+                      >
+                        <Text style={{ color: colors.white }} weight="semibold">
+                          {row.full_name}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                          E-mail: {row.email} • Matrícula: {row.enrollment_number ?? "não informada"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                          Série: {row.grade ?? "não informada"} • CPF: {row.cpf ?? "não informado"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                          Tentativa: {formatCrmDate(row.attempted_at)}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                          Motivo: {row.mismatch_reason}
+                        </Text>
+                        <View style={{ marginTop: spacing.xs, flexDirection: "row", gap: spacing.xs }}>
+                          <Pressable
+                            onPress={() => {
+                              void handleReviewPendingStudent(row.id, true);
+                            }}
+                            disabled={reviewingPendingStudentId === row.id}
+                            style={{
+                              flex: 1,
+                              height: 38,
+                              borderRadius: radii.md,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderWidth: 1,
+                              borderColor: "rgba(134,239,172,0.5)",
+                              backgroundColor: "rgba(20,83,45,0.25)",
+                              opacity: reviewingPendingStudentId === row.id ? 0.7 : 1,
+                            }}
+                          >
+                            <Text style={{ color: "#86efac" }} weight="bold">
+                              Aprovar validação
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => {
+                              void handleReviewPendingStudent(row.id, false);
+                            }}
+                            disabled={reviewingPendingStudentId === row.id}
+                            style={{
+                              flex: 1,
+                              height: 38,
+                              borderRadius: radii.md,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderWidth: 1,
+                              borderColor: "rgba(252,165,165,0.5)",
+                              backgroundColor: "rgba(127,29,29,0.25)",
+                              opacity: reviewingPendingStudentId === row.id ? 0.7 : 1,
                             }}
                           >
                             <Text style={{ color: "#fecaca" }} weight="bold">

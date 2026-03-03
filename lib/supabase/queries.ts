@@ -125,6 +125,19 @@ export type StudentSignupMismatchCrmRow = {
   attempted_at: string;
 };
 
+export type StudentSignupPendingRequestRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  cpf: string | null;
+  whatsapp: string | null;
+  grade: string | null;
+  enrollment_number: string | null;
+  mismatch_reason: string;
+  status: "pending" | "approved" | "rejected";
+  attempted_at: string;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -884,6 +897,105 @@ export async function sendStudentMismatchEmail(input: {
   }
   if (!response.ok || !parsed?.ok) {
     throw new Error(parsed?.error || `Falha ao enviar e-mail de não elegibilidade (${response.status}).`);
+  }
+}
+
+export async function submitStudentSignupPendingRequest(input: {
+  full_name: string;
+  email: string;
+  cpf?: string | null;
+  whatsapp?: string | null;
+  grade?: string | null;
+  enrollment_number?: string | null;
+  mismatch_reason?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("submit_student_signup_pending_request", {
+    p_full_name: input.full_name,
+    p_email: input.email,
+    p_cpf: input.cpf ?? null,
+    p_whatsapp: input.whatsapp ?? null,
+    p_grade: input.grade ?? null,
+    p_enrollment_number: input.enrollment_number ?? null,
+    p_mismatch_reason: input.mismatch_reason ?? null,
+  });
+  if (error) throw error;
+  return String(data ?? "");
+}
+
+export async function listStudentSignupPendingRequestsAdmin() {
+  const { data, error } = await supabase.rpc("list_student_signup_pending_requests_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    full_name: String(row.full_name ?? ""),
+    email: String(row.email ?? ""),
+    cpf: row.cpf ? String(row.cpf) : null,
+    whatsapp: row.whatsapp ? String(row.whatsapp) : null,
+    grade: row.grade ? String(row.grade) : null,
+    enrollment_number: row.enrollment_number ? String(row.enrollment_number) : null,
+    mismatch_reason: String(row.mismatch_reason ?? ""),
+    status: (String(row.status ?? "pending") as "pending" | "approved" | "rejected"),
+    attempted_at: String(row.attempted_at ?? new Date().toISOString()),
+  })) as StudentSignupPendingRequestRow[];
+}
+
+export async function reviewStudentSignupPendingRequestAdmin(input: {
+  request_id: string;
+  approve: boolean;
+  review_notes?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("review_student_signup_pending_request_admin", {
+    p_request_id: input.request_id,
+    p_approve: input.approve,
+    p_review_notes: input.review_notes ?? null,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    request_id: String((row as { request_id?: string } | null)?.request_id ?? input.request_id),
+    full_name: String((row as { full_name?: string } | null)?.full_name ?? ""),
+    email: String((row as { email?: string } | null)?.email ?? ""),
+    enrollment_number: ((row as { enrollment_number?: string | null } | null)?.enrollment_number ?? null),
+    approved: Boolean((row as { approved?: boolean } | null)?.approved),
+  };
+}
+
+export async function sendStudentPendingStatusEmail(input: {
+  action: "pending_created" | "approved" | "rejected";
+  fullName: string;
+  candidateEmail: string;
+  enrollmentNumber?: string | null;
+  grade?: string | null;
+  reason?: string | null;
+}) {
+  const endpoint =
+    process.env.EXPO_PUBLIC_STUDENT_PENDING_NOTIFY_URL ??
+    (typeof window !== "undefined"
+      ? `${window.location.origin.replace(/\/+$/, "")}/student-pending-notify.php`
+      : "https://ingenium.einsteinhub.co/student-pending-notify.php");
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: input.action,
+      fullName: input.fullName,
+      candidateEmail: input.candidateEmail,
+      enrollmentNumber: input.enrollmentNumber ?? null,
+      grade: input.grade ?? null,
+      reason: input.reason ?? null,
+    }),
+  });
+
+  const text = await response.text();
+  let parsed: { ok?: boolean; error?: string } | null = null;
+  try {
+    parsed = JSON.parse(text) as { ok?: boolean; error?: string };
+  } catch {
+    parsed = null;
+  }
+  if (!response.ok || !parsed?.ok) {
+    throw new Error(parsed?.error || `Falha ao enviar e-mail de pendência (${response.status}).`);
   }
 }
 

@@ -7,8 +7,8 @@ import { Text } from "../../components/ui/Text";
 import { getLocalSignupTermsAcceptance } from "../../lib/legal/signupTermsState";
 import { trackEvent } from "../../lib/analytics/gtm";
 import {
-  logStudentSignupMismatchCrm,
-  sendStudentMismatchEmail,
+  sendStudentPendingStatusEmail,
+  submitStudentSignupPendingRequest,
   validateStudentEnrollment2026,
 } from "../../lib/supabase/queries";
 import { supabase } from "../../lib/supabase/client";
@@ -93,9 +93,9 @@ export default function CadastroScreen() {
         enrollment_number: onlyDigits(matricula),
       });
       if (!enrollmentValidation.is_match) {
-        let crmLeadId: string | null = null;
+        let pendingRequestId: string | null = null;
         try {
-          crmLeadId = await logStudentSignupMismatchCrm({
+          pendingRequestId = await submitStudentSignupPendingRequest({
             full_name: nome.trim(),
             email: email.trim(),
             cpf: onlyDigits(cpf),
@@ -108,21 +108,25 @@ export default function CadastroScreen() {
           // Não impede o bloqueio do cadastro caso o registro CRM falhe.
         }
         try {
-          await sendStudentMismatchEmail({
+          await sendStudentPendingStatusEmail({
+            action: "pending_created",
             fullName: nome.trim(),
             candidateEmail: email.trim(),
+            enrollmentNumber: onlyDigits(matricula),
+            grade: serie || null,
+            reason: enrollmentValidation.reason,
           });
         } catch {
           // Não impede o bloqueio do cadastro caso o e-mail falhe.
         }
         Alert.alert(
-          "Matrícula não validada",
-          "Você não está matriculado no Colégio Einstein porque o número de matrícula não corresponde ao nome do aluno.",
+          "Inscrição em validação",
+          "Não conseguimos confirmar automaticamente sua matrícula. Sua inscrição ficou pendente e será validada pela equipe do InGenium. Você receberá um e-mail quando a validação for concluída.",
         );
-        trackEvent("signup_enrollment_mismatch", {
+        trackEvent("signup_enrollment_pending", {
           reason: enrollmentValidation.reason,
           enrollment_number: onlyDigits(matricula),
-          crm_lead_id: crmLeadId,
+          pending_request_id: pendingRequestId,
         });
         return;
       }
