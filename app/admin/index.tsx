@@ -784,6 +784,7 @@ export default function AdminDashboardScreen() {
         approve,
         review_notes: approve ? "Validação manual aprovada pela equipe admin." : "Validação manual reprovada.",
       });
+      let approvalEmailFailed = false;
       try {
         await sendStudentPendingStatusEmail({
           action: approve ? "approved" : "rejected",
@@ -794,14 +795,18 @@ export default function AdminDashboardScreen() {
           reason: request?.mismatch_reason ?? null,
         });
       } catch {
-        // Não bloqueia a revisão administrativa se o e-mail falhar.
+        approvalEmailFailed = true;
       }
       await Promise.all([reloadPendingStudentRows(), reloadEnrollmentRows()]);
       Alert.alert(
         approve ? "Pendência aprovada" : "Pendência reprovada",
         approve
-          ? "A validação foi aprovada. O aluno recebeu um e-mail de confirmação."
-          : "A validação foi reprovada. O aluno recebeu um e-mail com orientações.",
+          ? approvalEmailFailed
+            ? "A validação foi aprovada e o aluno foi liberado no SaaS, mas o e-mail de confirmação falhou no envio."
+            : "A validação foi aprovada. O aluno foi liberado no SaaS e recebeu e-mail de confirmação."
+          : approvalEmailFailed
+            ? "A validação foi reprovada, mas o e-mail com orientações falhou no envio."
+            : "A validação foi reprovada. O aluno recebeu um e-mail com orientações.",
       );
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao revisar pendência de aluno.";

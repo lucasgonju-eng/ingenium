@@ -361,10 +361,30 @@ begin
       ) then
         update public.profiles
         set is_active = true,
-            deactivated_at = null,
-            deactivated_by = null,
             updated_at = now()
         where id = v_target_user_id;
+      end if;
+
+      if exists (
+        select 1
+        from information_schema.columns c
+        where c.table_schema = 'public'
+          and c.table_name = 'profiles'
+          and c.column_name = 'deactivated_at'
+      ) then
+        execute 'update public.profiles set deactivated_at = null where id = $1'
+        using v_target_user_id;
+      end if;
+
+      if exists (
+        select 1
+        from information_schema.columns c
+        where c.table_schema = 'public'
+          and c.table_name = 'profiles'
+          and c.column_name = 'deactivated_by'
+      ) then
+        execute 'update public.profiles set deactivated_by = null where id = $1'
+        using v_target_user_id;
       end if;
     end if;
   end if;
