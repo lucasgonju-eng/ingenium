@@ -42,12 +42,14 @@ type AdminTab =
   | ReturnType<typeof getAdminCoreTabs>[number]["key"]
   | "crm-inscricoes"
   | "importacao-2026"
+  | "visao-aluno"
   | "gtm"
   | "notificacoes";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
+  { key: "visao-aluno", label: "Visão do aluno" },
   { key: "notificacoes", label: "Notificações" },
   { key: "gtm", label: "GTM" },
 ];
@@ -217,6 +219,7 @@ export default function AdminDashboardScreen() {
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentImporting, setEnrollmentImporting] = useState(false);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
+  const [studentPreviewReloadKey, setStudentPreviewReloadKey] = useState(0);
   const [crmSearch, setCrmSearch] = useState("");
   const [crmDeletingUserId, setCrmDeletingUserId] = useState<string | null>(null);
 
@@ -1006,6 +1009,11 @@ export default function AdminDashboardScreen() {
     });
   }
 
+  const studentPreviewUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin.replace(/\/+$/, "")}/dashboard`
+      : `${process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/+$/, "") ?? "https://ingenium.einsteinhub.co"}/dashboard`;
+
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
@@ -1687,6 +1695,95 @@ export default function AdminDashboardScreen() {
                     ))}
                   </View>
                 </View>
+              </View>
+            ) : null}
+
+            {activeTab === "visao-aluno" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Visão do aluno
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: spacing.xs, lineHeight: 20 }}>
+                  Pré-visualização do dashboard do aluno dentro do painel admin para validar UI e experiência.
+                </Text>
+                <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
+                  <Pressable
+                    onPress={() => setStudentPreviewReloadKey((prev) => prev + 1)}
+                    style={{
+                      height: 38,
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.06)",
+                      paddingHorizontal: spacing.sm,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      Atualizar visão
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push("/(tabs)/dashboard")}
+                    style={{
+                      height: 38,
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: "rgba(255,199,0,0.45)",
+                      backgroundColor: "rgba(255,199,0,0.12)",
+                      paddingHorizontal: spacing.sm,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                      Abrir rota do aluno
+                    </Text>
+                  </Pressable>
+                </View>
+                {Platform.OS === "web" ? (
+                  <View
+                    style={{
+                      marginTop: spacing.sm,
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      overflow: "hidden",
+                      backgroundColor: "rgba(255,255,255,0.02)",
+                    }}
+                  >
+                    <iframe
+                      key={`student-preview-${studentPreviewReloadKey}`}
+                      src={studentPreviewUrl}
+                      title="Visão do aluno"
+                      style={{ width: "100%", height: 820, border: "none", background: "transparent" }}
+                    />
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      marginTop: spacing.sm,
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      padding: spacing.sm,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.82)" }}>
+                      A visualização embutida está disponível no painel web. No app, use “Abrir rota do aluno”.
+                    </Text>
+                  </View>
+                )}
               </View>
             ) : null}
 
