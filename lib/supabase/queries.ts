@@ -910,7 +910,7 @@ export async function submitStudentSignupPendingRequest(input: {
   mismatch_reason?: string | null;
   requested_by?: string | null;
 }) {
-  const { data, error } = await supabase.rpc("submit_student_signup_pending_request", {
+  const basePayload = {
     p_full_name: input.full_name,
     p_email: input.email,
     p_cpf: input.cpf ?? null,
@@ -918,10 +918,30 @@ export async function submitStudentSignupPendingRequest(input: {
     p_grade: input.grade ?? null,
     p_enrollment_number: input.enrollment_number ?? null,
     p_mismatch_reason: input.mismatch_reason ?? null,
+  };
+
+  const withRequestedBy = await supabase.rpc("submit_student_signup_pending_request", {
+    ...basePayload,
     p_requested_by: input.requested_by ?? null,
   });
-  if (error) throw error;
-  return String(data ?? "");
+
+  if (!withRequestedBy.error) {
+    return String(withRequestedBy.data ?? "");
+  }
+
+  const normalizedErrorMessage = String(withRequestedBy.error.message ?? "").toLowerCase();
+  const shouldFallbackToLegacySignature =
+    normalizedErrorMessage.includes("p_requested_by") ||
+    normalizedErrorMessage.includes("function") ||
+    normalizedErrorMessage.includes("does not exist");
+
+  if (!shouldFallbackToLegacySignature) {
+    throw withRequestedBy.error;
+  }
+
+  const legacy = await supabase.rpc("submit_student_signup_pending_request", basePayload);
+  if (legacy.error) throw legacy.error;
+  return String(legacy.data ?? "");
 }
 
 export async function upsertStudentSignupCrmLead(input: {
