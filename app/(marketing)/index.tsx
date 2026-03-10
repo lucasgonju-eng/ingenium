@@ -31,6 +31,7 @@ const WOLF_BY_CLASS = {
   silver: require("../../assets/wolf-silver.png"),
   bronze: require("../../assets/wolf-bronze.png"),
 } as const;
+const GOLD_LUX_TINT = "#C8A45D";
 
 function formatShortDate(value: string | null) {
   if (!value) return "Sem data";
@@ -180,7 +181,27 @@ export default function MarketingLandingScreen() {
                       }}
                     >
                       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
-                        <Image source={WOLF_BY_CLASS[group.key as "gold" | "silver" | "bronze"]} style={{ width: 28, height: 28, borderRadius: 14 }} />
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            backgroundColor: "#FFFFFF",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <Image
+                            source={WOLF_BY_CLASS[group.key as "gold" | "silver" | "bronze"]}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              tintColor: group.key === "gold" ? GOLD_LUX_TINT : undefined,
+                            }}
+                          />
+                        </View>
                         <Text style={{ color: group.accent, fontSize: typography.small.fontSize }} weight="bold">
                           {group.label}
                         </Text>
@@ -337,13 +358,17 @@ export default function MarketingLandingScreen() {
                         borderRadius: 27,
                         borderWidth: 2,
                         borderColor: accent,
-                        backgroundColor: "rgba(0,0,0,0.28)",
+                        backgroundColor: "#FFFFFF",
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "hidden",
                       }}
                     >
-                      <Image source={wolfSource} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                      <Image
+                        source={wolfSource}
+                        style={{ width: "100%", height: "100%", tintColor: isGold ? GOLD_LUX_TINT : undefined }}
+                        resizeMode="cover"
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: accent, fontSize: typography.subtitle.fontSize }} weight="bold">

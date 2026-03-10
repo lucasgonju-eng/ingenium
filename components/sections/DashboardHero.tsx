@@ -20,6 +20,7 @@ const WOLF_BY_CLASS: Record<"bronze" | "silver" | "gold", ImageSourcePropType> =
   silver: require("../../assets/wolf-silver.png"),
   gold: require("../../assets/wolf-gold.png"),
 };
+const GOLD_LUX_TINT = "#C8A45D";
 
 export default function DashboardHero({
   loboClass,
@@ -54,13 +55,13 @@ export default function DashboardHero({
               borderColor: accent,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "rgba(0,0,0,0.3)",
+              backgroundColor: "#FFFFFF",
               overflow: "hidden",
             }}
           >
             <Image
               source={WOLF_BY_CLASS[loboClass]}
-              style={{ width: "100%", height: "100%" }}
+              style={{ width: "100%", height: "100%", tintColor: loboClass === "gold" ? GOLD_LUX_TINT : undefined }}
               resizeMode="cover"
             />
           </View>
