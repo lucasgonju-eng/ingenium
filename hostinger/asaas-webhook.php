@@ -624,8 +624,25 @@ if ($isPaid && $paymentId !== "") {
               ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
             }
           } else {
-            $xpCredited = true;
-            @file_put_contents($processedPath, $paymentId . "|xp_awarded|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            // Mesmo com evento já existente, força recálculo para corrigir casos
+            // em que o xp_event foi gravado mas points não foi atualizado.
+            $rpcUrl = $supabaseUrl . "/rest/v1/rpc/recalc_points_for_user";
+            $rpcPayload = ["p_user_id" => $profileId];
+            $rpcResult = supabase_request("POST", $rpcUrl, $supabaseServiceRoleKey, $rpcPayload);
+            if ($rpcResult["ok"]) {
+              $xpCredited = true;
+              @file_put_contents($processedPath, $paymentId . "|xp_awarded_recalc_existing|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            } else {
+              @file_put_contents($processedPath, $paymentId . "|xp_recalc_existing_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+              @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+                "at" => gmdate("c"),
+                "paymentId" => $paymentId,
+                "profileId" => $profileId,
+                "step" => "xp_recalc_existing_failed",
+                "status" => $rpcResult["status"],
+                "body" => $rpcResult["body"],
+              ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+            }
           }
 
           // Fallback de segurança: se xp_events/rpc falhar, credita +8000 direto em points
