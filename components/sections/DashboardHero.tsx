@@ -60,8 +60,8 @@ export default function DashboardHero({
           >
             <Image
               source={WOLF_BY_CLASS[loboClass]}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
+              style={{ width: "84%", height: "84%" }}
+              resizeMode="contain"
             />
           </View>
           <Text style={{ color: accent, fontSize: 20, marginTop: spacing.xs }} weight="bold">
