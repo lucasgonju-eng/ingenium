@@ -150,36 +150,78 @@ export default function MarketingLandingScreen() {
             </View>
           ) : (
             <View style={{ marginTop: spacing.sm }}>
-              <View style={{ marginTop: spacing.xs }}>
-                {teaserList.map((r) => (
-                  <View
-                    key={`${r.rank}-${r.full_name ?? "sem-nome"}-list`}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      paddingVertical: 8,
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.xs }}>
-                      <Text style={{ color: "rgba(255,255,255,0.76)", width: 24 }} weight="bold">
-                        {r.rank}
-                      </Text>
-                      <AvatarWithFallback fullName={r.full_name} avatarUrl={r.avatar_url} size={34} />
-                      <Text
-                        style={{ color: colors.white, flex: 1 }}
-                        weight="semibold"
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {r.full_name ?? "Sem nome"}
-                      </Text>
+              <View style={{ marginTop: spacing.xs, gap: spacing.sm }}>
+                {[
+                  { key: "gold", label: "Lobo de Ouro", accent: "#FFD700" },
+                  { key: "silver", label: "Lobo de Prata", accent: "#D9E2EC" },
+                  { key: "bronze", label: "Lobo de Bronze", accent: "#CD7F32" },
+                ].map((group) => {
+                  const classRows = teaserList.filter((row) => row.lobo_class === group.key);
+                  return (
+                    <View
+                      key={`lp-ranking-${group.key}`}
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor:
+                          group.key === "gold"
+                            ? "rgba(255,215,0,0.45)"
+                            : group.key === "silver"
+                              ? "rgba(217,226,236,0.45)"
+                              : "rgba(205,127,50,0.45)",
+                        backgroundColor:
+                          group.key === "gold"
+                            ? "rgba(255,215,0,0.08)"
+                            : group.key === "silver"
+                              ? "rgba(217,226,236,0.08)"
+                              : "rgba(205,127,50,0.08)",
+                        padding: spacing.sm,
+                        gap: spacing.xs,
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                        <Image source={WOLF_BY_CLASS[group.key as "gold" | "silver" | "bronze"]} style={{ width: 28, height: 28, borderRadius: 14 }} />
+                        <Text style={{ color: group.accent, fontSize: typography.small.fontSize }} weight="bold">
+                          {group.label}
+                        </Text>
+                      </View>
+
+                      {classRows.length === 0 ? (
+                        <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>Nenhum aluno nesta classe.</Text>
+                      ) : (
+                        classRows.map((r) => (
+                          <View
+                            key={`${group.key}-${r.rank}-${r.full_name ?? "sem-nome"}-list`}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              paddingVertical: 6,
+                            }}
+                          >
+                            <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.xs }}>
+                              <Text style={{ color: "rgba(255,255,255,0.76)", width: 24 }} weight="bold">
+                                {r.rank}
+                              </Text>
+                              <AvatarWithFallback fullName={r.full_name} avatarUrl={r.avatar_url} size={32} />
+                              <Text
+                                style={{ color: colors.white, flex: 1 }}
+                                weight="semibold"
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {r.full_name ?? "Sem nome"}
+                              </Text>
+                            </View>
+                            <Text style={{ color: group.accent }} weight="bold">
+                              {r.total_points.toLocaleString("pt-BR")} pts
+                            </Text>
+                          </View>
+                        ))
+                      )}
                     </View>
-                    <Text style={{ color: "rgba(255,255,255,0.8)" }} weight="bold">
-                      {r.total_points.toLocaleString("pt-BR")} pts
-                    </Text>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
 
               <Pressable
