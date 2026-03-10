@@ -102,6 +102,59 @@ export default function MarketingLandingScreen() {
             </Text>
           </View>
 
+          <View
+            style={{
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: "rgba(255,199,0,0.3)",
+              backgroundColor: "rgba(255,199,0,0.08)",
+              padding: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+              Não fique de fora
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: 6 }}>Junte-se à liga hoje mesmo.</Text>
+            <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
+              <Pressable
+                onPress={() => {
+                  trackEvent("login_cta_click", { source: "marketing_lp_top" });
+                  router.push("/(auth)/login");
+                }}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: radii.md,
+                  backgroundColor: colors.einsteinYellow,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  Entrar na Liga
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  trackEvent("signup_start", { source: "marketing_lp_top" });
+                  router.push("/(auth)/cadastro");
+                }}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: radii.md,
+                  backgroundColor: "rgba(255,255,255,0.09)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Criar conta
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
         <View
           style={{
             borderRadius: radii.lg,
