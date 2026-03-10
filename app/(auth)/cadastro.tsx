@@ -69,11 +69,12 @@ export default function CadastroScreen() {
   }, []);
 
   const handleSignUp = async () => {
-    if (!nome || !serie || !cpf || !matricula || !email || !password) {
-      showFeedback("Campos obrigatórios", "Preencha nome completo, série, CPF, matrícula, e-mail e senha.");
+    if (!nome || !serie || !cpf || !email || !password) {
+      showFeedback("Campos obrigatórios", "Preencha nome completo, série, CPF, e-mail e senha.");
       return;
     }
-    if (onlyDigits(matricula).length < 4) {
+    const enrollmentNumber = onlyDigits(matricula);
+    if (enrollmentNumber.length > 0 && enrollmentNumber.length < 4) {
       showFeedback("Matrícula inválida", "Informe a matrícula completa do aluno.");
       return;
     }
@@ -97,11 +98,14 @@ export default function CadastroScreen() {
         return;
       }
 
-      const enrollmentValidation = await validateStudentEnrollment2026({
-        full_name: nome.trim(),
-        enrollment_number: onlyDigits(matricula),
-      });
-      const isPendingValidation = !enrollmentValidation.is_match;
+      const enrollmentValidation =
+        enrollmentNumber.length > 0
+          ? await validateStudentEnrollment2026({
+              full_name: nome.trim(),
+              enrollment_number: enrollmentNumber,
+            })
+          : null;
+      const isPendingValidation = Boolean(enrollmentValidation && !enrollmentValidation.is_match);
 
       const { data: signUpData, error } = await supabase.auth.signUp({
         email: email.trim(),
@@ -112,7 +116,7 @@ export default function CadastroScreen() {
             full_name: nome.trim(),
             grade: serie,
             cpf: onlyDigits(cpf),
-            enrollment_number: onlyDigits(matricula),
+            enrollment_number: enrollmentNumber || null,
             whatsapp: onlyDigits(whatsapp) || null,
             role: "student",
             student_pending: isPendingValidation,
@@ -141,7 +145,7 @@ export default function CadastroScreen() {
           cpf: onlyDigits(cpf),
           whatsapp: onlyDigits(whatsapp) || null,
           grade: serie || null,
-          enrollment_number: onlyDigits(matricula),
+          enrollment_number: enrollmentNumber || null,
           lifecycle_status: isPendingValidation ? "enrollment_pending" : "created_unverified",
           auth_user_id: signUpData.user?.id ?? null,
           notes: "Cadastro criado no Auth; aguardando confirmação de e-mail e/ou validação de matrícula.",
@@ -159,8 +163,8 @@ export default function CadastroScreen() {
             cpf: onlyDigits(cpf),
             whatsapp: onlyDigits(whatsapp) || null,
             grade: serie || null,
-            enrollment_number: onlyDigits(matricula),
-            mismatch_reason: enrollmentValidation.reason,
+            enrollment_number: enrollmentNumber,
+            mismatch_reason: enrollmentValidation?.reason,
             requested_by: signUpData.user?.id ?? null,
           });
         } catch {
@@ -171,9 +175,9 @@ export default function CadastroScreen() {
             action: "pending_created",
             fullName: nome.trim(),
             candidateEmail: email.trim(),
-            enrollmentNumber: onlyDigits(matricula),
+            enrollmentNumber: enrollmentNumber || null,
             grade: serie || null,
-            reason: enrollmentValidation.reason,
+            reason: enrollmentValidation?.reason,
           });
         } catch {
           // Não impede o bloqueio do cadastro caso o e-mail falhe.
@@ -183,8 +187,8 @@ export default function CadastroScreen() {
           "Seu cadastro foi recebido e está pendente de validação administrativa. Após aprovação, o acesso ao SaaS será liberado e você receberá e-mail de confirmação.",
         );
         trackEvent("signup_enrollment_pending", {
-          reason: enrollmentValidation.reason,
-          enrollment_number: onlyDigits(matricula),
+          reason: enrollmentValidation?.reason,
+          enrollment_number: enrollmentNumber || null,
           pending_request_id: pendingRequestId,
         });
         router.replace("/(auth)/login");
@@ -322,7 +326,7 @@ export default function CadastroScreen() {
               }}
             />
             <TextInput
-              placeholder="Número de matrícula"
+              placeholder="Número de matrícula (Opcional)"
               placeholderTextColor="rgba(255,255,255,0.45)"
               keyboardType="number-pad"
               value={matricula}
