@@ -180,6 +180,7 @@ $planValue = 278.80;
 $checkoutBillingType = "PIX";
 $chargeType = "DETACHED";
 $maxInstallmentCount = null;
+$dueDateLimitDays = 3;
 
 if ($paymentOption === "installment12") {
   $planValue = 324.00;
@@ -211,6 +212,8 @@ $primaryPayload = [
 ];
 if ($chargeType === "INSTALLMENT" && $maxInstallmentCount !== null) {
   $primaryPayload["maxInstallmentCount"] = $maxInstallmentCount;
+} elseif ($chargeType === "DETACHED") {
+  $primaryPayload["dueDateLimitDays"] = $dueDateLimitDays;
 }
 if ($enableCheckoutCallback && $checkoutSuccessUrl !== "") {
   $primaryPayload["callback"] = [
@@ -257,6 +260,8 @@ if ($httpCode < 200 || $httpCode >= 300) {
   ];
   if ($chargeType === "INSTALLMENT" && $maxInstallmentCount !== null) {
     $fallbackPayload["maxInstallmentCount"] = $maxInstallmentCount;
+  } elseif ($chargeType === "DETACHED") {
+    $fallbackPayload["dueDateLimitDays"] = $dueDateLimitDays;
   }
   if ($enableCheckoutCallback && $checkoutSuccessUrl !== "") {
     $fallbackPayload["callback"] = [
@@ -278,6 +283,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
     $fallbackPayload["billingType"] = "CREDIT_CARD";
     $fallbackPayload["chargeType"] = "DETACHED";
     unset($fallbackPayload["maxInstallmentCount"]);
+    $fallbackPayload["dueDateLimitDays"] = $dueDateLimitDays;
     $retry = sendToAsaas($baseUrl, $apiKey, $fallbackPayload);
     if ($retry["ok"]) {
       $retryCode = $retry["httpCode"];
