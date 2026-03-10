@@ -16,6 +16,12 @@ export const copy = {
       "No InGenium, o XP é acumulado por participação, resultado e constância. A classificação é definida exclusivamente pelo desempenho acumulado.",
     xpRules: [
       {
+        key: "complete-profile-data",
+        label: "Completar dados do perfil",
+        criteria: "Preencher todos os dados do perfil (WhatsApp é opcional).",
+        xp: 100,
+      },
+      {
         key: "profile-photo-upload",
         label: "Inserir foto de perfil",
         criteria: "Adicionar uma foto válida no perfil do aluno.",

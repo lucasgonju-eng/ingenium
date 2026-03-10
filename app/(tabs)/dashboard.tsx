@@ -36,6 +36,7 @@ type OlympiadRow = {
 };
 const SERIES_FILTERS = ["Todos", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 type SeriesFilter = (typeof SERIES_FILTERS)[number];
+type XpTab = "howWorks" | "howToEarn";
 
 function getClassLabel(cls: LoboClass) {
   if (cls === "gold") return "Lobo de Ouro";
@@ -76,6 +77,7 @@ export default function DashboardScreen() {
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
+  const [xpTab, setXpTab] = useState<XpTab>("howWorks");
   const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
   async function load() {
@@ -181,6 +183,9 @@ export default function DashboardScreen() {
       bronze: rankingRowsForPanel.filter((row) => row.lobo_class === "bronze"),
     };
   }, [rankingRowsForPanel]);
+  const xpRulesSortedDesc = useMemo(() => {
+    return [...copy.program.xpRules].sort((a, b) => b.xp - a.xp);
+  }, []);
 
   if (loading) {
     return (
@@ -357,15 +362,62 @@ export default function DashboardScreen() {
             borderColor: colors.borderSoft,
           }}
         >
+          <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+            <Pressable
+              onPress={() => setXpTab("howWorks")}
+              style={{
+                borderRadius: radii.pill,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 6,
+                backgroundColor: xpTab === "howWorks" ? colors.einsteinBlue : colors.surfacePanel,
+                borderWidth: 1,
+                borderColor: xpTab === "howWorks" ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+              }}
+            >
+              <Text
+                style={{
+                  color: xpTab === "howWorks" ? colors.white : "rgba(255,255,255,0.78)",
+                  fontSize: typography.small.fontSize,
+                }}
+                weight="semibold"
+              >
+                Como funciona o XP oficial
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setXpTab("howToEarn")}
+              style={{
+                borderRadius: radii.pill,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 6,
+                backgroundColor: xpTab === "howToEarn" ? colors.einsteinBlue : colors.surfacePanel,
+                borderWidth: 1,
+                borderColor: xpTab === "howToEarn" ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+              }}
+            >
+              <Text
+                style={{
+                  color: xpTab === "howToEarn" ? colors.white : "rgba(255,255,255,0.78)",
+                  fontSize: typography.small.fontSize,
+                }}
+                weight="semibold"
+              >
+                Como conseguir XP
+              </Text>
+            </Pressable>
+          </View>
+
           <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-            Como funciona o XP oficial
+            {xpTab === "howWorks" ? "Como funciona o XP oficial" : "Como conseguir XP"}
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: spacing.xs }}>
-            Pontuação baseada em participação, resultado e constância.
+            {xpTab === "howWorks"
+              ? "Pontuação baseada em participação, resultado e constância. Perfil completo (com data de nascimento e matrícula) também concede +100 XP."
+              : "Veja as ações de ganho de XP em ordem decrescente de pontuação."}
           </Text>
 
           <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-            {copy.program.xpRules.map((rule) => (
+            {(xpTab === "howWorks" ? copy.program.xpRules : xpRulesSortedDesc).map((rule) => (
               <View key={rule.key} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
                 <Text style={{ color: "white" }}>
                   {rule.label} • +{rule.xp.toLocaleString("pt-BR")} XP

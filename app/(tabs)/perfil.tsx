@@ -32,6 +32,44 @@ function formatWhatsapp(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
+function formatBirthDate(value: string) {
+  const digits = onlyDigits(value).slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function parseBirthDateInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return { iso: null, isValid: false };
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return { iso: null, isValid: false };
+  const [, dd, mm, yyyy] = match;
+  const day = Number(dd);
+  const month = Number(mm);
+  const year = Number(yyyy);
+  const parsed = new Date(year, month - 1, day);
+  const isValid =
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day &&
+    year >= 1900 &&
+    year <= new Date().getFullYear();
+  if (!isValid) return { iso: null, isValid: false };
+  return { iso: `${yyyy}-${mm}-${dd}`, isValid: true };
+}
+
+function formatBirthDateFromStorage(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, yyyy, mm, dd] = isoMatch;
+    return `${dd}/${mm}/${yyyy}`;
+  }
+  return formatBirthDate(trimmed);
+}
+
 function getPublicSiteUrl() {
   const raw =
     process.env.EXPO_PUBLIC_SITE_URL ??
@@ -61,6 +99,8 @@ export default function PerfilScreen() {
   const [cpf, setCpf] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [enrollmentNumber, setEnrollmentNumber] = useState("");
   const [className, setClassName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isAdminAccount, setIsAdminAccount] = useState(false);
@@ -83,6 +123,8 @@ export default function PerfilScreen() {
       setGrade((profile?.grade ?? metadata.grade ?? "") as (typeof SERIES_OPTIONS)[number] | "");
       setCpf(formatCpf(String(metadata.cpf ?? "")));
       setWhatsapp(formatWhatsapp(String(metadata.whatsapp ?? "")));
+      setBirthDate(formatBirthDateFromStorage(String(metadata.birth_date ?? "")));
+      setEnrollmentNumber(onlyDigits(String(metadata.enrollment_number ?? "")));
       setEmail(userData.user?.email ?? "");
       setClassName(profile?.class_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
@@ -136,8 +178,17 @@ export default function PerfilScreen() {
       Alert.alert("Campos obrigatórios", "Preencha nome completo, série e CPF válido.");
       return;
     }
+    if (birthDate.trim() && !parseBirthDateInput(birthDate).isValid) {
+      Alert.alert("Data inválida", "Digite a data de nascimento no formato DD/MM/AAAA.");
+      return;
+    }
+    if (enrollmentNumber.trim().length > 0 && enrollmentNumber.trim().length < 4) {
+      Alert.alert("Matrícula inválida", "Informe a matrícula completa do aluno.");
+      return;
+    }
     try {
       setSaving(true);
+      const parsedBirthDate = parseBirthDateInput(birthDate);
       await upsertMyProfile({
         full_name: fullName,
         grade,
@@ -149,10 +200,25 @@ export default function PerfilScreen() {
           full_name: fullName.trim(),
           grade,
           cpf: onlyDigits(cpf),
+          birth_date: parsedBirthDate.iso,
+          enrollment_number: enrollmentNumber.trim() || null,
           whatsapp: onlyDigits(whatsapp) || null,
         },
       });
       if (error) throw error;
+      const profileIsCompleteForXp =
+        Boolean(fullName.trim()) &&
+        Boolean(grade) &&
+        onlyDigits(cpf).length === 11 &&
+        Boolean(email.trim()) &&
+        parsedBirthDate.isValid &&
+        Boolean(enrollmentNumber.trim());
+      if (profileIsCompleteForXp) {
+        const { error: xpError } = await supabase.rpc("award_complete_profile_xp_once");
+        if (xpError) {
+          console.warn("[perfil] Falha ao conceder XP por perfil completo:", xpError.message);
+        }
+      }
       Alert.alert("Perfil atualizado", "Seus dados foram salvos com sucesso.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível salvar seu perfil.";
@@ -437,6 +503,52 @@ export default function PerfilScreen() {
             />
 
             <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
+              Data de nascimento
+            </Text>
+
+            <TextInput
+              placeholder="DD/MM/AAAA"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              keyboardType="number-pad"
+              value={birthDate}
+              onChangeText={(value) => setBirthDate(formatBirthDate(value))}
+              style={{
+                marginTop: spacing.xs,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+
+            <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
+              Número de matrícula
+            </Text>
+
+            <TextInput
+              placeholder="Número de matrícula"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              keyboardType="number-pad"
+              value={enrollmentNumber}
+              onChangeText={(value) => setEnrollmentNumber(onlyDigits(value))}
+              style={{
+                marginTop: spacing.xs,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+
+            <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
               E-mail
             </Text>
 
@@ -478,6 +590,10 @@ export default function PerfilScreen() {
                 fontFamily: typography.fontFamily.base,
               }}
             />
+
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.sm, lineHeight: 20 }}>
+              Ao preencher todos os dados do perfil (WhatsApp opcional), você ganha +100 XP.
+            </Text>
 
             <Pressable
               onPress={() => {
