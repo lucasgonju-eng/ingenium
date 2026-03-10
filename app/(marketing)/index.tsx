@@ -26,10 +26,6 @@ type LandingOlympiadRow = {
   registration_deadline: string | null;
 };
 
-function canUseWebStorage() {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
-
 function formatShortDate(value: string | null) {
   if (!value) return "Sem data";
   const date = new Date(value);
@@ -43,13 +39,8 @@ export default function MarketingLandingScreen() {
   const [olympiads, setOlympiads] = useState<LandingOlympiadRow[]>([]);
   const [hasSession, setHasSession] = useState(false);
   const [showPrizePopup, setShowPrizePopup] = useState(false);
-  const [prizePopupStorageKey, setPrizePopupStorageKey] = useState<string | null>(null);
-  const [prizePopupSeenValue, setPrizePopupSeenValue] = useState<string | null>(null);
 
   function dismissPrizePopup() {
-    if (prizePopupStorageKey && prizePopupSeenValue && canUseWebStorage()) {
-      window.localStorage.setItem(prizePopupStorageKey, prizePopupSeenValue);
-    }
     setShowPrizePopup(false);
   }
 
@@ -60,19 +51,8 @@ export default function MarketingLandingScreen() {
       const { data } = await supabase.auth.getSession();
       const ok = Boolean(data.session);
       setHasSession(ok);
-      if (!ok || !data.session?.user?.id) {
-        setPrizePopupStorageKey(null);
-        setPrizePopupSeenValue(null);
-        setShowPrizePopup(false);
-      } else {
-        const storageKey = `ingenium.lp.etapa1.prize_popup_seen.${data.session.user.id}`;
-        const currentLoginMarker =
-          data.session.user.last_sign_in_at ?? data.session.expires_at?.toString() ?? "logged-session";
-        setPrizePopupStorageKey(storageKey);
-        setPrizePopupSeenValue(currentLoginMarker);
-        const alreadySeen = canUseWebStorage() ? window.localStorage.getItem(storageKey) === currentLoginMarker : false;
-        setShowPrizePopup(!alreadySeen);
-      }
+      // Exibe sempre ao entrar na LP, independente de sessão/plano.
+      setShowPrizePopup(true);
 
       const today = new Date().toISOString().slice(0, 10);
       const [teaser, olympiadsResult] = await Promise.all([
