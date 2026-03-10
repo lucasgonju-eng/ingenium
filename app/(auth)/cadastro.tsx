@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
@@ -37,6 +37,14 @@ function formatWhatsapp(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
+function showFeedback(title: string, message: string) {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
+
 export default function CadastroScreen() {
   const [nome, setNome] = useState("");
   const [serie, setSerie] = useState<(typeof SERIES_OPTIONS)[number] | "">("");
@@ -62,16 +70,16 @@ export default function CadastroScreen() {
 
   const handleSignUp = async () => {
     if (!nome || !serie || !cpf || !matricula || !email || !password) {
-      Alert.alert("Campos obrigatórios", "Preencha nome completo, série, CPF, matrícula, e-mail e senha.");
+      showFeedback("Campos obrigatórios", "Preencha nome completo, série, CPF, matrícula, e-mail e senha.");
       return;
     }
     if (onlyDigits(matricula).length < 4) {
-      Alert.alert("Matrícula inválida", "Informe a matrícula completa do aluno.");
+      showFeedback("Matrícula inválida", "Informe a matrícula completa do aluno.");
       return;
     }
 
     if (onlyDigits(cpf).length !== 11) {
-      Alert.alert("CPF inválido", "Digite um CPF válido com 11 números.");
+      showFeedback("CPF inválido", "Digite um CPF válido com 11 números.");
       return;
     }
 
@@ -84,7 +92,7 @@ export default function CadastroScreen() {
       setLoading(true);
       const termsState = getLocalSignupTermsAcceptance();
       if (!termsState?.accepted || !termsState.termsVersionId || !termsState.termsHash) {
-        Alert.alert("Aceite obrigatorio", "Voce precisa aceitar os Termos e LGPD antes de criar a conta.");
+        showFeedback("Aceite obrigatorio", "Voce precisa aceitar os Termos e LGPD antes de criar a conta.");
         router.replace("/(auth)/termos-lgpd");
         return;
       }
@@ -115,13 +123,13 @@ export default function CadastroScreen() {
       if (error) {
         const msg = String(error.message ?? "").toLowerCase();
         if (msg.includes("rate limit") || msg.includes("over_email_send_rate_limit") || msg.includes("too many requests")) {
-          Alert.alert(
+          showFeedback(
             "Limite de envio atingido",
             "Muitas confirmações foram solicitadas em pouco tempo. Aguarde alguns minutos e tente novamente ou use outro horário.",
           );
           return;
         }
-        Alert.alert("Erro no cadastro", error.message);
+        showFeedback("Erro no cadastro", error.message);
         trackEvent("signup_error", { message: error.message });
         return;
       }
@@ -170,7 +178,7 @@ export default function CadastroScreen() {
         } catch {
           // Não impede o bloqueio do cadastro caso o e-mail falhe.
         }
-        Alert.alert(
+        showFeedback(
           "Inscrição em validação",
           "Seu cadastro foi recebido e está pendente de validação administrativa. Após aprovação, o acesso ao SaaS será liberado e você receberá e-mail de confirmação.",
         );
@@ -184,14 +192,14 @@ export default function CadastroScreen() {
       }
 
       trackEvent("signup_submit", { method: "email_password", role: "student" });
-      Alert.alert(
+      showFeedback(
         "Confirme sua inscrição",
         "Enviamos um e-mail de confirmação. Confirme o link para liberar seu primeiro login.",
       );
       router.replace("/(auth)/login");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao criar conta.";
-      Alert.alert("Erro no cadastro", message);
+      showFeedback("Erro no cadastro", message);
     } finally {
       setLoading(false);
     }
