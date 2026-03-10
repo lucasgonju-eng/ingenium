@@ -18,6 +18,14 @@ function getPublicSiteUrl() {
   return raw.replace(/\/+$/, "");
 }
 
+function showFeedback(title: string, message: string) {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
+
 export default function PlanosIngeniumScreen() {
   const params = useLocalSearchParams<{
     source?: string | string[];
@@ -70,7 +78,7 @@ export default function PlanosIngeniumScreen() {
         parsed = {};
       }
       if (!response.ok || !parsed.ok || !parsed.checkoutUrl) {
-        throw new Error(parsed.error || raw.slice(0, 200) || "Não foi possível iniciar checkout no Asaas.");
+        throw new Error(parsed.error || `Falha ao iniciar checkout (HTTP ${response.status}).`);
       }
 
       if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -85,7 +93,7 @@ export default function PlanosIngeniumScreen() {
       await Linking.openURL(parsed.checkoutUrl);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao abrir checkout do Plano PRO.";
-      Alert.alert("Erro no checkout", message);
+      showFeedback("Erro no checkout", message);
     } finally {
       setCreatingProCheckout(false);
     }

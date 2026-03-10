@@ -153,11 +153,16 @@ if (!is_array($body)) {
 }
 
 $userId = trim((string) ($body["userId"] ?? ""));
+$userEmail = trim((string) ($body["userEmail"] ?? ""));
 $userName = trim((string) ($body["userName"] ?? "Aluno InGenium"));
 $olympiadTitle = trim((string) ($body["olympiadTitle"] ?? ""));
 
 if ($userId === "") {
-  respondJson(400, ["ok" => false, "error" => "userId é obrigatório.", "requestId" => $requestId]);
+  if ($userEmail !== "") {
+    $userId = "email-" . substr(hash("sha256", strtolower($userEmail)), 0, 24);
+  } else {
+    $userId = "anon-" . $requestId;
+  }
 }
 
 $name = "Plano PRO InGenium";
