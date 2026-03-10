@@ -472,6 +472,28 @@ if ($isPaid && $paymentId !== "") {
   // Regra de negócio: o aluno alvo vem da externalReference.
   // Para envio de e-mail, usa exclusivamente o aluno da referência (nunca o e-mail do pagador Asaas).
   $supabaseCfgPath = __DIR__ . "/supabase-admin-config.json";
+  $sourceRef = "asaas_pro_payment_" . $paymentId;
+  if (is_file($supabaseCfgPath) && $paymentId !== "") {
+    $supabaseCfgRawForResolve = json_decode((string) file_get_contents($supabaseCfgPath), true);
+    if (is_array($supabaseCfgRawForResolve)) {
+      $supabaseUrlForResolve = rtrim((string) ($supabaseCfgRawForResolve["url"] ?? ""), "/");
+      $serviceKeyForResolve = trim((string) ($supabaseCfgRawForResolve["serviceRoleKey"] ?? ""));
+      if ($supabaseUrlForResolve !== "" && $serviceKeyForResolve !== "") {
+        $sourceRefCheckUrl = $supabaseUrlForResolve . "/rest/v1/xp_events?select=user_id&source_ref=eq." . rawurlencode($sourceRef) . "&limit=1";
+        $sourceRefCheck = supabase_request("GET", $sourceRefCheckUrl, $serviceKeyForResolve);
+        if ($sourceRefCheck["ok"] && is_array($sourceRefCheck["json"]) && count($sourceRefCheck["json"]) > 0) {
+          $sourceRefRow = $sourceRefCheck["json"][0];
+          if (is_array($sourceRefRow)) {
+            $sourceRefUserId = trim((string) ($sourceRefRow["user_id"] ?? ""));
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $sourceRefUserId) === 1 && $sourceRefUserId !== $profileId) {
+              $profileId = strtolower($sourceRefUserId);
+              @file_put_contents($processedPath, $paymentId . "|profile_id_override_from_source_ref|" . $profileId . "|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            }
+          }
+        }
+      }
+    }
+  }
   if (is_file($supabaseCfgPath) && $profileId !== "") {
     $supabaseCfgRawForEmail = json_decode((string) file_get_contents($supabaseCfgPath), true);
     if (is_array($supabaseCfgRawForEmail)) {
@@ -585,7 +607,6 @@ if ($isPaid && $paymentId !== "") {
       if (is_array($supabaseCfgRaw)) {
         $supabaseUrl = rtrim((string) ($supabaseCfgRaw["url"] ?? ""), "/");
         $supabaseServiceRoleKey = trim((string) ($supabaseCfgRaw["serviceRoleKey"] ?? ""));
-        $sourceRef = "asaas_pro_payment_" . $paymentId;
 
         if ($supabaseUrl !== "" && $supabaseServiceRoleKey !== "" && $profileId !== "") {
           $profileEnsured = supabase_ensure_profile_exists($supabaseUrl, $supabaseServiceRoleKey, $profileId, $customerName);
