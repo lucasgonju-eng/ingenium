@@ -194,10 +194,10 @@ export default function MarketingLandingScreen() {
                           <Image
                             source={WOLF_BY_CLASS[group.key as "gold" | "silver" | "bronze"]}
                             style={{
-                              width: 22,
-                              height: 22,
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
                             }}
-                            resizeMode="contain"
                           />
                         </View>
                         <Text style={{ color: group.accent, fontSize: typography.small.fontSize }} weight="bold">
@@ -364,8 +364,8 @@ export default function MarketingLandingScreen() {
                     >
                       <Image
                         source={wolfSource}
-                        style={{ width: "84%", height: "84%" }}
-                        resizeMode="contain"
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
