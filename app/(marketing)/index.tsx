@@ -31,7 +31,6 @@ const WOLF_BY_CLASS = {
   silver: require("../../assets/wolf-silver.png"),
   bronze: require("../../assets/wolf-bronze.png"),
 } as const;
-const GOLD_LUX_TINT = "#C8A45D";
 
 function formatShortDate(value: string | null) {
   if (!value) return "Sem data";
@@ -198,7 +197,6 @@ export default function MarketingLandingScreen() {
                               width: 28,
                               height: 28,
                               borderRadius: 14,
-                              tintColor: group.key === "gold" ? GOLD_LUX_TINT : undefined,
                             }}
                           />
                         </View>
@@ -366,7 +364,7 @@ export default function MarketingLandingScreen() {
                     >
                       <Image
                         source={wolfSource}
-                        style={{ width: "100%", height: "100%", tintColor: isGold ? GOLD_LUX_TINT : undefined }}
+                        style={{ width: "100%", height: "100%" }}
                         resizeMode="cover"
                       />
                     </View>
