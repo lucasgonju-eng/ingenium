@@ -142,7 +142,18 @@ export default function PlanoProCheckoutScreen() {
             <Text style={{ color: colors.einsteinYellow }} weight="bold">
               PIX (indicado)
             </Text>
-            <Text style={{ color: colors.white, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.45)",
+                marginTop: 6,
+                fontSize: typography.small.fontSize,
+                textDecorationLine: "line-through",
+              }}
+              weight="semibold"
+            >
+              R$ 328,00
+            </Text>
+            <Text style={{ color: colors.white, marginTop: 2, fontSize: 34, lineHeight: 38 }} weight="bold">
               R$ 278,80
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
@@ -189,7 +200,7 @@ export default function PlanoProCheckoutScreen() {
             }}
           >
             <Text style={{ color: colors.white }} weight="bold">
-              Crédito parcelado
+              Crédito parcelado (sem juros)
             </Text>
             <Text style={{ color: colors.white, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
               12x de R$ 27,00
@@ -201,6 +212,9 @@ export default function PlanoProCheckoutScreen() {
 
           <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginTop: spacing.xs }}>
             Boleto bancário não faz parte desta oferta.
+          </Text>
+          <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
+            Observação: esse plano se encerra no dia 31 de dezembro.
           </Text>
         </View>
       </ScrollView>
