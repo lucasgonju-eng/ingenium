@@ -176,6 +176,7 @@ if ($userName !== "") {
 }
 $planValue = 324.00;
 $checkoutBillingType = "UNDEFINED";
+$dueDateLimitDays = 3;
 
 $primaryPayload = [
   "name" => $name,
@@ -186,6 +187,9 @@ $primaryPayload = [
   "notificationEnabled" => true,
   "externalReference" => "ingenium-pro-" . $userId,
 ];
+if ($checkoutBillingType === "UNDEFINED" || $checkoutBillingType === "BOLETO") {
+  $primaryPayload["dueDateLimitDays"] = $dueDateLimitDays;
+}
 if ($enableCheckoutCallback && $checkoutSuccessUrl !== "") {
   $primaryPayload["callback"] = [
     "successUrl" => $checkoutSuccessUrl,
@@ -229,6 +233,9 @@ if ($httpCode < 200 || $httpCode >= 300) {
     "notificationEnabled" => true,
     "externalReference" => "ingenium-pro-" . $userId,
   ];
+  if ($checkoutBillingType === "UNDEFINED" || $checkoutBillingType === "BOLETO") {
+    $fallbackPayload["dueDateLimitDays"] = $dueDateLimitDays;
+  }
   if ($enableCheckoutCallback && $checkoutSuccessUrl !== "") {
     $fallbackPayload["callback"] = [
       "successUrl" => $checkoutSuccessUrl,
@@ -242,6 +249,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
     (stripos($errorMsg, "billingType") !== false || stripos($errorMsg, "undefined") !== false || stripos($errorMsg, "not allowed") !== false)
   ) {
     $fallbackPayload["billingType"] = "CREDIT_CARD";
+    unset($fallbackPayload["dueDateLimitDays"]);
     $retry = sendToAsaas($baseUrl, $apiKey, $fallbackPayload);
     if ($retry["ok"]) {
       $retryCode = $retry["httpCode"];
