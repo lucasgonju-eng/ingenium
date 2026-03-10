@@ -42,7 +42,12 @@ if ($expectedToken === "") {
 }
 
 $headers = function_exists("getallheaders") ? getallheaders() : [];
-$receivedToken = (string) ($headers["asaas-access-token"] ?? $headers["Asaas-Access-Token"] ?? "");
+$receivedToken = (string) (
+  $headers["asaas-access-token"] ??
+  $headers["Asaas-Access-Token"] ??
+  $headers["ASAAS-ACCESS-TOKEN"] ??
+  ($_SERVER["HTTP_ASAAS_ACCESS_TOKEN"] ?? "")
+);
 if ($receivedToken === "" || !hash_equals($expectedToken, $receivedToken)) {
   http_response_code(401);
   echo json_encode(["ok" => false, "error" => "Token de webhook inválido."]);
@@ -234,6 +239,29 @@ function asaas_get_customer(string $baseUrl, string $apiKey, string $customerId)
 }
 
 /**
+ * @return array<string,mixed>|null
+ */
+function asaas_get_payment(string $baseUrl, string $apiKey, string $paymentId): ?array {
+  if ($paymentId === "") return null;
+  $endpoint = rtrim($baseUrl, "/") . "/payments/" . rawurlencode($paymentId);
+  $ch = curl_init($endpoint);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Accept: application/json",
+    "User-Agent: InGeniumHostingerWebhook/1.0",
+    "access_token: " . $apiKey,
+  ]);
+  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+  curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+  $response = curl_exec($ch);
+  $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+  if (!is_string($response) || $httpCode < 200 || $httpCode >= 300) return null;
+  $json = json_decode($response, true);
+  return is_array($json) ? $json : null;
+}
+
+/**
  * @return array{ok:bool,status:int,body:string,json:array<string,mixed>|null,error:string}
  */
 function supabase_request(string $method, string $url, string $serviceRoleKey, ?array $body = null): array {
@@ -309,9 +337,37 @@ $customerEmail = strtolower(trim((string) ($payment["customerEmail"] ?? $payment
 $customerId = trim((string) ($payment["customer"] ?? ""));
 $externalReference = trim((string) ($payment["externalReference"] ?? ""));
 $paidValue = (float) ($payment["value"] ?? 0);
+$baseUrl = (string) ($config["baseUrl"] ?? "https://api.asaas.com/v3");
+$apiKey = (string) ($config["apiKey"] ?? "");
+
+// Alguns webhooks do Asaas chegam com campos incompletos no objeto payment.
+// Fazemos fallback em /payments/{id} para garantir externalReference/e-mail/status.
+if ($paymentId !== "" && $apiKey !== "" && ($externalReference === "" || $customerEmail === "" || $paymentStatus === "" || $paidValue <= 0)) {
+  $paymentInfo = asaas_get_payment($baseUrl, $apiKey, $paymentId);
+  if (is_array($paymentInfo)) {
+    if ($externalReference === "") {
+      $externalReference = trim((string) ($paymentInfo["externalReference"] ?? ""));
+    }
+    if ($paymentStatus === "") {
+      $paymentStatus = strtoupper(trim((string) ($paymentInfo["status"] ?? "")));
+    }
+    if ($paidValue <= 0) {
+      $paidValue = (float) ($paymentInfo["value"] ?? 0);
+    }
+    if ($customerEmail === "") {
+      $customerEmail = strtolower(trim((string) ($paymentInfo["customerEmail"] ?? $paymentInfo["email"] ?? "")));
+    }
+    if ($customerName === "") {
+      $customerName = trim((string) ($paymentInfo["customerName"] ?? $paymentInfo["name"] ?? ""));
+    }
+    if ($customerId === "") {
+      $customerId = trim((string) ($paymentInfo["customer"] ?? ""));
+    }
+  }
+}
 
 $paidEvents = ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_APPROVED", "PAYMENT_SETTLED"];
-$paidStatuses = ["RECEIVED", "CONFIRMED"];
+$paidStatuses = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"];
 $isPaid = in_array($event, $paidEvents, true) || in_array($paymentStatus, $paidStatuses, true);
 
 if ($isPaid && $paymentId !== "") {
@@ -323,8 +379,6 @@ if ($isPaid && $paymentId !== "") {
   $emailAlreadyProcessed = strpos($processedContent, $paymentId . "|xp_email_sent") !== false;
   $xpAlreadyProcessed = strpos($processedContent, $paymentId . "|xp_awarded") !== false;
 
-  $baseUrl = (string) ($config["baseUrl"] ?? "https://api.asaas.com/v3");
-  $apiKey = (string) ($config["apiKey"] ?? "");
   if (($customerEmail === "" || $customerName === "") && $apiKey !== "" && $customerId !== "") {
     $customerInfo = asaas_get_customer($baseUrl, $apiKey, $customerId);
     if (is_array($customerInfo)) {
