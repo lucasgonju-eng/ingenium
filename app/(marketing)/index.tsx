@@ -463,6 +463,20 @@ export default function MarketingLandingScreen() {
                 gap: spacing.sm,
               }}
             >
+              <View
+                style={{
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,199,0,0.65)",
+                  backgroundColor: "rgba(255,199,0,0.2)",
+                  paddingVertical: spacing.xs,
+                  paddingHorizontal: spacing.sm,
+                }}
+              >
+                <Text style={{ color: colors.einsteinYellow, textAlign: "center", fontSize: typography.small.fontSize }} weight="bold">
+                  PROMOÇÃO EXCLUSIVA PARA ALUNOS DO PLANO PRO
+                </Text>
+              </View>
               <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="bold">
                 ETAPA 1 - COLÉGIO EINSTEIN
               </Text>
