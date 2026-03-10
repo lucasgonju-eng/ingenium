@@ -165,20 +165,19 @@ if ($olympiadTitle !== "") {
   $name .= " - " . $olympiadTitle;
 }
 
-$description = "Plano PRO InGenium (R$324,00 em até 12x no cartão).";
+$description = "Plano PRO InGenium (R$324,00 no PIX, débito ou cartão de crédito).";
 if ($userName !== "") {
   $description .= " Aluno: " . $userName . ".";
 }
 $planValue = 324.00;
-$maxInstallmentCount = 12;
+$checkoutBillingType = "UNDEFINED";
 
 $primaryPayload = [
   "name" => $name,
   "description" => $description,
   "value" => $planValue,
-  "billingType" => "CREDIT_CARD",
-  "chargeType" => "INSTALLMENT",
-  "maxInstallmentCount" => $maxInstallmentCount,
+  "billingType" => $checkoutBillingType,
+  "chargeType" => "DETACHED",
   "notificationEnabled" => true,
   "externalReference" => "ingenium-pro-" . $userId,
 ];
@@ -220,7 +219,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
     "name" => $name,
     "description" => $description,
     "value" => $planValue,
-    "billingType" => "CREDIT_CARD",
+    "billingType" => $checkoutBillingType,
     "chargeType" => "DETACHED",
     "notificationEnabled" => true,
     "externalReference" => "ingenium-pro-" . $userId,
@@ -232,11 +231,12 @@ if ($httpCode < 200 || $httpCode >= 300) {
     ];
   }
 
-  // Se a combinação de parcelamento for rejeitada, tenta um formato alternativo aceito em alguns ambientes.
+  // Em alguns ambientes o billingType UNDEFINED pode não estar habilitado; tenta fallback em cartão.
   if (
     $httpCode >= 400 && $httpCode < 500 &&
-    (stripos($errorMsg, "chargeType") !== false || stripos($errorMsg, "installment") !== false || stripos($errorMsg, "maxInstallmentCount") !== false)
+    (stripos($errorMsg, "billingType") !== false || stripos($errorMsg, "undefined") !== false || stripos($errorMsg, "not allowed") !== false)
   ) {
+    $fallbackPayload["billingType"] = "CREDIT_CARD";
     $retry = sendToAsaas($baseUrl, $apiKey, $fallbackPayload);
     if ($retry["ok"]) {
       $retryCode = $retry["httpCode"];
@@ -249,7 +249,6 @@ if ($httpCode < 200 || $httpCode >= 300) {
             "checkoutUrl" => $checkoutUrl,
             "paymentLinkId" => (string) ($retryJson["id"] ?? ""),
             "billingType" => "CREDIT_CARD",
-            "installments" => $maxInstallmentCount,
             "value" => $planValue,
             "requestId" => $requestId,
             "fallbackApplied" => true,
@@ -287,8 +286,7 @@ respondJson(200, [
   "ok" => true,
   "checkoutUrl" => $checkoutUrl,
   "paymentLinkId" => (string) ($responseJson["id"] ?? ""),
-  "billingType" => "CREDIT_CARD",
-  "installments" => $maxInstallmentCount,
+  "billingType" => $checkoutBillingType,
   "value" => $planValue,
   "requestId" => $requestId,
 ]);
