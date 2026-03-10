@@ -1,5 +1,4 @@
-import React from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import FAQAccordion from "./FAQAccordion";
 import PlanCard from "./PlanCard";
@@ -8,23 +7,6 @@ import StitchScreenFrame from "./layout/StitchScreenFrame";
 import StitchHeader from "./ui/StitchHeader";
 import { Text } from "./ui/Text";
 import { colors, radii, spacing, typography } from "../lib/theme/tokens";
-import { supabase } from "../lib/supabase/client";
-import { fetchMyProfile } from "../lib/supabase/queries";
-
-function getPublicSiteUrl() {
-  const raw =
-    process.env.EXPO_PUBLIC_SITE_URL ??
-    (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
-  return raw.replace(/\/+$/, "");
-}
-
-function showFeedback(title: string, message: string) {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    window.alert(`${title}\n\n${message}`);
-    return;
-  }
-  Alert.alert(title, message);
-}
 
 export default function PlanosIngeniumScreen() {
   const params = useLocalSearchParams<{
@@ -39,69 +21,22 @@ export default function PlanosIngeniumScreen() {
   const signupUrl = Array.isArray(params.signupUrl) ? params.signupUrl[0] : params.signupUrl;
   const originContext: "olympiad" | "menu" = source === "olympiad" ? "olympiad" : "menu";
   const cameFromOlympiad = originContext === "olympiad";
-  const [creatingProCheckout, setCreatingProCheckout] = React.useState(false);
 
-  async function handleProCheckout() {
-    if (creatingProCheckout) return;
-    try {
-      setCreatingProCheckout(true);
-      const [{ data: userData }, profile] = await Promise.all([supabase.auth.getUser(), fetchMyProfile().catch(() => null)]);
-      const user = userData.user;
-      if (!user) {
-        Alert.alert("Sessão expirada", "Faça login novamente para continuar.");
-        return;
-      }
-
-      const payload = {
-        userId: user.id,
-        userName:
-          profile?.full_name?.trim() ||
-          String(user.user_metadata?.full_name ?? "").trim() ||
-          user.email?.split("@")[0] ||
-          "Aluno",
-        userEmail: user.email ?? "",
-        originContext,
+  function handleProCheckout() {
+    router.push({
+      pathname: "/(app)/plano-pro-checkout",
+      params: {
+        source: originContext,
         olympiadId: olympiadId ?? "",
         olympiadTitle: olympiadTitle ?? "",
-      };
-
-      const response = await fetch(`${getPublicSiteUrl()}/asaas-create-checkout.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const raw = await response.text();
-      let parsed: { ok?: boolean; checkoutUrl?: string; error?: string } = {};
-      try {
-        parsed = JSON.parse(raw) as { ok?: boolean; checkoutUrl?: string; error?: string };
-      } catch {
-        parsed = {};
-      }
-      if (!response.ok || !parsed.ok || !parsed.checkoutUrl) {
-        throw new Error(parsed.error || `Falha ao iniciar checkout (HTTP ${response.status}).`);
-      }
-
-      if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.location.assign(parsed.checkoutUrl);
-        return;
-      }
-
-      const canOpen = await Linking.canOpenURL(parsed.checkoutUrl);
-      if (!canOpen) {
-        throw new Error("Checkout criado, mas a URL retornada pelo Asaas não pôde ser aberta.");
-      }
-      await Linking.openURL(parsed.checkoutUrl);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao abrir checkout do Plano PRO.";
-      showFeedback("Erro no checkout", message);
-    } finally {
-      setCreatingProCheckout(false);
-    }
+        signupUrl: signupUrl ?? "",
+      },
+    });
   }
 
   async function handleSelectPlan(planId: "free" | "pro") {
     if (planId === "pro") {
-      await handleProCheckout();
+      handleProCheckout();
       return;
     }
 
@@ -212,9 +147,7 @@ export default function PlanosIngeniumScreen() {
                   ? cameFromOlympiad
                     ? "Continuar no Plano Free"
                     : "Continuar com Plano Free"
-                  : creatingProCheckout
-                    ? "Abrindo checkout..."
-                    : "Selecionar Plano PRO"
+                  : "Selecionar Plano PRO"
               }
               onPress={(selectedPlan) => {
                 void handleSelectPlan(selectedPlan.id);
@@ -313,8 +246,7 @@ export default function PlanosIngeniumScreen() {
             {planosContent.finalTitle}
           </Text>
           <Pressable
-            onPress={() => void handleProCheckout()}
-            disabled={creatingProCheckout}
+            onPress={handleProCheckout}
             style={{
               marginTop: spacing.md,
               height: 54,
@@ -322,11 +254,10 @@ export default function PlanosIngeniumScreen() {
               backgroundColor: colors.einsteinYellow,
               alignItems: "center",
               justifyContent: "center",
-              opacity: creatingProCheckout ? 0.7 : 1,
             }}
           >
             <Text style={{ color: colors.einsteinBlue, fontSize: 16 }} weight="bold">
-              {creatingProCheckout ? "Abrindo checkout..." : planosContent.finalCta}
+              {planosContent.finalCta}
             </Text>
           </Pressable>
           <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, textAlign: "center" }}>

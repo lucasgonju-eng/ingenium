@@ -156,6 +156,7 @@ $userId = trim((string) ($body["userId"] ?? ""));
 $userEmail = trim((string) ($body["userEmail"] ?? ""));
 $userName = trim((string) ($body["userName"] ?? "Aluno InGenium"));
 $olympiadTitle = trim((string) ($body["olympiadTitle"] ?? ""));
+$paymentOption = strtolower(trim((string) ($body["paymentOption"] ?? "pix")));
 
 if ($userId === "") {
   if ($userEmail !== "") {
@@ -170,25 +171,46 @@ if ($olympiadTitle !== "") {
   $name .= " - " . $olympiadTitle;
 }
 
-$description = "Plano PRO InGenium (R$324,00 no PIX, débito ou cartão de crédito).";
+$description = "Plano PRO InGenium.";
 if ($userName !== "") {
   $description .= " Aluno: " . $userName . ".";
 }
-$planValue = 324.00;
-$checkoutBillingType = "UNDEFINED";
-$dueDateLimitDays = 3;
+
+$planValue = 278.80;
+$checkoutBillingType = "PIX";
+$chargeType = "DETACHED";
+$maxInstallmentCount = null;
+
+if ($paymentOption === "installment12") {
+  $planValue = 324.00;
+  $checkoutBillingType = "CREDIT_CARD";
+  $chargeType = "INSTALLMENT";
+  $maxInstallmentCount = 12;
+  $description = "Plano PRO InGenium (12x de R$27,00 no cartão de crédito)." . ($userName !== "" ? " Aluno: " . $userName . "." : "");
+} elseif ($paymentOption === "debit") {
+  $planValue = 328.00;
+  $checkoutBillingType = "CREDIT_CARD";
+  $chargeType = "DETACHED";
+  $description = "Plano PRO InGenium (R$328,00 no débito)." . ($userName !== "" ? " Aluno: " . $userName . "." : "");
+} else {
+  $paymentOption = "pix";
+  $planValue = 278.80;
+  $checkoutBillingType = "PIX";
+  $chargeType = "DETACHED";
+  $description = "Plano PRO InGenium (PIX com 15% de desconto: R$278,80)." . ($userName !== "" ? " Aluno: " . $userName . "." : "");
+}
 
 $primaryPayload = [
   "name" => $name,
   "description" => $description,
   "value" => $planValue,
   "billingType" => $checkoutBillingType,
-  "chargeType" => "DETACHED",
+  "chargeType" => $chargeType,
   "notificationEnabled" => true,
-  "externalReference" => "ingenium-pro-" . $userId,
+  "externalReference" => "ingenium-pro-" . $paymentOption . "-" . $userId,
 ];
-if ($checkoutBillingType === "UNDEFINED" || $checkoutBillingType === "BOLETO") {
-  $primaryPayload["dueDateLimitDays"] = $dueDateLimitDays;
+if ($chargeType === "INSTALLMENT" && $maxInstallmentCount !== null) {
+  $primaryPayload["maxInstallmentCount"] = $maxInstallmentCount;
 }
 if ($enableCheckoutCallback && $checkoutSuccessUrl !== "") {
   $primaryPayload["callback"] = [
@@ -229,12 +251,12 @@ if ($httpCode < 200 || $httpCode >= 300) {
     "description" => $description,
     "value" => $planValue,
     "billingType" => $checkoutBillingType,
-    "chargeType" => "DETACHED",
+    "chargeType" => $chargeType,
     "notificationEnabled" => true,
-    "externalReference" => "ingenium-pro-" . $userId,
+    "externalReference" => "ingenium-pro-" . $paymentOption . "-" . $userId,
   ];
-  if ($checkoutBillingType === "UNDEFINED" || $checkoutBillingType === "BOLETO") {
-    $fallbackPayload["dueDateLimitDays"] = $dueDateLimitDays;
+  if ($chargeType === "INSTALLMENT" && $maxInstallmentCount !== null) {
+    $fallbackPayload["maxInstallmentCount"] = $maxInstallmentCount;
   }
   if ($enableCheckoutCallback && $checkoutSuccessUrl !== "") {
     $fallbackPayload["callback"] = [
@@ -243,13 +265,19 @@ if ($httpCode < 200 || $httpCode >= 300) {
     ];
   }
 
-  // Em alguns ambientes o billingType UNDEFINED pode não estar habilitado; tenta fallback em cartão.
+  // No plano débito, se houver restrição de billingType/chargeType no ambiente, tenta fallback de cartão à vista.
   if (
+    $paymentOption === "debit" &&
     $httpCode >= 400 && $httpCode < 500 &&
-    (stripos($errorMsg, "billingType") !== false || stripos($errorMsg, "undefined") !== false || stripos($errorMsg, "not allowed") !== false)
+    (
+      stripos($errorMsg, "billingType") !== false ||
+      stripos($errorMsg, "chargeType") !== false ||
+      stripos($errorMsg, "not allowed") !== false
+    )
   ) {
     $fallbackPayload["billingType"] = "CREDIT_CARD";
-    unset($fallbackPayload["dueDateLimitDays"]);
+    $fallbackPayload["chargeType"] = "DETACHED";
+    unset($fallbackPayload["maxInstallmentCount"]);
     $retry = sendToAsaas($baseUrl, $apiKey, $fallbackPayload);
     if ($retry["ok"]) {
       $retryCode = $retry["httpCode"];
@@ -262,6 +290,7 @@ if ($httpCode < 200 || $httpCode >= 300) {
             "checkoutUrl" => $checkoutUrl,
             "paymentLinkId" => (string) ($retryJson["id"] ?? ""),
             "billingType" => "CREDIT_CARD",
+            "paymentOption" => $paymentOption,
             "value" => $planValue,
             "requestId" => $requestId,
             "fallbackApplied" => true,
@@ -300,6 +329,7 @@ respondJson(200, [
   "checkoutUrl" => $checkoutUrl,
   "paymentLinkId" => (string) ($responseJson["id"] ?? ""),
   "billingType" => $checkoutBillingType,
+  "paymentOption" => $paymentOption,
   "value" => $planValue,
   "requestId" => $requestId,
 ]);
