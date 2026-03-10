@@ -483,10 +483,15 @@ if ($isPaid && $paymentId !== "") {
         if ($profileName !== "") $customerName = $profileName;
       }
 
-      $studentEmail = supabase_admin_user_email($supabaseUrlForEmail, $serviceKeyForEmail, $profileId);
-      if ($studentEmail === "" && is_array($studentProfile)) {
-        $studentEmail = strtolower(trim((string) ($studentProfile["email"] ?? "")));
-      }
+      // Prioriza profiles.email quando existir; fallback para auth admin e-mail.
+      $profileEmail = is_array($studentProfile) ? strtolower(trim((string) ($studentProfile["email"] ?? ""))) : "";
+      $adminEmail = supabase_admin_user_email($supabaseUrlForEmail, $serviceKeyForEmail, $profileId);
+      $studentEmail = $profileEmail !== "" ? $profileEmail : $adminEmail;
+      @file_put_contents(
+        $processedPath,
+        $paymentId . "|email_resolution|profile:" . ($profileEmail !== "" ? $profileEmail : "missing") . "|admin:" . ($adminEmail !== "" ? $adminEmail : "missing") . "|" . gmdate("c") . PHP_EOL,
+        FILE_APPEND
+      );
 
       if (filter_var($studentEmail, FILTER_VALIDATE_EMAIL)) {
         $customerEmail = strtolower($studentEmail);
