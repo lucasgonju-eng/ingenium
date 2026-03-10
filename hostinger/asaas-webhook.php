@@ -357,6 +357,22 @@ function supabase_ensure_profile_exists(string $supabaseUrl, string $serviceRole
   return $insert["ok"];
 }
 
+/**
+ * @return array{total_points:int,lobo_class:string}|null
+ */
+function supabase_points_snapshot(string $supabaseUrl, string $serviceRoleKey, string $userId): ?array {
+  if ($supabaseUrl === "" || $serviceRoleKey === "" || $userId === "") return null;
+  $url = rtrim($supabaseUrl, "/") . "/rest/v1/points?select=total_points,lobo_class&limit=1&user_id=eq." . rawurlencode($userId);
+  $res = supabase_request("GET", $url, $serviceRoleKey);
+  if (!$res["ok"] || !is_array($res["json"]) || count($res["json"]) === 0) return null;
+  $row = $res["json"][0];
+  if (!is_array($row)) return null;
+  return [
+    "total_points" => (int) ($row["total_points"] ?? 0),
+    "lobo_class" => (string) ($row["lobo_class"] ?? "bronze"),
+  ];
+}
+
 function extract_uuid_from_external_reference(string $externalReference): string {
   if ($externalReference === "") return "";
   if (preg_match('/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i', $externalReference, $m) === 1) {
@@ -474,9 +490,11 @@ if ($isPaid && $paymentId !== "") {
 
       if (filter_var($studentEmail, FILTER_VALIDATE_EMAIL)) {
         $customerEmail = strtolower($studentEmail);
+        @file_put_contents($processedPath, $paymentId . "|email_target|" . $customerEmail . "|" . gmdate("c") . PHP_EOL, FILE_APPEND);
       } else {
         // Nunca usa e-mail do pagador quando há referência de aluno.
         $customerEmail = "";
+        @file_put_contents($processedPath, $paymentId . "|email_target_missing|" . gmdate("c") . PHP_EOL, FILE_APPEND);
         @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
           "at" => gmdate("c"),
           "paymentId" => $paymentId,
@@ -706,6 +724,17 @@ if ($isPaid && $paymentId !== "") {
             } else {
               @file_put_contents($processedPath, $paymentId . "|xp_points_fallback_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
             }
+          }
+
+          $pointsSnap = supabase_points_snapshot($supabaseUrl, $supabaseServiceRoleKey, $profileId);
+          if (is_array($pointsSnap)) {
+            @file_put_contents(
+              $processedPath,
+              $paymentId . "|points_snapshot|" . (string) $pointsSnap["total_points"] . "|" . (string) $pointsSnap["lobo_class"] . "|" . gmdate("c") . PHP_EOL,
+              FILE_APPEND
+            );
+          } else {
+            @file_put_contents($processedPath, $paymentId . "|points_snapshot_missing|" . gmdate("c") . PHP_EOL, FILE_APPEND);
           }
 
           $isDaviPayment = stripos($customerName, "davi laranjeiras") !== false || stripos($customerName, "vania laranjeiras") !== false;
