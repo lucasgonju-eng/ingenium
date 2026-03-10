@@ -35,6 +35,7 @@ export default function PlanoProCheckoutScreen() {
   const olympiadId = Array.isArray(params.olympiadId) ? params.olympiadId[0] : params.olympiadId;
   const olympiadTitle = Array.isArray(params.olympiadTitle) ? params.olympiadTitle[0] : params.olympiadTitle;
   const originContext: "olympiad" | "menu" = source === "olympiad" ? "olympiad" : "menu";
+  const [selectedOption, setSelectedOption] = useState<PaymentOption>("pix");
   const [loadingOption, setLoadingOption] = useState<PaymentOption | null>(null);
 
   async function handleOpenCheckout(paymentOption: PaymentOption) {
@@ -128,15 +129,15 @@ export default function PlanoProCheckoutScreen() {
           </View>
 
           <Pressable
-            onPress={() => void handleOpenCheckout("pix")}
+            onPress={() => setSelectedOption("pix")}
             disabled={loadingOption !== null}
             style={{
               borderRadius: radii.lg,
-              borderWidth: 2,
-              borderColor: colors.einsteinYellow,
-              backgroundColor: colors.surfaceCard,
+              borderWidth: selectedOption === "pix" ? 2 : 1,
+              borderColor: selectedOption === "pix" ? colors.einsteinYellow : colors.borderSoft,
+              backgroundColor: selectedOption === "pix" ? colors.surfaceCard : colors.surfacePanel,
               padding: spacing.md,
-              opacity: loadingOption === null || loadingOption === "pix" ? 1 : 0.7,
+              opacity: loadingOption === null ? 1 : 0.7,
             }}
           >
             <Text style={{ color: colors.einsteinYellow }} weight="bold">
@@ -157,23 +158,20 @@ export default function PlanoProCheckoutScreen() {
               R$ 278,80
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
-              15% de desconto aplicado automaticamente no Asaas.
-            </Text>
-            <Text style={{ color: colors.einsteinYellow, marginTop: spacing.sm }} weight="bold">
-              {loadingOption === "pix" ? "Abrindo checkout..." : "Pagar com PIX"}
+              15% de desconto aplicado automaticamente.
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => void handleOpenCheckout("debit")}
+            onPress={() => setSelectedOption("debit")}
             disabled={loadingOption !== null}
             style={{
               borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: colors.borderSoft,
-              backgroundColor: colors.surfacePanel,
+              borderWidth: selectedOption === "debit" ? 2 : 1,
+              borderColor: selectedOption === "debit" ? colors.einsteinYellow : colors.borderSoft,
+              backgroundColor: selectedOption === "debit" ? colors.surfaceCard : colors.surfacePanel,
               padding: spacing.md,
-              opacity: loadingOption === null || loadingOption === "debit" ? 1 : 0.7,
+              opacity: loadingOption === null ? 1 : 0.7,
             }}
           >
             <Text style={{ color: colors.white }} weight="bold">
@@ -182,21 +180,18 @@ export default function PlanoProCheckoutScreen() {
             <Text style={{ color: colors.white, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
               R$ 328,00
             </Text>
-            <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.sm }} weight="semibold">
-              {loadingOption === "debit" ? "Abrindo checkout..." : "Pagar no débito"}
-            </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => void handleOpenCheckout("installment12")}
+            onPress={() => setSelectedOption("installment12")}
             disabled={loadingOption !== null}
             style={{
               borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: colors.borderSoft,
-              backgroundColor: colors.surfacePanel,
+              borderWidth: selectedOption === "installment12" ? 2 : 1,
+              borderColor: selectedOption === "installment12" ? colors.einsteinYellow : colors.borderSoft,
+              backgroundColor: selectedOption === "installment12" ? colors.surfaceCard : colors.surfacePanel,
               padding: spacing.md,
-              opacity: loadingOption === null || loadingOption === "installment12" ? 1 : 0.7,
+              opacity: loadingOption === null ? 1 : 0.7,
             }}
           >
             <Text style={{ color: colors.white }} weight="bold">
@@ -205,14 +200,28 @@ export default function PlanoProCheckoutScreen() {
             <Text style={{ color: colors.white, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
               12x de R$ 27,00
             </Text>
-            <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.sm }} weight="semibold">
-              {loadingOption === "installment12" ? "Abrindo checkout..." : "Pagar no crédito"}
+            <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
+              Prestações suaves que cabem no bolso.
             </Text>
           </Pressable>
 
-          <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginTop: spacing.xs }}>
-            Boleto bancário não faz parte desta oferta.
-          </Text>
+          <Pressable
+            onPress={() => void handleOpenCheckout(selectedOption)}
+            disabled={loadingOption !== null}
+            style={{
+              marginTop: spacing.xs,
+              height: 48,
+              borderRadius: radii.md,
+              backgroundColor: colors.einsteinYellow,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: loadingOption !== null ? 0.75 : 1,
+            }}
+          >
+            <Text style={{ color: colors.einsteinBlue, fontSize: 16 }} weight="bold">
+              {loadingOption ? "Abrindo checkout..." : "Contratar"}
+            </Text>
+          </Pressable>
           <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
             Observação: esse plano se encerra no dia 31 de dezembro.
           </Text>
