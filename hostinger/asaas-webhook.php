@@ -320,6 +320,42 @@ function supabase_admin_user_email(string $supabaseUrl, string $serviceRoleKey, 
   return "";
 }
 
+/**
+ * @return array<string,mixed>|null
+ */
+function supabase_profile_record(string $supabaseUrl, string $serviceRoleKey, string $userId): ?array {
+  if ($supabaseUrl === "" || $serviceRoleKey === "" || $userId === "") return null;
+  $base = rtrim($supabaseUrl, "/") . "/rest/v1/profiles?limit=1&id=eq." . rawurlencode($userId);
+  $withEmail = supabase_request("GET", $base . "&select=id,full_name,email", $serviceRoleKey);
+  if ($withEmail["ok"] && is_array($withEmail["json"]) && count($withEmail["json"]) > 0) {
+    $row = $withEmail["json"][0];
+    return is_array($row) ? $row : null;
+  }
+
+  // Fallback para ambientes em que profiles não possui coluna email.
+  $basic = supabase_request("GET", $base . "&select=id,full_name", $serviceRoleKey);
+  if ($basic["ok"] && is_array($basic["json"]) && count($basic["json"]) > 0) {
+    $row = $basic["json"][0];
+    return is_array($row) ? $row : null;
+  }
+  return null;
+}
+
+function supabase_ensure_profile_exists(string $supabaseUrl, string $serviceRoleKey, string $userId, string $fallbackName): bool {
+  if ($supabaseUrl === "" || $serviceRoleKey === "" || $userId === "") return false;
+  $checkUrl = rtrim($supabaseUrl, "/") . "/rest/v1/profiles?select=id&limit=1&id=eq." . rawurlencode($userId);
+  $check = supabase_request("GET", $checkUrl, $serviceRoleKey);
+  if ($check["ok"] && is_array($check["json"]) && count($check["json"]) > 0) return true;
+
+  $insertUrl = rtrim($supabaseUrl, "/") . "/rest/v1/profiles";
+  $payload = [
+    "id" => $userId,
+    "full_name" => trim($fallbackName) !== "" ? trim($fallbackName) : "Aluno",
+  ];
+  $insert = supabase_request("POST", $insertUrl, $serviceRoleKey, $payload);
+  return $insert["ok"];
+}
+
 function extract_uuid_from_external_reference(string $externalReference): string {
   if ($externalReference === "") return "";
   if (preg_match('/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i', $externalReference, $m) === 1) {
@@ -416,18 +452,46 @@ if ($isPaid && $paymentId !== "") {
   }
 
   // Regra de negócio: o aluno alvo vem da externalReference.
-  // Para envio de e-mail, prioriza o e-mail do usuário da plataforma (auth user) dessa referência.
+  // Para envio de e-mail, usa exclusivamente o aluno da referência (nunca o e-mail do pagador Asaas).
   $supabaseCfgPath = __DIR__ . "/supabase-admin-config.json";
   if (is_file($supabaseCfgPath) && $profileId !== "") {
     $supabaseCfgRawForEmail = json_decode((string) file_get_contents($supabaseCfgPath), true);
     if (is_array($supabaseCfgRawForEmail)) {
       $supabaseUrlForEmail = rtrim((string) ($supabaseCfgRawForEmail["url"] ?? ""), "/");
       $serviceKeyForEmail = trim((string) ($supabaseCfgRawForEmail["serviceRoleKey"] ?? ""));
+      $studentProfile = supabase_profile_record($supabaseUrlForEmail, $serviceKeyForEmail, $profileId);
+      if (is_array($studentProfile)) {
+        $profileName = trim((string) ($studentProfile["full_name"] ?? ""));
+        if ($profileName !== "") $customerName = $profileName;
+      }
+
       $studentEmail = supabase_admin_user_email($supabaseUrlForEmail, $serviceKeyForEmail, $profileId);
-      if ($studentEmail !== "") {
-        $customerEmail = $studentEmail;
+      if ($studentEmail === "" && is_array($studentProfile)) {
+        $studentEmail = strtolower(trim((string) ($studentProfile["email"] ?? "")));
+      }
+
+      if (filter_var($studentEmail, FILTER_VALIDATE_EMAIL)) {
+        $customerEmail = strtolower($studentEmail);
+      } else {
+        // Nunca usa e-mail do pagador quando há referência de aluno.
+        $customerEmail = "";
+        @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+          "at" => gmdate("c"),
+          "paymentId" => $paymentId,
+          "profileId" => $profileId,
+          "step" => "student_email_not_found",
+        ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
       }
     }
+  } elseif ($profileId !== "") {
+    // Sem config Supabase no servidor, impede envio para e-mail do pagador por segurança.
+    $customerEmail = "";
+    @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+      "at" => gmdate("c"),
+      "paymentId" => $paymentId,
+      "profileId" => $profileId,
+      "step" => "supabase_config_missing_for_email_resolution",
+    ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
   }
 
   if (filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
@@ -499,6 +563,16 @@ if ($isPaid && $paymentId !== "") {
         $sourceRef = "asaas_pro_payment_" . $paymentId;
 
         if ($supabaseUrl !== "" && $supabaseServiceRoleKey !== "" && $profileId !== "") {
+          $profileEnsured = supabase_ensure_profile_exists($supabaseUrl, $supabaseServiceRoleKey, $profileId, $customerName);
+          if (!$profileEnsured) {
+            @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+              "at" => gmdate("c"),
+              "paymentId" => $paymentId,
+              "profileId" => $profileId,
+              "step" => "profile_ensure_failed",
+            ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+          }
+
           $xpCredited = false;
           $checkUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=eq." . rawurlencode($sourceRef) . "&limit=1";
           $checkResult = supabase_request("GET", $checkUrl, $supabaseServiceRoleKey);
@@ -656,8 +730,29 @@ if ($isPaid && $paymentId !== "") {
               @file_put_contents($processedPath, "davi_backfill_8000_2026|done|" . gmdate("c") . PHP_EOL, FILE_APPEND);
             }
           }
+        } elseif ($profileId === "") {
+          @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+            "at" => gmdate("c"),
+            "paymentId" => $paymentId,
+            "step" => "profile_id_not_found_in_external_reference",
+            "externalReference" => $externalReference,
+          ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+        } else {
+          @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+            "at" => gmdate("c"),
+            "paymentId" => $paymentId,
+            "profileId" => $profileId,
+            "step" => "supabase_config_invalid_for_xp",
+          ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
         }
       }
+    } else {
+      @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+        "at" => gmdate("c"),
+        "paymentId" => $paymentId,
+        "profileId" => $profileId,
+        "step" => "supabase_config_missing_for_xp",
+      ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
     }
   }
 }
