@@ -233,6 +233,57 @@ function asaas_get_customer(string $baseUrl, string $apiKey, string $customerId)
   return is_array($json) ? $json : null;
 }
 
+/**
+ * @return array{ok:bool,status:int,body:string,json:array<string,mixed>|null,error:string}
+ */
+function supabase_request(string $method, string $url, string $serviceRoleKey, ?array $body = null): array {
+  $ch = curl_init($url);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+  $headers = [
+    "Accept: application/json",
+    "apikey: " . $serviceRoleKey,
+    "Authorization: Bearer " . $serviceRoleKey,
+    "User-Agent: InGeniumWebhookXP/1.0",
+  ];
+  if ($body !== null) {
+    $jsonBody = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (!is_string($jsonBody)) {
+      return ["ok" => false, "status" => 0, "body" => "", "json" => null, "error" => "Falha ao serializar JSON do Supabase."];
+    }
+    $headers[] = "Content-Type: application/json";
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonBody);
+  }
+  curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+  curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+
+  $response = curl_exec($ch);
+  $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  $curlError = curl_error($ch);
+  curl_close($ch);
+
+  if (!is_string($response)) {
+    return ["ok" => false, "status" => $status, "body" => "", "json" => null, "error" => $curlError !== "" ? $curlError : "Falha de transporte Supabase."];
+  }
+  $json = json_decode($response, true);
+  return [
+    "ok" => $status >= 200 && $status < 300,
+    "status" => $status,
+    "body" => $response,
+    "json" => is_array($json) ? $json : null,
+    "error" => $curlError,
+  ];
+}
+
+function extract_uuid_from_external_reference(string $externalReference): string {
+  if ($externalReference === "") return "";
+  if (preg_match('/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i', $externalReference, $m) === 1) {
+    return strtolower((string) ($m[1] ?? ""));
+  }
+  return "";
+}
+
 $logDir = __DIR__ . "/logs";
 if (!is_dir($logDir)) {
   @mkdir($logDir, 0755, true);
@@ -265,25 +316,28 @@ $isPaid = in_array($event, $paidEvents, true) || in_array($paymentStatus, $paidS
 
 if ($isPaid && $paymentId !== "") {
   $processedPath = $logDir . "/asaas-webhook-processed.log";
-  $alreadyProcessed = false;
+  $processedContent = "";
   if (is_file($processedPath)) {
     $processedContent = (string) file_get_contents($processedPath);
-    $alreadyProcessed = strpos($processedContent, $paymentId . "|xp_email_sent") !== false;
   }
+  $emailAlreadyProcessed = strpos($processedContent, $paymentId . "|xp_email_sent") !== false;
+  $xpAlreadyProcessed = strpos($processedContent, $paymentId . "|xp_awarded") !== false;
 
-  if (!$alreadyProcessed) {
-    $baseUrl = (string) ($config["baseUrl"] ?? "https://api.asaas.com/v3");
-    $apiKey = (string) ($config["apiKey"] ?? "");
-    if ($customerEmail === "" && $apiKey !== "" && $customerId !== "") {
-      $customerInfo = asaas_get_customer($baseUrl, $apiKey, $customerId);
-      if (is_array($customerInfo)) {
+  $baseUrl = (string) ($config["baseUrl"] ?? "https://api.asaas.com/v3");
+  $apiKey = (string) ($config["apiKey"] ?? "");
+  if (($customerEmail === "" || $customerName === "") && $apiKey !== "" && $customerId !== "") {
+    $customerInfo = asaas_get_customer($baseUrl, $apiKey, $customerId);
+    if (is_array($customerInfo)) {
+      if ($customerEmail === "") {
         $customerEmail = strtolower(trim((string) ($customerInfo["email"] ?? "")));
-        if ($customerName === "") {
-          $customerName = trim((string) ($customerInfo["name"] ?? ""));
-        }
+      }
+      if ($customerName === "") {
+        $customerName = trim((string) ($customerInfo["name"] ?? ""));
       }
     }
+  }
 
+  if (!$emailAlreadyProcessed) {
     $smtpPath = __DIR__ . "/smtp-config.json";
     if (is_file($smtpPath) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
       $smtpCfgRaw = json_decode((string) file_get_contents($smtpPath), true);
@@ -321,6 +375,97 @@ if ($isPaid && $paymentId !== "") {
         $sendResult = send_html_mail($customerEmail, $subject, $html, $smtpCfg);
         $marker = $paymentId . "|" . ($sendResult["ok"] ? "xp_email_sent" : "xp_email_failed") . "|" . gmdate("c");
         @file_put_contents($processedPath, $marker . PHP_EOL, FILE_APPEND);
+      }
+    }
+  }
+
+  if (!$xpAlreadyProcessed) {
+    $supabaseCfgPath = __DIR__ . "/supabase-admin-config.json";
+    if (is_file($supabaseCfgPath)) {
+      $supabaseCfgRaw = json_decode((string) file_get_contents($supabaseCfgPath), true);
+      if (is_array($supabaseCfgRaw)) {
+        $supabaseUrl = rtrim((string) ($supabaseCfgRaw["url"] ?? ""), "/");
+        $supabaseServiceRoleKey = trim((string) ($supabaseCfgRaw["serviceRoleKey"] ?? ""));
+        $profileId = extract_uuid_from_external_reference($externalReference);
+        $sourceRef = "asaas_pro_payment_" . $paymentId;
+
+        if ($supabaseUrl !== "" && $supabaseServiceRoleKey !== "" && $profileId !== "") {
+          $checkUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=eq." . rawurlencode($sourceRef) . "&limit=1";
+          $checkResult = supabase_request("GET", $checkUrl, $supabaseServiceRoleKey);
+          $alreadyExists = false;
+          if ($checkResult["ok"] && is_array($checkResult["json"])) {
+            $alreadyExists = count($checkResult["json"]) > 0;
+          }
+
+          if (!$alreadyExists) {
+            $insertUrl = $supabaseUrl . "/rest/v1/xp_events";
+            $insertPayload = [
+              "user_id" => $profileId,
+              "event_type" => "volunteer_mentorship_bronze",
+              "xp_amount" => 8000,
+              "occurred_on" => gmdate("Y-m-d"),
+              "source_ref" => $sourceRef,
+              "note" => "Bônus Plano PRO confirmado via webhook Asaas (+8000 XP)",
+            ];
+            $insertResult = supabase_request("POST", $insertUrl, $supabaseServiceRoleKey, $insertPayload);
+            if ($insertResult["ok"]) {
+              $rpcUrl = $supabaseUrl . "/rest/v1/rpc/recalc_points_for_user";
+              $rpcPayload = ["p_user_id" => $profileId];
+              $rpcResult = supabase_request("POST", $rpcUrl, $supabaseServiceRoleKey, $rpcPayload);
+              if ($rpcResult["ok"]) {
+                @file_put_contents($processedPath, $paymentId . "|xp_awarded|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+              } else {
+                @file_put_contents($processedPath, $paymentId . "|xp_recalc_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+              }
+            } else {
+              @file_put_contents($processedPath, $paymentId . "|xp_insert_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            }
+          } else {
+            @file_put_contents($processedPath, $paymentId . "|xp_awarded|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+          }
+
+          $isDaviPayment = stripos($customerName, "davi laranjeiras") !== false || stripos($customerName, "vania laranjeiras") !== false;
+          if (!$isDaviPayment) {
+            $profileCheckUrl = $supabaseUrl . "/rest/v1/profiles?select=full_name&id=eq." . rawurlencode($profileId) . "&limit=1";
+            $profileCheck = supabase_request("GET", $profileCheckUrl, $supabaseServiceRoleKey);
+            if ($profileCheck["ok"] && is_array($profileCheck["json"]) && count($profileCheck["json"]) > 0) {
+              $profileRow = $profileCheck["json"][0];
+              if (is_array($profileRow)) {
+                $profileName = strtolower(trim((string) ($profileRow["full_name"] ?? "")));
+                if (strpos($profileName, "davi laranjeiras") !== false) {
+                  $isDaviPayment = true;
+                }
+              }
+            }
+          }
+          if ($isDaviPayment && strpos($processedContent, "davi_backfill_8000_2026|done") === false) {
+            $backfillRef = "manual_backfill_davi_8000_2026";
+            $checkBackfillUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=eq." . rawurlencode($backfillRef) . "&limit=1";
+            $checkBackfill = supabase_request("GET", $checkBackfillUrl, $supabaseServiceRoleKey);
+            $hasBackfill = $checkBackfill["ok"] && is_array($checkBackfill["json"]) && count($checkBackfill["json"]) > 0;
+            if (!$hasBackfill) {
+              $backfillPayload = [
+                "user_id" => $profileId,
+                "event_type" => "volunteer_mentorship_bronze",
+                "xp_amount" => 8000,
+                "occurred_on" => gmdate("Y-m-d"),
+                "source_ref" => $backfillRef,
+                "note" => "Backfill manual Davi Laranjeiras (+8000 XP)",
+              ];
+              $backfillInsert = supabase_request("POST", $insertUrl, $supabaseServiceRoleKey, $backfillPayload);
+              if ($backfillInsert["ok"]) {
+                $rpcUrl = $supabaseUrl . "/rest/v1/rpc/recalc_points_for_user";
+                $rpcPayload = ["p_user_id" => $profileId];
+                $rpcBackfill = supabase_request("POST", $rpcUrl, $supabaseServiceRoleKey, $rpcPayload);
+                if ($rpcBackfill["ok"]) {
+                  @file_put_contents($processedPath, "davi_backfill_8000_2026|done|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+                }
+              }
+            } else {
+              @file_put_contents($processedPath, "davi_backfill_8000_2026|done|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            }
+          }
+        }
       }
     }
   }
