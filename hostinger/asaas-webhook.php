@@ -483,10 +483,10 @@ if ($isPaid && $paymentId !== "") {
         if ($profileName !== "") $customerName = $profileName;
       }
 
-      // Prioriza profiles.email quando existir; fallback para auth admin e-mail.
+      // Regra rígida: enviar somente para o e-mail de profiles do aluno da referência.
       $profileEmail = is_array($studentProfile) ? strtolower(trim((string) ($studentProfile["email"] ?? ""))) : "";
       $adminEmail = supabase_admin_user_email($supabaseUrlForEmail, $serviceKeyForEmail, $profileId);
-      $studentEmail = $profileEmail !== "" ? $profileEmail : $adminEmail;
+      $studentEmail = $profileEmail;
       @file_put_contents(
         $processedPath,
         $paymentId . "|email_resolution|profile:" . ($profileEmail !== "" ? $profileEmail : "missing") . "|admin:" . ($adminEmail !== "" ? $adminEmail : "missing") . "|" . gmdate("c") . PHP_EOL,
