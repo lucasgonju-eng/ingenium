@@ -399,8 +399,9 @@ if ($isPaid && $paymentId !== "") {
   if (is_file($processedPath)) {
     $processedContent = (string) file_get_contents($processedPath);
   }
-  $emailAlreadyProcessed = strpos($processedContent, $paymentId . "|xp_email_sent") !== false;
-  $xpAlreadyProcessed = strpos($processedContent, $paymentId . "|xp_awarded") !== false;
+  $emailAlreadyProcessed = false;
+  // Reprocessamento idempotente deve ser decidido no banco (source_ref), não no arquivo local.
+  $xpAlreadyProcessed = false;
 
   if (($customerEmail === "" || $customerName === "") && $apiKey !== "" && $customerId !== "") {
     $customerInfo = asaas_get_customer($baseUrl, $apiKey, $customerId);
@@ -427,6 +428,11 @@ if ($isPaid && $paymentId !== "") {
         $customerEmail = $studentEmail;
       }
     }
+  }
+
+  if (filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+    $targetEmailMarker = strtolower($paymentId . "|xp_email_sent_to|" . $customerEmail);
+    $emailAlreadyProcessed = strpos(strtolower($processedContent), $targetEmailMarker) !== false;
   }
 
   if (!$emailAlreadyProcessed) {
@@ -467,6 +473,19 @@ if ($isPaid && $paymentId !== "") {
         $sendResult = send_html_mail($customerEmail, $subject, $html, $smtpCfg);
         $marker = $paymentId . "|" . ($sendResult["ok"] ? "xp_email_sent" : "xp_email_failed") . "|" . gmdate("c");
         @file_put_contents($processedPath, $marker . PHP_EOL, FILE_APPEND);
+        if ($sendResult["ok"]) {
+          $targetMarker = strtolower($paymentId . "|xp_email_sent_to|" . $customerEmail . "|" . gmdate("c"));
+          @file_put_contents($processedPath, $targetMarker . PHP_EOL, FILE_APPEND);
+        } else {
+          @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+            "at" => gmdate("c"),
+            "paymentId" => $paymentId,
+            "profileId" => $profileId,
+            "step" => "xp_email_failed",
+            "email" => $customerEmail,
+            "error" => $sendResult["error"],
+          ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+        }
       }
     }
   }
