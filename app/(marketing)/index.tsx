@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import { Text } from "../../components/ui/Text";
@@ -25,6 +25,12 @@ type LandingOlympiadRow = {
   status: string | null;
   registration_deadline: string | null;
 };
+
+const WOLF_BY_CLASS = {
+  gold: require("../../assets/wolf-gold.png"),
+  silver: require("../../assets/wolf-silver.png"),
+  bronze: require("../../assets/wolf-bronze.png"),
+} as const;
 
 function formatShortDate(value: string | null) {
   if (!value) return "Sem data";
@@ -100,59 +106,6 @@ export default function MarketingLandingScreen() {
             <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 21 }}>
               {copy.program.headline}
             </Text>
-          </View>
-
-          <View
-            style={{
-              borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: "rgba(255,199,0,0.3)",
-              backgroundColor: "rgba(255,199,0,0.08)",
-              padding: spacing.md,
-            }}
-          >
-            <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
-              Não fique de fora
-            </Text>
-            <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: 6 }}>Junte-se à liga hoje mesmo.</Text>
-            <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
-              <Pressable
-                onPress={() => {
-                  trackEvent("login_cta_click", { source: "marketing_lp_top" });
-                  router.push("/(auth)/login");
-                }}
-                style={{
-                  flex: 1,
-                  height: 44,
-                  borderRadius: radii.md,
-                  backgroundColor: colors.einsteinYellow,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                  Entrar na Liga
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  trackEvent("signup_start", { source: "marketing_lp_top" });
-                  router.push("/(auth)/cadastro");
-                }}
-                style={{
-                  flex: 1,
-                  height: 44,
-                  borderRadius: radii.md,
-                  backgroundColor: "rgba(255,255,255,0.09)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: colors.white }} weight="bold">
-                  Criar conta
-                </Text>
-              </Pressable>
-            </View>
           </View>
 
         <View
@@ -255,6 +208,59 @@ export default function MarketingLandingScreen() {
           )}
         </View>
 
+          <View
+            style={{
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: "rgba(255,199,0,0.3)",
+              backgroundColor: "rgba(255,199,0,0.08)",
+              padding: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+              Não fique de fora
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: 6 }}>Junte-se à liga hoje mesmo.</Text>
+            <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.sm }}>
+              <Pressable
+                onPress={() => {
+                  trackEvent("login_cta_click", { source: "marketing_lp_top" });
+                  router.push("/(auth)/login");
+                }}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: radii.md,
+                  backgroundColor: colors.einsteinYellow,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  Entrar na Liga
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  trackEvent("signup_start", { source: "marketing_lp_top" });
+                  router.push("/(auth)/cadastro");
+                }}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: radii.md,
+                  backgroundColor: "rgba(255,255,255,0.09)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Criar conta
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
         <View style={{ gap: spacing.sm }}>
           <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
             Ligas de Elite
@@ -262,28 +268,55 @@ export default function MarketingLandingScreen() {
           <Text style={{ color: "rgba(255,255,255,0.7)", lineHeight: 20 }}>
             {copy.program.xpSummary}
           </Text>
-          {copy.program.tiers.map((item) => (
-            <View
-              key={item.title}
-              style={{
-                borderRadius: radii.lg,
-                borderWidth: 1,
-                borderColor: colors.borderSoft,
-                backgroundColor: colors.surfacePanel,
-                padding: spacing.md,
-              }}
-            >
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-                  {item.icon} {item.title}
-                </Text>
-                <Text style={{ color: colors.einsteinYellow, fontSize: 11 }} weight="semibold">
-                  {item.range}
-                </Text>
+          {copy.program.tiers.map((item) => {
+            const isGold = item.key === "gold";
+            const isSilver = item.key === "silver";
+            const wolfSource = isGold ? WOLF_BY_CLASS.gold : isSilver ? WOLF_BY_CLASS.silver : WOLF_BY_CLASS.bronze;
+            const accent = isGold ? "#FFD700" : isSilver ? "#D9E2EC" : "#CD7F32";
+            const border = isGold ? "rgba(255,215,0,0.55)" : isSilver ? "rgba(217,226,236,0.55)" : "rgba(205,127,50,0.55)";
+            const glow = isGold ? "rgba(255,215,0,0.12)" : isSilver ? "rgba(217,226,236,0.10)" : "rgba(205,127,50,0.10)";
+            return (
+              <View
+                key={item.title}
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: border,
+                  backgroundColor: glow,
+                  padding: spacing.md,
+                }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.sm }}>
+                    <View
+                      style={{
+                        width: 54,
+                        height: 54,
+                        borderRadius: 27,
+                        borderWidth: 2,
+                        borderColor: accent,
+                        backgroundColor: "rgba(0,0,0,0.28)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Image source={wolfSource} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: accent, fontSize: typography.subtitle.fontSize }} weight="bold">
+                        {item.title}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4, lineHeight: 20 }}>{item.desc}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ color: accent, fontSize: 11 }} weight="semibold">
+                    {item.range}
+                  </Text>
+                </View>
               </View>
-              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 6, lineHeight: 20 }}>{item.desc}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={{ gap: spacing.sm }}>
