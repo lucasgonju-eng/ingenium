@@ -39,6 +39,16 @@ export type RankingStudentRow = {
   lobo_class: "bronze" | "silver" | "gold";
 };
 
+export type MyXpHistoryRow = {
+  id: string;
+  event_type: string;
+  xp_amount: number;
+  occurred_on: string;
+  note: string | null;
+  source_ref: string | null;
+  created_at: string;
+};
+
 export type FullStudentRow = {
   id: string;
   full_name: string | null;
@@ -177,6 +187,25 @@ export async function fetchMyPoints() {
 
   if (error) throw error;
   return data;
+}
+
+export async function fetchMyXpHistory(limit = 100) {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+
+  const userId = sessionData.session?.user?.id;
+  if (!userId) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { data, error } = await supabase
+    .from("xp_events")
+    .select("id,event_type,xp_amount,occurred_on,note,source_ref,created_at")
+    .eq("user_id", userId)
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as MyXpHistoryRow[];
 }
 
 export async function fetchMyRank() {

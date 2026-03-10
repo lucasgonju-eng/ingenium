@@ -17,8 +17,10 @@ import {
   fetchRegisteredStudents,
   fetchMyProfile,
   fetchMyPoints,
+  fetchMyXpHistory,
   fetchMyRankGeralMedia,
   fetchOlympiads,
+  MyXpHistoryRow,
   RegisteredStudentRow,
   RankingStudentRow,
   MyRankGeralMedia,
@@ -36,7 +38,7 @@ type OlympiadRow = {
 };
 const SERIES_FILTERS = ["Todos", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 type SeriesFilter = (typeof SERIES_FILTERS)[number];
-type XpTab = "howWorks" | "howToEarn";
+type XpTab = "howWorks" | "howToEarn" | "history";
 
 function getClassLabel(cls: LoboClass) {
   if (cls === "gold") return "Lobo de Ouro";
@@ -66,6 +68,17 @@ function getFirstName(value: string) {
   return trimmed.split(/\s+/)[0] ?? "Aluno";
 }
 
+function getXpEventLabel(eventType: string) {
+  const normalized = eventType.trim().toLowerCase();
+  if (normalized === "complete_profile_data") return "Perfil completo";
+  if (normalized === "profile_photo_upload") return "Inserir foto de perfil";
+  if (normalized === "top10_school_simulado") return "Top 10 no Simulado da Escola";
+  if (normalized === "weekly_study_group_75_presence") return "Grupo de estudo semanal";
+  if (normalized === "volunteer_mentorship_bronze") return "Monitoria voluntária (Lobo de Bronze)";
+  if (normalized === "perfect_quarter_attendance") return "Frequência perfeita trimestral";
+  return normalized.replaceAll("_", " ");
+}
+
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [points, setPoints] = useState<number>(0);
@@ -75,6 +88,7 @@ export default function DashboardScreen() {
   const [olympiads, setOlympiads] = useState<OlympiadRow[]>([]);
   const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
+  const [xpHistoryRows, setXpHistoryRows] = useState<MyXpHistoryRow[]>([]);
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
   const [xpTab, setXpTab] = useState<XpTab>("howWorks");
@@ -119,12 +133,13 @@ export default function DashboardScreen() {
         setShowTeacherPendingBanner(false);
       }
 
-      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes] = await Promise.allSettled([
+      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes, xpHistoryRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
         fetchOlympiads(),
         fetchRegisteredStudents(),
         fetchRankingAllRegisteredStudents(500),
+        fetchMyXpHistory(200),
       ]);
 
       const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
@@ -132,6 +147,7 @@ export default function DashboardScreen() {
       const upcoming = olympiadsRes.status === "fulfilled" ? olympiadsRes.value : [];
       const students = studentsRes.status === "fulfilled" ? studentsRes.value : [];
       const rankingData = rankingRes.status === "fulfilled" ? rankingRes.value : [];
+      const xpHistoryData = xpHistoryRes.status === "fulfilled" ? xpHistoryRes.value : [];
 
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
@@ -145,6 +161,7 @@ export default function DashboardScreen() {
       }, {});
       setStudentsByGrade(grouped);
       setRankingRows(rankingData);
+      setXpHistoryRows(xpHistoryData);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar seu desempenho";
       Alert.alert("Erro", message);
@@ -405,28 +422,82 @@ export default function DashboardScreen() {
                 Como conseguir XP
               </Text>
             </Pressable>
+            <Pressable
+              onPress={() => setXpTab("history")}
+              style={{
+                borderRadius: radii.pill,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 6,
+                backgroundColor: xpTab === "history" ? colors.einsteinBlue : colors.surfacePanel,
+                borderWidth: 1,
+                borderColor: xpTab === "history" ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+              }}
+            >
+              <Text
+                style={{
+                  color: xpTab === "history" ? colors.white : "rgba(255,255,255,0.78)",
+                  fontSize: typography.small.fontSize,
+                }}
+                weight="semibold"
+              >
+                Histórico de XP
+              </Text>
+            </Pressable>
           </View>
 
           <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-            {xpTab === "howWorks" ? "Como funciona o XP oficial" : "Como conseguir XP"}
+            {xpTab === "howWorks"
+              ? "Como funciona o XP oficial"
+              : xpTab === "howToEarn"
+                ? "Como conseguir XP"
+                : "Histórico de XP"}
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: spacing.xs }}>
             {xpTab === "howWorks"
               ? "Pontuação baseada em participação, resultado e constância. Perfil completo (com data de nascimento e matrícula) também concede +100 XP."
-              : "Veja as ações de ganho de XP em ordem decrescente de pontuação."}
+              : xpTab === "howToEarn"
+                ? "Veja as ações de ganho de XP em ordem decrescente de pontuação."
+                : "Acompanhe cada conquista: ação, XP, data e informações importantes."}
           </Text>
 
           <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-            {(xpTab === "howWorks" ? copy.program.xpRules : xpRulesSortedDesc).map((rule) => (
-              <View key={rule.key} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
-                <Text style={{ color: "white" }}>
-                  {rule.label} • +{rule.xp.toLocaleString("pt-BR")} XP
-                </Text>
-                <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
-                  {rule.criteria}
-                </Text>
-              </View>
-            ))}
+            {xpTab === "history" ? (
+              xpHistoryRows.length === 0 ? (
+                <Text style={{ color: "rgba(255,255,255,0.62)" }}>Você ainda não possui eventos no histórico de XP.</Text>
+              ) : (
+                xpHistoryRows.map((row) => (
+                  <View key={row.id} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
+                    <Text style={{ color: "white" }} weight="semibold">
+                      {getXpEventLabel(row.event_type)} • +{row.xp_amount.toLocaleString("pt-BR")} XP
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                      Data: {new Date(row.occurred_on).toLocaleDateString("pt-BR")}
+                    </Text>
+                    {row.note ? (
+                      <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                        Detalhe: {row.note}
+                      </Text>
+                    ) : null}
+                    {row.source_ref ? (
+                      <Text style={{ color: "rgba(255,255,255,0.65)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                        Referência: {row.source_ref}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))
+              )
+            ) : (
+              (xpTab === "howWorks" ? copy.program.xpRules : xpRulesSortedDesc).map((rule) => (
+                <View key={rule.key} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
+                  <Text style={{ color: "white" }}>
+                    {rule.label} • +{rule.xp.toLocaleString("pt-BR")} XP
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                    {rule.criteria}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
 

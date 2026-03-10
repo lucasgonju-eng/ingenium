@@ -189,6 +189,7 @@ export default function PerfilScreen() {
     try {
       setSaving(true);
       const parsedBirthDate = parseBirthDateInput(birthDate);
+      let conqueredProfileXp = false;
       await upsertMyProfile({
         full_name: fullName,
         grade,
@@ -214,12 +215,29 @@ export default function PerfilScreen() {
         parsedBirthDate.isValid &&
         Boolean(enrollmentNumber.trim());
       if (profileIsCompleteForXp) {
+        const { data: existingXpEvent, error: existingXpError } = await supabase
+          .from("xp_events")
+          .select("id")
+          .eq("event_type", "complete_profile_data")
+          .limit(1)
+          .maybeSingle();
+        if (existingXpError) {
+          console.warn("[perfil] Falha ao verificar XP de perfil completo:", existingXpError.message);
+        }
+        const hadProfileCompleteXp = Boolean(existingXpEvent?.id);
         const { error: xpError } = await supabase.rpc("award_complete_profile_xp_once");
         if (xpError) {
           console.warn("[perfil] Falha ao conceder XP por perfil completo:", xpError.message);
+        } else if (!hadProfileCompleteXp) {
+          conqueredProfileXp = true;
         }
       }
-      Alert.alert("Perfil atualizado", "Seus dados foram salvos com sucesso.");
+      Alert.alert(
+        "Perfil atualizado",
+        conqueredProfileXp
+          ? "Seus dados foram salvos com sucesso.\n\nVOCÊ CONQUISTOU 100XP POR COMPLETAR SEU PERFIL COMPLETAMENTE"
+          : "Seus dados foram salvos com sucesso.",
+      );
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível salvar seu perfil.";
       Alert.alert("Erro", message);
