@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 ini_set("display_errors", "0");
 error_reporting(E_ALL);
+$webhookVersion = "2026-03-10-v6";
 
 header("Content-Type: application/json; charset=utf-8");
 header("Access-Control-Allow-Origin: *");
@@ -435,6 +436,7 @@ if ($isPaid && $paymentId !== "") {
   if (is_file($processedPath)) {
     $processedContent = (string) file_get_contents($processedPath);
   }
+  @file_put_contents($processedPath, $paymentId . "|profile_id|" . ($profileId !== "" ? $profileId : "missing") . "|" . gmdate("c") . PHP_EOL, FILE_APPEND);
   $emailAlreadyProcessed = false;
   // Reprocessamento idempotente deve ser decidido no banco (source_ref), não no arquivo local.
   $xpAlreadyProcessed = false;
@@ -758,4 +760,4 @@ if ($isPaid && $paymentId !== "") {
 }
 
 http_response_code(200);
-echo json_encode(["ok" => true]);
+echo json_encode(["ok" => true, "version" => $webhookVersion]);
