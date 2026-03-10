@@ -304,12 +304,34 @@ function supabase_request(string $method, string $url, string $serviceRoleKey, ?
   ];
 }
 
+function supabase_admin_user_email(string $supabaseUrl, string $serviceRoleKey, string $userId): string {
+  if ($supabaseUrl === "" || $serviceRoleKey === "" || $userId === "") return "";
+  $url = rtrim($supabaseUrl, "/") . "/auth/v1/admin/users/" . rawurlencode($userId);
+  $result = supabase_request("GET", $url, $serviceRoleKey);
+  if (!$result["ok"] || !is_array($result["json"])) return "";
+  $json = $result["json"];
+  if (isset($json["email"]) && is_string($json["email"])) {
+    return strtolower(trim((string) $json["email"]));
+  }
+  if (isset($json["user"]) && is_array($json["user"])) {
+    $email = (string) ($json["user"]["email"] ?? "");
+    return strtolower(trim($email));
+  }
+  return "";
+}
+
 function extract_uuid_from_external_reference(string $externalReference): string {
   if ($externalReference === "") return "";
   if (preg_match('/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i', $externalReference, $m) === 1) {
     return strtolower((string) ($m[1] ?? ""));
   }
   return "";
+}
+
+function lobo_class_from_points(int $points): string {
+  if ($points >= 20000) return "gold";
+  if ($points >= 8000) return "silver";
+  return "bronze";
 }
 
 $logDir = __DIR__ . "/logs";
@@ -371,6 +393,7 @@ $paidStatuses = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"];
 $isPaid = in_array($event, $paidEvents, true) || in_array($paymentStatus, $paidStatuses, true);
 
 if ($isPaid && $paymentId !== "") {
+  $profileId = extract_uuid_from_external_reference($externalReference);
   $processedPath = $logDir . "/asaas-webhook-processed.log";
   $processedContent = "";
   if (is_file($processedPath)) {
@@ -387,6 +410,21 @@ if ($isPaid && $paymentId !== "") {
       }
       if ($customerName === "") {
         $customerName = trim((string) ($customerInfo["name"] ?? ""));
+      }
+    }
+  }
+
+  // Regra de negócio: o aluno alvo vem da externalReference.
+  // Para envio de e-mail, prioriza o e-mail do usuário da plataforma (auth user) dessa referência.
+  $supabaseCfgPath = __DIR__ . "/supabase-admin-config.json";
+  if (is_file($supabaseCfgPath) && $profileId !== "") {
+    $supabaseCfgRawForEmail = json_decode((string) file_get_contents($supabaseCfgPath), true);
+    if (is_array($supabaseCfgRawForEmail)) {
+      $supabaseUrlForEmail = rtrim((string) ($supabaseCfgRawForEmail["url"] ?? ""), "/");
+      $serviceKeyForEmail = trim((string) ($supabaseCfgRawForEmail["serviceRoleKey"] ?? ""));
+      $studentEmail = supabase_admin_user_email($supabaseUrlForEmail, $serviceKeyForEmail, $profileId);
+      if ($studentEmail !== "") {
+        $customerEmail = $studentEmail;
       }
     }
   }
@@ -434,16 +472,15 @@ if ($isPaid && $paymentId !== "") {
   }
 
   if (!$xpAlreadyProcessed) {
-    $supabaseCfgPath = __DIR__ . "/supabase-admin-config.json";
     if (is_file($supabaseCfgPath)) {
       $supabaseCfgRaw = json_decode((string) file_get_contents($supabaseCfgPath), true);
       if (is_array($supabaseCfgRaw)) {
         $supabaseUrl = rtrim((string) ($supabaseCfgRaw["url"] ?? ""), "/");
         $supabaseServiceRoleKey = trim((string) ($supabaseCfgRaw["serviceRoleKey"] ?? ""));
-        $profileId = extract_uuid_from_external_reference($externalReference);
         $sourceRef = "asaas_pro_payment_" . $paymentId;
 
         if ($supabaseUrl !== "" && $supabaseServiceRoleKey !== "" && $profileId !== "") {
+          $xpCredited = false;
           $checkUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=eq." . rawurlencode($sourceRef) . "&limit=1";
           $checkResult = supabase_request("GET", $checkUrl, $supabaseServiceRoleKey);
           $alreadyExists = false;
@@ -467,15 +504,96 @@ if ($isPaid && $paymentId !== "") {
               $rpcPayload = ["p_user_id" => $profileId];
               $rpcResult = supabase_request("POST", $rpcUrl, $supabaseServiceRoleKey, $rpcPayload);
               if ($rpcResult["ok"]) {
+                $xpCredited = true;
                 @file_put_contents($processedPath, $paymentId . "|xp_awarded|" . gmdate("c") . PHP_EOL, FILE_APPEND);
               } else {
                 @file_put_contents($processedPath, $paymentId . "|xp_recalc_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+                @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+                  "at" => gmdate("c"),
+                  "paymentId" => $paymentId,
+                  "profileId" => $profileId,
+                  "step" => "xp_recalc_failed",
+                  "status" => $rpcResult["status"],
+                  "body" => $rpcResult["body"],
+                ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
               }
             } else {
               @file_put_contents($processedPath, $paymentId . "|xp_insert_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+              @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+                "at" => gmdate("c"),
+                "paymentId" => $paymentId,
+                "profileId" => $profileId,
+                "step" => "xp_insert_failed",
+                "status" => $insertResult["status"],
+                "body" => $insertResult["body"],
+              ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
             }
           } else {
+            $xpCredited = true;
             @file_put_contents($processedPath, $paymentId . "|xp_awarded|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+          }
+
+          // Fallback de segurança: se xp_events/rpc falhar, credita +8000 direto em points
+          // usando o user_id da externalReference (fonte de verdade do aluno).
+          if (!$xpCredited) {
+            $pointsGetUrl = $supabaseUrl . "/rest/v1/points?select=user_id,total_points&user_id=eq." . rawurlencode($profileId) . "&limit=1";
+            $pointsGet = supabase_request("GET", $pointsGetUrl, $supabaseServiceRoleKey);
+            $currentPoints = 0;
+            $hasRow = false;
+            if ($pointsGet["ok"] && is_array($pointsGet["json"]) && count($pointsGet["json"]) > 0) {
+              $row = $pointsGet["json"][0];
+              if (is_array($row)) {
+                $currentPoints = (int) ($row["total_points"] ?? 0);
+                $hasRow = true;
+              }
+            }
+
+            $newTotal = $currentPoints + 8000;
+            $newLobo = lobo_class_from_points($newTotal);
+            $pointsPayload = [
+              "user_id" => $profileId,
+              "total_points" => $newTotal,
+              "lobo_class" => $newLobo,
+              "updated_at" => gmdate("c"),
+            ];
+
+            $pointsWriteOk = false;
+            if ($hasRow) {
+              $pointsPatchUrl = $supabaseUrl . "/rest/v1/points?user_id=eq." . rawurlencode($profileId);
+              $pointsPatch = supabase_request("PATCH", $pointsPatchUrl, $supabaseServiceRoleKey, $pointsPayload);
+              $pointsWriteOk = $pointsPatch["ok"];
+              if (!$pointsPatch["ok"]) {
+                @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+                  "at" => gmdate("c"),
+                  "paymentId" => $paymentId,
+                  "profileId" => $profileId,
+                  "step" => "points_patch_failed",
+                  "status" => $pointsPatch["status"],
+                  "body" => $pointsPatch["body"],
+                ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+              }
+            } else {
+              $pointsInsertUrl = $supabaseUrl . "/rest/v1/points";
+              $pointsInsert = supabase_request("POST", $pointsInsertUrl, $supabaseServiceRoleKey, $pointsPayload);
+              $pointsWriteOk = $pointsInsert["ok"];
+              if (!$pointsInsert["ok"]) {
+                @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+                  "at" => gmdate("c"),
+                  "paymentId" => $paymentId,
+                  "profileId" => $profileId,
+                  "step" => "points_insert_failed",
+                  "status" => $pointsInsert["status"],
+                  "body" => $pointsInsert["body"],
+                ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+              }
+            }
+
+            if ($pointsWriteOk) {
+              $xpCredited = true;
+              @file_put_contents($processedPath, $paymentId . "|xp_awarded_points_fallback|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            } else {
+              @file_put_contents($processedPath, $paymentId . "|xp_points_fallback_failed|" . gmdate("c") . PHP_EOL, FILE_APPEND);
+            }
           }
 
           $isDaviPayment = stripos($customerName, "davi laranjeiras") !== false || stripos($customerName, "vania laranjeiras") !== false;
