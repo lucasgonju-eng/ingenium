@@ -223,7 +223,7 @@ export default function PlanoProCheckoutScreen() {
             </Text>
           </Pressable>
           <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
-            Observação: esse plano se encerra no dia 31 de dezembro.
+            Esse plano é referente ao ano de 2026. Ele se encerra em 31 de dezembro, mesmo que as prestações restantes tenham vencimento em 2027.
           </Text>
         </View>
       </ScrollView>
