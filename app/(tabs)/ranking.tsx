@@ -175,25 +175,60 @@ export default function RankingScreen() {
           marginTop: spacing.sm,
           borderRadius: radii.lg,
           borderWidth: 1,
-          borderColor: colors.borderSoft,
-          backgroundColor: colors.surfacePanel,
+          borderColor: "rgba(255,199,0,0.35)",
+          backgroundColor: "rgba(255,199,0,0.08)",
           padding: spacing.md,
-          gap: spacing.xs,
+          gap: spacing.sm,
         }}
       >
-        <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-          Faixas oficiais de classificação
+        <Text style={{ color: colors.einsteinYellow, fontSize: typography.subtitle.fontSize }} weight="bold">
+          Categorias oficiais do Ranking
         </Text>
-        {copy.program.tiers.map((tier) => (
-          <View key={tier.key} style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.sm }}>
-            <Text style={{ color: "rgba(255,255,255,0.84)", flex: 1 }}>
-              {tier.title}
-            </Text>
-            <Text style={{ color: colors.einsteinYellow }} weight="semibold">
-              {tier.range}
-            </Text>
-          </View>
-        ))}
+        <View
+          style={{
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: "rgba(255,199,0,0.45)",
+            backgroundColor: "rgba(255,199,0,0.16)",
+            padding: spacing.sm,
+          }}
+        >
+          <Text style={{ color: colors.einsteinYellow }} weight="bold">
+            Lobo de Ouro
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2 }}>20.000 XP ou mais</Text>
+        </View>
+        <View
+          style={{
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: "rgba(183,198,214,0.5)",
+            backgroundColor: "rgba(183,198,214,0.14)",
+            padding: spacing.sm,
+          }}
+        >
+          <Text style={{ color: "#D9E2EC" }} weight="bold">
+            Lobo de Prata
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 2 }}>8.000 a 19.999 XP</Text>
+        </View>
+        <View
+          style={{
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: "rgba(190,122,62,0.5)",
+            backgroundColor: "rgba(190,122,62,0.14)",
+            padding: spacing.sm,
+          }}
+        >
+          <Text style={{ color: "#D7A273" }} weight="bold">
+            Lobo de Bronze
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 2 }}>0 a 7.999 XP</Text>
+        </View>
+        <Text style={{ color: "rgba(255,255,255,0.82)" }} weight="semibold">
+          Ao ultrapassar 7.999 XP, o aluno sobe para Lobo de Prata. Ao ultrapassar 19.999 XP, sobe para Lobo de Ouro.
+        </Text>
       </View>
 
       <View

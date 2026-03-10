@@ -13,6 +13,25 @@ type Props = {
   isMe: boolean;
 };
 
+function getTone(loboClass: "bronze" | "silver" | "gold") {
+  if (loboClass === "gold") {
+    return {
+      borderColor: "rgba(255,199,0,0.45)",
+      backgroundColor: "rgba(255,199,0,0.08)",
+    };
+  }
+  if (loboClass === "silver") {
+    return {
+      borderColor: "rgba(183,198,214,0.45)",
+      backgroundColor: "rgba(183,198,214,0.08)",
+    };
+  }
+  return {
+    borderColor: "rgba(190,122,62,0.35)",
+    backgroundColor: "rgba(190,122,62,0.07)",
+  };
+}
+
 export default function RankingRow({
   position,
   userId,
@@ -22,6 +41,7 @@ export default function RankingRow({
   totalPoints,
   isMe,
 }: Props) {
+  const tone = getTone(loboClass);
   return (
     <View
       key={`${userId}-${position}`}
@@ -29,8 +49,8 @@ export default function RankingRow({
         marginHorizontal: spacing.md,
         borderRadius: radii.md,
         borderWidth: 1,
-        borderColor: colors.borderSoft,
-        backgroundColor: colors.surfacePanel,
+        borderColor: isMe ? colors.borderStrong : tone.borderColor,
+        backgroundColor: isMe ? colors.surfaceCard : tone.backgroundColor,
         padding: spacing.sm,
         ...shadows.soft,
       }}
