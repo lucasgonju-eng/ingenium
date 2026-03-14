@@ -10,6 +10,7 @@ type Props = {
 
 const PARTICLE_COUNT = 8;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
+const ENABLE_MOTION = Platform.OS !== "web";
 
 export default function WolfCelebration({ answerText }: Props) {
   const wolfBounce = useRef(new Animated.Value(0)).current;
@@ -18,6 +19,14 @@ export default function WolfCelebration({ answerText }: Props) {
   const particleProgress = useRef(Array.from({ length: PARTICLE_COUNT }, () => new Animated.Value(0))).current;
 
   useEffect(() => {
+    if (!ENABLE_MOTION) {
+      wolfBounce.setValue(0.7);
+      glowPulse.setValue(0.75);
+      howlScale.setValue(1);
+      particleProgress.forEach((particle) => particle.setValue(1));
+      return;
+    }
+
     const celebration = Animated.parallel([
       Animated.sequence([
         Animated.spring(wolfBounce, {

@@ -29,6 +29,7 @@ const PHASE_LABEL: Record<WolfPhaseCategory, string> = {
   lideranca: "Liderança",
 };
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
+const ENABLE_MOTION = Platform.OS !== "web";
 
 function coerceWolfGrade(raw: unknown, fallback: WolfGrade): WolfGrade {
   if (typeof raw !== "string") return fallback;
@@ -113,6 +114,10 @@ export default function AdminWolfGameScreen() {
       countdownPulse.setValue(1);
       return;
     }
+    if (!ENABLE_MOTION) {
+      countdownPulse.setValue(1);
+      return;
+    }
 
     const loop = Animated.loop(
       Animated.sequence([
@@ -142,6 +147,11 @@ export default function AdminWolfGameScreen() {
       return;
     }
 
+    if (!ENABLE_MOTION) {
+      feedbackEnter.setValue(1);
+      return;
+    }
+
     feedbackEnter.setValue(0);
     Animated.spring(feedbackEnter, {
       toValue: 1,
@@ -163,13 +173,17 @@ export default function AdminWolfGameScreen() {
       setComboStreak((prev) => {
         const next = prev + 1;
         comboPulse.stopAnimation();
-        comboPulse.setValue(0.86);
-        Animated.spring(comboPulse, {
-          toValue: 1,
-          friction: 5,
-          tension: 120,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }).start();
+        if (ENABLE_MOTION) {
+          comboPulse.setValue(0.86);
+          Animated.spring(comboPulse, {
+            toValue: 1,
+            friction: 5,
+            tension: 120,
+            useNativeDriver: USE_NATIVE_DRIVER,
+          }).start();
+        } else {
+          comboPulse.setValue(1);
+        }
 
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         void sfx.play(next >= 2 ? "combo" : "success");
@@ -239,6 +253,13 @@ export default function AdminWolfGameScreen() {
     setNextPhaseLabel(PHASE_LABEL[upcoming.category]);
     setIsPhaseTransitioning(true);
     void sfx.play("transition");
+    if (!ENABLE_MOTION) {
+      transitionAnim.setValue(0);
+      setIsPhaseTransitioning(false);
+      setNextPhaseLabel(null);
+      session.goNext();
+      return;
+    }
     transitionAnim.stopAnimation();
     transitionAnim.setValue(0);
     Animated.sequence([

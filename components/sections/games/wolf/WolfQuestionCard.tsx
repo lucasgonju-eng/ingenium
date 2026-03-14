@@ -12,6 +12,7 @@ const phaseMeta = {
   lideranca: { icon: "⛨", label: "Liderança", accent: colors.phaseLideranca },
 } as const;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
+const ENABLE_MOTION = Platform.OS !== "web";
 
 type Props = {
   question: WolfQuestion;
@@ -45,6 +46,11 @@ export default function WolfQuestionCard({
 
   useEffect(() => {
     onReadyRef.current();
+    if (!ENABLE_MOTION) {
+      cardEnter.setValue(1);
+      optionEnters.forEach((anim) => anim.setValue(1));
+      return;
+    }
     cardEnter.setValue(0);
     optionEnters.forEach((anim) => anim.setValue(0));
 
@@ -82,7 +88,7 @@ export default function WolfQuestionCard({
     : null;
 
   useEffect(() => {
-    if (!isCritical) {
+    if (!ENABLE_MOTION || !isCritical) {
       timerPulse.stopAnimation();
       timerPulse.setValue(1);
       return;
