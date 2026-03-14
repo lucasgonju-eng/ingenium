@@ -34,6 +34,7 @@ export function useWolfSession(input: {
   const [answers, setAnswers] = useState<AnswerSnapshot[]>([]);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const extraTimeSeconds = Math.max(0, Math.floor(input.timeBufferSeconds ?? 0));
+  const maxAllowedSeconds = 180;
 
   const currentQuestion = questions[phaseIndex] ?? null;
   const currentQuestionTimeLimit = useMemo(() => {
@@ -47,7 +48,7 @@ export function useWolfSession(input: {
       options: currentQuestion.options,
       estimatedReadTime: currentQuestion.estimatedReadTime,
     });
-    return baseLimit + extraTimeSeconds;
+    return Math.min(maxAllowedSeconds, baseLimit + extraTimeSeconds);
   }, [currentQuestion, extraTimeSeconds]);
 
   const hits = useMemo(() => answers.filter((item) => item.isCorrect).length, [answers]);
@@ -119,7 +120,7 @@ export function useWolfSession(input: {
       options: currentQuestion.options,
       estimatedReadTime: currentQuestion.estimatedReadTime,
     });
-    const initialTime = baseLimit + extraTimeSeconds;
+    const initialTime = Math.min(maxAllowedSeconds, baseLimit + extraTimeSeconds);
     setQuestionReady(true);
     setSecondsLeft(initialTime);
   }

@@ -44,29 +44,61 @@ export function calculateWolfQuestionTimeLimit(input: {
   options?: string[];
   estimatedReadTime?: number;
 }): number {
+  const MIN_SECONDS_ALL = 70;
+  const MAX_SECONDS_ALL = 180;
   const base = wolfTimersByBand[input.band][input.category];
-  const promptChars = (input.prompt ?? "").trim().length;
-  const optionsChars = Array.isArray(input.options) ? input.options.join(" ").trim().length : 0;
+  const prompt = (input.prompt ?? "").trim();
+  const optionsText = Array.isArray(input.options) ? input.options.join(" ").trim() : "";
+  const promptChars = prompt.length;
+  const optionsChars = optionsText.length;
   const totalChars = promptChars + optionsChars;
   const estimated = Number.isFinite(input.estimatedReadTime) ? Math.max(0, Number(input.estimatedReadTime ?? 0)) : 0;
-  const isHighSchool = input.grade === "1ª Série" || input.grade === "2ª Série" || input.grade === "3ª Série";
-  const isNinthOrHighSchool = input.grade === "9º Ano" || isHighSchool;
+  const promptWords = prompt ? prompt.split(/\s+/).length : 0;
+  const optionWords = optionsText ? optionsText.split(/\s+/).length : 0;
+  const totalWords = promptWords + optionWords;
 
-  const difficultyBoost = input.difficulty === "hard" ? 10 : input.difficulty === "medium" ? 6 : 3;
-  const bandReadingBoost = input.band === "exploradores" ? 3 : input.band === "cacadores" ? 2 : 1;
-  const gradeBoost = isHighSchool ? 8 : input.grade === "9º Ano" ? 5 : input.grade === "8º Ano" ? 3 : 2;
+  const difficultyBoost = input.difficulty === "hard" ? 28 : input.difficulty === "medium" ? 18 : 10;
+  const categoryBoost =
+    input.category === "lideranca" ? 10 : input.category === "logica" ? 8 : input.category === "conhecimento" ? 6 : 3;
+  const bandBoost = input.band === "exploradores" ? 12 : input.band === "cacadores" ? 8 : 6;
 
-  // Ajuste por volume textual real da questão.
-  const textBoost = Math.ceil(totalChars / 95);
-  const longPromptBoost = Math.ceil(Math.max(0, promptChars - 160) / 70);
-  const optionsBoost = Math.ceil(optionsChars / 140);
-  // Usa metadado de leitura quando disponível (seed/banco já traz esse valor).
-  const readBoost = Math.ceil(estimated * 0.6);
+  // Análise de tamanho do enunciado e alternativas (caracteres + palavras).
+  const promptCharsBoost = Math.ceil(promptChars / 12);
+  const optionsCharsBoost = Math.ceil(optionsChars / 18);
+  const wordsBoost = Math.ceil(totalWords / 6);
+  const densityBoost = Math.ceil(totalChars / 95);
+  const longPromptBoost = Math.ceil(Math.max(0, promptChars - 130) / 55);
+  // Usa metadado de leitura como reforço, caso presente.
+  const readBoost = Math.ceil(estimated * 1.8);
+  const legacyPhaseBoost = base * 2;
 
-  const raw = base + difficultyBoost + bandReadingBoost + gradeBoost + textBoost + longPromptBoost + optionsBoost + readBoost;
-  const minByDifficulty = base + (input.difficulty === "hard" ? 10 : input.difficulty === "medium" ? 7 : 5);
-  const minBySeries = isNinthOrHighSchool ? minByDifficulty + 2 : minByDifficulty;
-  return Math.max(minBySeries, Math.min(110, raw));
+  const raw =
+    30 +
+    legacyPhaseBoost +
+    difficultyBoost +
+    categoryBoost +
+    bandBoost +
+    promptCharsBoost +
+    optionsCharsBoost +
+    wordsBoost +
+    densityBoost +
+    longPromptBoost +
+    readBoost;
+
+  const minByGrade =
+    input.grade === "6º Ano"
+      ? 90
+      : input.grade === "7º Ano"
+        ? 82
+        : input.grade === "8º Ano"
+          ? 78
+          : input.grade === "9º Ano"
+            ? 74
+            : input.grade === "1ª Série" || input.grade === "2ª Série" || input.grade === "3ª Série"
+              ? 72
+              : MIN_SECONDS_ALL;
+
+  return Math.max(Math.max(MIN_SECONDS_ALL, minByGrade), Math.min(MAX_SECONDS_ALL, raw));
 }
 
 export function canStartWolfAttempt(input: {

@@ -14,6 +14,13 @@ const phaseMeta = {
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 const ENABLE_MOTION = Platform.OS !== "web";
 
+function formatClock(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 type Props = {
   question: WolfQuestion;
   index: number;
@@ -37,6 +44,7 @@ export default function WolfQuestionCard({
 }: Props) {
   const cardEnter = useRef(new Animated.Value(0)).current;
   const timerPulse = useRef(new Animated.Value(1)).current;
+  const clockTick = useRef(new Animated.Value(0)).current;
   const optionEnters = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
   const onReadyRef = useRef(onReady);
 
@@ -115,6 +123,28 @@ export default function WolfQuestionCard({
     };
   }, [isCritical, timerPulse, question.id]);
 
+  useEffect(() => {
+    if (!ENABLE_MOTION) {
+      clockTick.setValue(0);
+      return;
+    }
+    if (secondsLeft <= 0) return;
+    clockTick.stopAnimation();
+    clockTick.setValue(0);
+    Animated.sequence([
+      Animated.timing(clockTick, {
+        toValue: 1,
+        duration: 170,
+        useNativeDriver: USE_NATIVE_DRIVER,
+      }),
+      Animated.timing(clockTick, {
+        toValue: 0,
+        duration: 190,
+        useNativeDriver: USE_NATIVE_DRIVER,
+      }),
+    ]).start();
+  }, [clockTick, question.id, secondsLeft]);
+
   return (
     <Animated.View
       style={{
@@ -186,9 +216,33 @@ export default function WolfQuestionCard({
               ) : null}
             </View>
           </Animated.View>
-          <Text style={{ color: isCritical ? colors.statusDanger : colors.textMuted, marginTop: 6, fontSize: typography.small.fontSize }}>
-            Tempo restante: {secondsLeft}s
-          </Text>
+          <View style={timerLabelRowStyle}>
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: clockTick.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: ["0deg", "-18deg", "0deg"],
+                    }),
+                  },
+                  {
+                    scale: clockTick.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.08],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Text style={{ color: isCritical ? colors.statusDanger : colors.textTechnical, fontSize: typography.small.fontSize + 1 }} weight="bold">
+                ⏱
+              </Text>
+            </Animated.View>
+            <Text style={{ color: isCritical ? colors.statusDanger : colors.textMuted, fontSize: typography.small.fontSize }}>
+              Tempo restante: {formatClock(secondsLeft)} de {formatClock(safeMaxSeconds)}
+            </Text>
+          </View>
         </View>
 
         <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
@@ -272,6 +326,13 @@ const vestibularBadgeStyle = {
 
 const timerWrapStyle = {
   marginTop: spacing.md,
+};
+
+const timerLabelRowStyle = {
+  marginTop: 6,
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  gap: spacing.xxs,
 };
 
 const timerTrackStyle = {
