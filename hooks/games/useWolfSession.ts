@@ -17,10 +17,16 @@ export function useWolfSession(input: {
   grade: WolfGrade;
   streakDays: number;
   xpAlreadyAwardedToday?: number;
+  buildQuestions?: (
+    grade: WolfGrade,
+  ) => Promise<{ questions: WolfQuestion[]; source?: "ai" | "mock" }>;
 }) {
   const [stage, setStage] = useState<WolfSessionStage>("home");
   const [countdown, setCountdown] = useState(3);
   const [questions, setQuestions] = useState<WolfQuestion[]>([]);
+  const [questionSource, setQuestionSource] = useState<"ai" | "mock" | null>(null);
+  const [questionLoading, setQuestionLoading] = useState(false);
+  const [questionError, setQuestionError] = useState<string | null>(null);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [questionReady, setQuestionReady] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -45,6 +51,9 @@ export function useWolfSession(input: {
     setStage("home");
     setCountdown(3);
     setQuestions([]);
+    setQuestionSource(null);
+    setQuestionLoading(false);
+    setQuestionError(null);
     setPhaseIndex(0);
     setQuestionReady(false);
     setSecondsLeft(0);
@@ -52,15 +61,33 @@ export function useWolfSession(input: {
     setSelectedOptionIndex(null);
   }
 
-  function startSession() {
-    const seededQuestions = buildMockWolfQuestionsForGrade(input.grade);
-    setQuestions(seededQuestions);
-    setAnswers([]);
-    setPhaseIndex(0);
-    setSelectedOptionIndex(null);
-    setQuestionReady(false);
-    setCountdown(3);
-    setStage("countdown");
+  async function startSession() {
+    setQuestionLoading(true);
+    setQuestionError(null);
+    try {
+      const loaded = input.buildQuestions
+        ? await input.buildQuestions(input.grade)
+        : { questions: buildMockWolfQuestionsForGrade(input.grade), source: "mock" as const };
+
+      if (!loaded.questions.length) {
+        throw new Error("Nenhuma questão disponível para iniciar o teste.");
+      }
+
+      setQuestions(loaded.questions);
+      setQuestionSource(loaded.source ?? null);
+      setAnswers([]);
+      setPhaseIndex(0);
+      setSelectedOptionIndex(null);
+      setQuestionReady(false);
+      setCountdown(3);
+      setStage("countdown");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao preparar perguntas.";
+      setQuestionError(message);
+      setStage("home");
+    } finally {
+      setQuestionLoading(false);
+    }
   }
 
   function markQuestionReady() {
@@ -133,6 +160,9 @@ export function useWolfSession(input: {
     stage,
     countdown,
     questions,
+    questionSource,
+    questionLoading,
+    questionError,
     currentQuestion,
     phaseIndex,
     secondsLeft,

@@ -6,15 +6,45 @@ import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHo
 import WolfQuestionCard from "../../../components/sections/games/wolf/WolfQuestionCard";
 import StitchHeader from "../../../components/ui/StitchHeader";
 import { Text } from "../../../components/ui/Text";
-import { wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
+import { getWolfBandByGrade, wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
 import { useWolfSession } from "../../../hooks/games/useWolfSession";
+import { generateWolfQuestionWithFallback } from "../../../services/games/wolfAiService";
 import { canStartWolfAttempt } from "../../../services/games/wolfEngine";
 import { supabase } from "../../../lib/supabase/client";
 import { fetchMyAccessRole } from "../../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
-import type { WolfGrade } from "../../../types/games/wolf";
+import type { WolfBand, WolfDifficulty, WolfGrade, WolfPhaseCategory, WolfQuestion } from "../../../types/games/wolf";
 
 const DEFAULT_GRADE: WolfGrade = "8º Ano";
+const PHASE_ORDER: WolfPhaseCategory[] = ["reflexo", "logica", "conhecimento", "lideranca"];
+const DIFFICULTY_BY_BAND: Record<WolfBand, Record<WolfPhaseCategory, WolfDifficulty>> = {
+  exploradores: {
+    reflexo: "easy",
+    logica: "easy",
+    conhecimento: "medium",
+    lideranca: "medium",
+  },
+  cacadores: {
+    reflexo: "easy",
+    logica: "medium",
+    conhecimento: "medium",
+    lideranca: "medium",
+  },
+  estrategistas: {
+    reflexo: "medium",
+    logica: "hard",
+    conhecimento: "hard",
+    lideranca: "hard",
+  },
+};
+const WOLF_GRADES: WolfGrade[] = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"];
+
+function coerceWolfGrade(raw: unknown, fallback: WolfGrade): WolfGrade {
+  if (typeof raw !== "string") return fallback;
+  const normalized = raw.trim();
+  if (WOLF_GRADES.includes(normalized as WolfGrade)) return normalized as WolfGrade;
+  return fallback;
+}
 
 function CorrectAnswerExplosion({ answerText }: { answerText: string }) {
   const ringScale = useRef(new Animated.Value(0.45)).current;
@@ -103,6 +133,45 @@ export default function AdminWolfGameScreen() {
     grade,
     streakDays,
     xpAlreadyAwardedToday: 0,
+    buildQuestions: async (targetGrade) => {
+      const band = getWolfBandByGrade(targetGrade);
+      let hasMockFallback = false;
+
+      const builtQuestions = await Promise.all(
+        PHASE_ORDER.map(async (category, index) => {
+          const result = await generateWolfQuestionWithFallback({
+            grade: targetGrade,
+            band,
+            category,
+            difficulty: DIFFICULTY_BY_BAND[band][category],
+            maxChars: 220,
+          });
+          if (result.source === "mock") hasMockFallback = true;
+
+          const payload = result.question;
+          const resolvedGrade = coerceWolfGrade(payload.grade, targetGrade);
+          const question: WolfQuestion = {
+            id: `run-${Date.now()}-${category}-${index + 1}`,
+            category,
+            grade: resolvedGrade,
+            band,
+            difficulty: payload.difficulty,
+            prompt: payload.prompt,
+            options: payload.options,
+            correctOptionIndex: payload.correctOptionIndex,
+            explanation: payload.explanation,
+            tags: payload.tags,
+            estimatedReadTime: payload.estimatedReadTime,
+          };
+          return question;
+        }),
+      );
+
+      return {
+        questions: builtQuestions,
+        source: hasMockFallback ? "mock" : "ai",
+      };
+    },
   });
 
   useEffect(() => {
@@ -207,16 +276,34 @@ export default function AdminWolfGameScreen() {
         </View>
 
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm, gap: spacing.sm }}>
+          {session.stage === "home" && session.questionError ? (
+            <View style={errorCardStyle}>
+              <Text style={{ color: "#fecaca", fontSize: typography.small.fontSize }} weight="bold">
+                Não foi possível preparar o teste
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: spacing.xs }}>{session.questionError}</Text>
+            </View>
+          ) : null}
+
+          {session.stage === "home" && session.questionLoading ? (
+            <View style={loadingCardStyle}>
+              <ActivityIndicator color={colors.einsteinYellow} />
+              <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: spacing.xs }}>
+                Gerando fases via IA para a série {grade}...
+              </Text>
+            </View>
+          ) : null}
+
           {session.stage === "home" ? (
             <WolfGameHomeCard
               attemptsRemaining={attemptGate.attemptsRemaining}
               streakDays={streakDays}
               activeEvent="Semana da Lógica"
               estimatedDurationMinutes={3}
-              startDisabled={!attemptGate.canStart}
+              startDisabled={!attemptGate.canStart || session.questionLoading}
               disabledReason={attemptGate.reason}
               onStart={() => {
-                session.startSession();
+                void session.startSession();
               }}
             />
           ) : null}
@@ -236,16 +323,29 @@ export default function AdminWolfGameScreen() {
           ) : null}
 
           {session.stage === "question" && session.currentQuestion ? (
-            <WolfQuestionCard
-              question={session.currentQuestion}
-              index={session.phaseIndex + 1}
-              total={session.questions.length}
-              secondsLeft={session.secondsLeft}
-              maxSeconds={currentMaxSeconds}
-              selectedOptionIndex={session.selectedOptionIndex}
-              onReady={session.markQuestionReady}
-              onSelect={session.registerAnswer}
-            />
+            <>
+              <View style={adminMetaCardStyle}>
+                <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="bold">
+                  ADMIN (apenas teste interno)
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 4 }}>
+                  Série selecionada: {grade} • Série da questão IA: {session.currentQuestion.grade}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 2 }}>
+                  Fonte desta rodada: {session.questionSource === "ai" ? "IA" : "IA com fallback mock"}
+                </Text>
+              </View>
+              <WolfQuestionCard
+                question={session.currentQuestion}
+                index={session.phaseIndex + 1}
+                total={session.questions.length}
+                secondsLeft={session.secondsLeft}
+                maxSeconds={currentMaxSeconds}
+                selectedOptionIndex={session.selectedOptionIndex}
+                onReady={session.markQuestionReady}
+                onSelect={session.registerAnswer}
+              />
+            </>
           ) : null}
 
           {session.stage === "feedback" && session.currentQuestion ? (
@@ -310,6 +410,32 @@ const feedbackCardStyle = {
   borderColor: colors.borderSoft,
   backgroundColor: colors.surfacePanel,
   padding: spacing.md,
+};
+
+const loadingCardStyle = {
+  borderRadius: radii.lg,
+  borderWidth: 1,
+  borderColor: "rgba(255,199,0,0.34)",
+  backgroundColor: "rgba(255,199,0,0.08)",
+  padding: spacing.md,
+  alignItems: "center" as const,
+};
+
+const errorCardStyle = {
+  borderRadius: radii.lg,
+  borderWidth: 1,
+  borderColor: "rgba(248,113,113,0.46)",
+  backgroundColor: "rgba(127,29,29,0.35)",
+  padding: spacing.md,
+};
+
+const adminMetaCardStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: "rgba(255,199,0,0.34)",
+  backgroundColor: "rgba(255,199,0,0.08)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: spacing.sm,
 };
 
 const nextButtonStyle = {
