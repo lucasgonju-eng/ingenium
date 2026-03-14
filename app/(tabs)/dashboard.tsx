@@ -68,7 +68,16 @@ function getFirstName(value: string) {
   return trimmed.split(/\s+/)[0] ?? "Aluno";
 }
 
-function getXpEventLabel(eventType: string) {
+function getXpEventLabel(eventType: string, note?: string | null, sourceRef?: string | null) {
+  const normalizedNote = (note ?? "").trim().toLowerCase();
+  const normalizedSourceRef = (sourceRef ?? "").trim().toLowerCase();
+  const isPlanoProBonus =
+    normalizedSourceRef.startsWith("asaas_pro_payment_") ||
+    normalizedSourceRef.startsWith("asaas_planopro_bonus_2026_") ||
+    normalizedNote.includes("plano pro");
+
+  if (isPlanoProBonus) return "Bônus Plano PRO";
+
   const normalized = eventType.trim().toLowerCase();
   if (normalized === "complete_profile_data") return "Perfil completo";
   if (normalized === "profile_photo_upload") return "Inserir foto de perfil";
@@ -468,7 +477,7 @@ export default function DashboardScreen() {
                 xpHistoryRows.map((row) => (
                   <View key={row.id} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
                     <Text style={{ color: "white" }} weight="semibold">
-                      {getXpEventLabel(row.event_type)} • +{row.xp_amount.toLocaleString("pt-BR")} XP
+                      {getXpEventLabel(row.event_type, row.note, row.source_ref)} • +{row.xp_amount.toLocaleString("pt-BR")} XP
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
                       Data: {new Date(row.occurred_on).toLocaleDateString("pt-BR")}

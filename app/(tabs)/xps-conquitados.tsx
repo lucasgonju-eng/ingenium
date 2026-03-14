@@ -10,7 +10,16 @@ type XpHistoryWithRunningBalance = MyXpHistoryRow & {
   runningBalance: number;
 };
 
-function getXpEventLabel(eventType: string) {
+function getXpEventLabel(eventType: string, note?: string | null, sourceRef?: string | null) {
+  const normalizedNote = (note ?? "").trim().toLowerCase();
+  const normalizedSourceRef = (sourceRef ?? "").trim().toLowerCase();
+  const isPlanoProBonus =
+    normalizedSourceRef.startsWith("asaas_pro_payment_") ||
+    normalizedSourceRef.startsWith("asaas_planopro_bonus_2026_") ||
+    normalizedNote.includes("plano pro");
+
+  if (isPlanoProBonus) return "Bônus Plano PRO";
+
   const normalized = eventType.trim().toLowerCase();
   if (normalized === "complete_profile_data") return "Perfil completo";
   if (normalized === "profile_photo_upload") return "Inserir foto de perfil";
@@ -144,7 +153,7 @@ export default function XpsConquitadosScreen() {
               >
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm }}>
                   <Text style={{ color: colors.white, flex: 1 }} weight="semibold">
-                    {idx + 1}. {getXpEventLabel(row.event_type)}
+                    {idx + 1}. {getXpEventLabel(row.event_type, row.note, row.source_ref)}
                   </Text>
                   <Text style={{ color: colors.einsteinYellow }} weight="bold">
                     +{row.xp_amount.toLocaleString("pt-BR")} XP
