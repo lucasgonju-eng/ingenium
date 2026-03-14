@@ -8,7 +8,7 @@ import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHo
 import WolfCelebration from "../../../components/sections/games/wolf/WolfCelebration";
 import WolfQuestionCard from "../../../components/sections/games/wolf/WolfQuestionCard";
 import { Text } from "../../../components/ui/Text";
-import { wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
+import { wolfAttemptsConfig, wolfInspirationalMessages } from "../../../content/games/wolf-config";
 import { useWolfSession } from "../../../hooks/games/useWolfSession";
 import { useWolfSfx } from "../../../hooks/games/useWolfSfx";
 import { buildWolfQuestionSetFromBankWithFallback } from "../../../services/games/wolfQuestionBankService";
@@ -21,6 +21,7 @@ import type { WolfGrade, WolfPhaseCategory } from "../../../types/games/wolf";
 const DEFAULT_GRADE: WolfGrade = "8º Ano";
 type GradePreference = "random" | WolfGrade;
 const WOLF_GRADES: WolfGrade[] = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"];
+const ADMIN_TIME_BUFFER_SECONDS = 5;
 
 const PHASE_LABEL: Record<WolfPhaseCategory, string> = {
   reflexo: "Reflexo",
@@ -65,6 +66,7 @@ export default function AdminWolfGameScreen() {
     grade,
     streakDays,
     xpAlreadyAwardedToday: 0,
+    timeBufferSeconds: ADMIN_TIME_BUFFER_SECONDS,
     buildQuestions: async (targetGrade) => {
       const runSessionKey = `wolf-${Date.now()}-${targetGrade}`;
       return buildWolfQuestionSetFromBankWithFallback({
@@ -209,10 +211,7 @@ export default function AdminWolfGameScreen() {
     [attemptsUsedToday],
   );
 
-  const currentMaxSeconds = useMemo(() => {
-    if (!session.currentQuestion) return 0;
-    return wolfTimersByBand[session.currentQuestion.band][session.currentQuestion.category];
-  }, [session.currentQuestion]);
+  const currentMaxSeconds = session.currentQuestionTimeLimit;
 
   useEffect(() => {
     if (session.stage !== "completed") return;
@@ -444,6 +443,9 @@ export default function AdminWolfGameScreen() {
                 </Text>
                 <Text style={{ color: colors.textMuted, marginTop: 2 }}>
                   Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "bank" ? "Banco" : "Fallback mock"}
+                </Text>
+                <Text style={{ color: colors.textMuted, marginTop: 2 }}>
+                  Tempo calibrado: {currentMaxSeconds}s (texto + dificuldade + {ADMIN_TIME_BUFFER_SECONDS}s admin)
                 </Text>
               </View>
               <Animated.View

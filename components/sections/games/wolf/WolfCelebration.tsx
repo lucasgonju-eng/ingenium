@@ -11,13 +11,14 @@ type Props = {
 const PARTICLE_COUNT = 8;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 const ENABLE_MOTION = true;
-const WOLF_MEDAL = require("../../../../assets/wolf-gold.png");
+const WOLF_MASCOT = require("../../../../assets/wolf-silver.png");
 
 export default function WolfCelebration({ answerText }: Props) {
   const wolfJump = useRef(new Animated.Value(0)).current;
   const wolfTilt = useRef(new Animated.Value(0)).current;
-  const glowPulse = useRef(new Animated.Value(0.65)).current;
+  const glowPulse = useRef(new Animated.Value(0.6)).current;
   const wolfScale = useRef(new Animated.Value(0.86)).current;
+  const ringPulse = useRef(new Animated.Value(0.8)).current;
   const particleProgress = useRef(Array.from({ length: PARTICLE_COUNT }, () => new Animated.Value(0))).current;
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function WolfCelebration({ answerText }: Props) {
       wolfTilt.setValue(0);
       glowPulse.setValue(0.82);
       wolfScale.setValue(1);
+      ringPulse.setValue(1);
       particleProgress.forEach((particle) => particle.setValue(1));
       return;
     }
@@ -72,6 +74,20 @@ export default function WolfCelebration({ answerText }: Props) {
           ]),
         ),
       ]),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(ringPulse, {
+            toValue: 1.05,
+            duration: 520,
+            useNativeDriver: USE_NATIVE_DRIVER,
+          }),
+          Animated.timing(ringPulse, {
+            toValue: 0.84,
+            duration: 620,
+            useNativeDriver: USE_NATIVE_DRIVER,
+          }),
+        ]),
+      ),
       Animated.loop(
         Animated.sequence([
           Animated.timing(glowPulse, {
@@ -140,12 +156,22 @@ export default function WolfCelebration({ answerText }: Props) {
       celebration.stop();
       glowPulse.stopAnimation();
     };
-  }, [glowPulse, particleProgress, wolfJump, wolfScale, wolfTilt]);
+  }, [glowPulse, particleProgress, ringPulse, wolfJump, wolfScale, wolfTilt]);
 
   return (
     <View style={{ marginTop: spacing.sm }}>
-      <LinearGradient colors={["rgba(16,185,129,0.22)", "rgba(10,86,61,0.16)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyle}>
+      <LinearGradient colors={["rgba(15,23,64,0.95)", "rgba(9,45,78,0.65)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyle}>
         <View style={mascotWrapStyle}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              ringStyle,
+              {
+                transform: [{ scale: ringPulse }],
+                opacity: glowPulse.interpolate({ inputRange: [0.6, 1], outputRange: [0.28, 0.58] }),
+              },
+            ]}
+          />
           <Animated.View
             pointerEvents="none"
             style={[
@@ -215,7 +241,7 @@ export default function WolfCelebration({ answerText }: Props) {
               ],
             }}
           >
-            <Image source={WOLF_MEDAL} style={wolfImageStyle} resizeMode="contain" />
+            <Image source={WOLF_MASCOT} style={wolfImageStyle} resizeMode="contain" />
           </Animated.View>
         </View>
 
@@ -230,7 +256,7 @@ export default function WolfCelebration({ answerText }: Props) {
 const cardStyle = {
   borderRadius: radii.lg,
   borderWidth: 1,
-  borderColor: "rgba(74,222,128,0.58)",
+  borderColor: "rgba(255,199,0,0.34)",
   paddingHorizontal: spacing.sm,
   paddingVertical: spacing.sm,
   overflow: "hidden" as const,
@@ -244,20 +270,30 @@ const mascotWrapStyle = {
   overflow: "hidden" as const,
 };
 
+const ringStyle = {
+  position: "absolute" as const,
+  width: 152,
+  height: 152,
+  borderRadius: 76,
+  borderWidth: 1.5,
+  borderColor: "rgba(255,199,0,0.50)",
+  backgroundColor: "rgba(255,199,0,0.06)",
+};
+
 const glowHaloStyle = {
   position: "absolute" as const,
   width: 130,
   height: 130,
   borderRadius: 65,
-  backgroundColor: "rgba(56,189,248,0.20)",
+  backgroundColor: "rgba(56,189,248,0.26)",
 };
 
 const wolfImageStyle = {
-  width: 108,
-  height: 108,
+  width: 118,
+  height: 118,
   shadowColor: colors.goldBase,
-  shadowOpacity: 0.35,
-  shadowRadius: 16,
+  shadowOpacity: 0.42,
+  shadowRadius: 18,
   shadowOffset: { width: 0, height: 4 },
 };
 

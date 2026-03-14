@@ -1,5 +1,5 @@
-import { wolfProgressionRules, wolfStreakBonusConfig, wolfXpBaseByHits, WOLF_DAILY_XP_CAP } from "../../content/games/wolf-config";
-import type { WolfAttemptResult, WolfPercentileSnapshot, WolfProgressionRule } from "../../types/games/wolf";
+import { wolfProgressionRules, wolfStreakBonusConfig, wolfTimersByBand, wolfXpBaseByHits, WOLF_DAILY_XP_CAP } from "../../content/games/wolf-config";
+import type { WolfAttemptResult, WolfDifficulty, WolfPercentileSnapshot, WolfPhaseCategory, WolfProgressionRule, WolfQuestion } from "../../types/games/wolf";
 
 export type WolfAttemptGateResult = {
   canStart: boolean;
@@ -33,6 +33,40 @@ export function calculateWolfAttemptXp(input: { hits: number; streakDays: number
     xpAwarded,
     capped: xpAwarded < desiredXp,
   };
+}
+
+export function calculateWolfQuestionTimeLimit(input: {
+  band: WolfQuestion["band"];
+  grade?: WolfQuestion["grade"];
+  category: WolfPhaseCategory;
+  difficulty: WolfDifficulty;
+  prompt: string;
+  options?: string[];
+  estimatedReadTime?: number;
+}): number {
+  const base = wolfTimersByBand[input.band][input.category];
+  const promptChars = (input.prompt ?? "").trim().length;
+  const optionsChars = Array.isArray(input.options) ? input.options.join(" ").trim().length : 0;
+  const totalChars = promptChars + optionsChars;
+  const estimated = Number.isFinite(input.estimatedReadTime) ? Math.max(0, Number(input.estimatedReadTime ?? 0)) : 0;
+  const isHighSchool = input.grade === "1ª Série" || input.grade === "2ª Série" || input.grade === "3ª Série";
+  const isNinthOrHighSchool = input.grade === "9º Ano" || isHighSchool;
+
+  const difficultyBoost = input.difficulty === "hard" ? 10 : input.difficulty === "medium" ? 6 : 3;
+  const bandReadingBoost = input.band === "exploradores" ? 3 : input.band === "cacadores" ? 2 : 1;
+  const gradeBoost = isHighSchool ? 8 : input.grade === "9º Ano" ? 5 : input.grade === "8º Ano" ? 3 : 2;
+
+  // Ajuste por volume textual real da questão.
+  const textBoost = Math.ceil(totalChars / 95);
+  const longPromptBoost = Math.ceil(Math.max(0, promptChars - 160) / 70);
+  const optionsBoost = Math.ceil(optionsChars / 140);
+  // Usa metadado de leitura quando disponível (seed/banco já traz esse valor).
+  const readBoost = Math.ceil(estimated * 0.6);
+
+  const raw = base + difficultyBoost + bandReadingBoost + gradeBoost + textBoost + longPromptBoost + optionsBoost + readBoost;
+  const minByDifficulty = base + (input.difficulty === "hard" ? 10 : input.difficulty === "medium" ? 7 : 5);
+  const minBySeries = isNinthOrHighSchool ? minByDifficulty + 2 : minByDifficulty;
+  return Math.max(minBySeries, Math.min(110, raw));
 }
 
 export function canStartWolfAttempt(input: {

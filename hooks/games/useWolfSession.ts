@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildMockWolfQuestionsForGrade } from "../../content/games/wolf-mock-questions";
-import { wolfTimersByBand } from "../../content/games/wolf-config";
-import { calculateWolfAttemptXp } from "../../services/games/wolfEngine";
+import { calculateWolfAttemptXp, calculateWolfQuestionTimeLimit } from "../../services/games/wolfEngine";
 import type { WolfGrade, WolfPhaseCategory, WolfQuestion } from "../../types/games/wolf";
 
 export type WolfSessionStage = "home" | "countdown" | "question" | "feedback" | "completed";
@@ -17,6 +16,7 @@ export function useWolfSession(input: {
   grade: WolfGrade;
   streakDays: number;
   xpAlreadyAwardedToday?: number;
+  timeBufferSeconds?: number;
   buildQuestions?: (
     grade: WolfGrade,
   ) => Promise<{ questions: WolfQuestion[]; source?: "bank" | "mock" }>;
@@ -33,8 +33,22 @@ export function useWolfSession(input: {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [answers, setAnswers] = useState<AnswerSnapshot[]>([]);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
+  const extraTimeSeconds = Math.max(0, Math.floor(input.timeBufferSeconds ?? 0));
 
   const currentQuestion = questions[phaseIndex] ?? null;
+  const currentQuestionTimeLimit = useMemo(() => {
+    if (!currentQuestion) return 0;
+    const baseLimit = calculateWolfQuestionTimeLimit({
+      band: currentQuestion.band,
+      grade: currentQuestion.grade,
+      category: currentQuestion.category,
+      difficulty: currentQuestion.difficulty,
+      prompt: currentQuestion.prompt,
+      options: currentQuestion.options,
+      estimatedReadTime: currentQuestion.estimatedReadTime,
+    });
+    return baseLimit + extraTimeSeconds;
+  }, [currentQuestion, extraTimeSeconds]);
 
   const hits = useMemo(() => answers.filter((item) => item.isCorrect).length, [answers]);
   const xpCalc = useMemo(
@@ -96,7 +110,16 @@ export function useWolfSession(input: {
   function markQuestionReady() {
     if (stage !== "question" || !currentQuestion) return;
     if (questionReady) return;
-    const initialTime = wolfTimersByBand[currentQuestion.band][currentQuestion.category];
+    const baseLimit = calculateWolfQuestionTimeLimit({
+      band: currentQuestion.band,
+      grade: currentQuestion.grade,
+      category: currentQuestion.category,
+      difficulty: currentQuestion.difficulty,
+      prompt: currentQuestion.prompt,
+      options: currentQuestion.options,
+      estimatedReadTime: currentQuestion.estimatedReadTime,
+    });
+    const initialTime = baseLimit + extraTimeSeconds;
     setQuestionReady(true);
     setSecondsLeft(initialTime);
   }
@@ -172,6 +195,7 @@ export function useWolfSession(input: {
     phaseIndex,
     secondsLeft,
     questionReady,
+    currentQuestionTimeLimit,
     selectedOptionIndex,
     answers,
     hits,
