@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Platform, Pressable, View } from "react-native";
 import { colors, radii, shadows, spacing, typography } from "../../../../lib/theme/tokens";
 import { Text } from "../../../ui/Text";
 import type { WolfQuestion } from "../../../../types/games/wolf";
@@ -11,6 +11,7 @@ const phaseMeta = {
   conhecimento: { icon: "◎", label: "Conhecimento", accent: colors.phaseConhecimento },
   lideranca: { icon: "⛨", label: "Liderança", accent: colors.phaseLideranca },
 } as const;
+const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
 type Props = {
   question: WolfQuestion;
@@ -36,9 +37,14 @@ export default function WolfQuestionCard({
   const cardEnter = useRef(new Animated.Value(0)).current;
   const timerPulse = useRef(new Animated.Value(1)).current;
   const optionEnters = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
+  const onReadyRef = useRef(onReady);
 
   useEffect(() => {
-    onReady();
+    onReadyRef.current = onReady;
+  }, [onReady]);
+
+  useEffect(() => {
+    onReadyRef.current();
     cardEnter.setValue(0);
     optionEnters.forEach((anim) => anim.setValue(0));
 
@@ -47,7 +53,7 @@ export default function WolfQuestionCard({
         toValue: 1,
         friction: 7,
         tension: 120,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.stagger(
         60,
@@ -55,7 +61,7 @@ export default function WolfQuestionCard({
           Animated.timing(anim, {
             toValue: 1,
             duration: 260,
-            useNativeDriver: true,
+            useNativeDriver: USE_NATIVE_DRIVER,
           }),
         ),
       ),
@@ -63,7 +69,7 @@ export default function WolfQuestionCard({
 
     enter.start();
     return () => enter.stop();
-  }, [question.id, onReady, cardEnter, optionEnters]);
+  }, [question.id, cardEnter, optionEnters]);
 
   const safeMaxSeconds = Math.max(1, maxSeconds);
   const timerPct = Math.max(0, Math.min(100, (secondsLeft / safeMaxSeconds) * 100));
@@ -87,12 +93,12 @@ export default function WolfQuestionCard({
         Animated.timing(timerPulse, {
           toValue: 1.025,
           duration: 260,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(timerPulse, {
           toValue: 0.99,
           duration: 260,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
     );

@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
-import { Animated, View } from "react-native";
+import { Animated, Platform, View } from "react-native";
 import { colors, radii, spacing, typography } from "../../../../lib/theme/tokens";
 import { Text } from "../../../ui/Text";
 
@@ -9,6 +9,7 @@ type Props = {
 };
 
 const PARTICLE_COUNT = 8;
+const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
 export default function WolfCelebration({ answerText }: Props) {
   const wolfBounce = useRef(new Animated.Value(0)).current;
@@ -23,12 +24,12 @@ export default function WolfCelebration({ answerText }: Props) {
           toValue: 1,
           friction: 5,
           tension: 130,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(wolfBounce, {
           toValue: 0.7,
           duration: 340,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
       Animated.loop(
@@ -36,12 +37,12 @@ export default function WolfCelebration({ answerText }: Props) {
           Animated.timing(glowPulse, {
             toValue: 1,
             duration: 560,
-            useNativeDriver: true,
+            useNativeDriver: USE_NATIVE_DRIVER,
           }),
           Animated.timing(glowPulse, {
             toValue: 0.55,
             duration: 560,
-            useNativeDriver: true,
+            useNativeDriver: USE_NATIVE_DRIVER,
           }),
         ]),
       ),
@@ -49,12 +50,12 @@ export default function WolfCelebration({ answerText }: Props) {
         Animated.timing(howlScale, {
           toValue: 1.06,
           duration: 200,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(howlScale, {
           toValue: 1,
           duration: 260,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
       Animated.stagger(
@@ -63,7 +64,7 @@ export default function WolfCelebration({ answerText }: Props) {
           Animated.timing(particle, {
             toValue: 1,
             duration: 740,
-            useNativeDriver: true,
+            useNativeDriver: USE_NATIVE_DRIVER,
           }),
         ),
       ),

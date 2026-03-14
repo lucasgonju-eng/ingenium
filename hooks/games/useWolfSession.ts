@@ -95,6 +95,7 @@ export function useWolfSession(input: {
 
   function markQuestionReady() {
     if (stage !== "question" || !currentQuestion) return;
+    if (questionReady) return;
     const initialTime = wolfTimersByBand[currentQuestion.band][currentQuestion.category];
     setQuestionReady(true);
     setSecondsLeft(initialTime);

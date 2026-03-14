@@ -2,7 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../components/layout/StitchScreenFrame";
 import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHomeCard";
 import WolfCelebration from "../../../components/sections/games/wolf/WolfCelebration";
@@ -28,6 +28,7 @@ const PHASE_LABEL: Record<WolfPhaseCategory, string> = {
   conhecimento: "Conhecimento",
   lideranca: "Liderança",
 };
+const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
 function coerceWolfGrade(raw: unknown, fallback: WolfGrade): WolfGrade {
   if (typeof raw !== "string") return fallback;
@@ -118,12 +119,12 @@ export default function AdminWolfGameScreen() {
         Animated.timing(countdownPulse, {
           toValue: 1.08,
           duration: 320,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(countdownPulse, {
           toValue: 1,
           duration: 320,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
     );
@@ -146,7 +147,7 @@ export default function AdminWolfGameScreen() {
       toValue: 1,
       friction: 7,
       tension: 120,
-      useNativeDriver: true,
+      useNativeDriver: USE_NATIVE_DRIVER,
     }).start();
   }, [session.stage, session.phaseIndex, feedbackEnter]);
 
@@ -167,7 +168,7 @@ export default function AdminWolfGameScreen() {
           toValue: 1,
           friction: 5,
           tension: 120,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }).start();
 
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -244,13 +245,13 @@ export default function AdminWolfGameScreen() {
       Animated.timing(transitionAnim, {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.delay(260),
       Animated.timing(transitionAnim, {
         toValue: 0,
         duration: 220,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start(() => {
       setIsPhaseTransitioning(false);
