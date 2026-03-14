@@ -94,7 +94,13 @@ export async function generateWolfQuestionWithFallback(input: WolfQuestionReques
     });
 
     if (!response.ok) throw new Error(`Falha no backend IA (${response.status}).`);
-    const payload = (await response.json()) as { question?: unknown };
+    const payload = (await response.json()) as {
+      question?: unknown;
+      validacao?: { aprovada_para_exibicao?: boolean };
+    };
+    if (payload.validacao && payload.validacao.aprovada_para_exibicao === false) {
+      throw new Error("Questão rejeitada na validação obrigatória.");
+    }
     if (!isValidQuestionPayload(payload.question)) throw new Error("Payload IA inválido.");
 
     return {

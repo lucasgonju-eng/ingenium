@@ -16,6 +16,22 @@ type GenerateInput = {
   avoidQuestionPatterns?: string[];
 };
 
+type StructuredGeneratedQuestion = {
+  enunciado: string;
+  raciocinio_privado: string;
+  resposta_correta: string;
+  alternativas: Record<"A" | "B" | "C" | "D", string> | string[];
+  justificativa_curta: string;
+  nivel_dificuldade: string;
+  tema: string;
+  tipo_validacao: string;
+};
+
+type StudentSolverResult = {
+  alternativa_escolhida: "A" | "B" | "C" | "D" | null;
+  confianca: number;
+};
+
 type QuestionPayload = {
   category: WolfPhaseCategory;
   grade: string;
@@ -26,6 +42,14 @@ type QuestionPayload = {
   explanation: string;
   tags: string[];
   estimatedReadTime: number;
+};
+
+type ValidationResult = {
+  alternativa_correta_existe: boolean;
+  apenas_uma_correta: boolean;
+  coerencia_enunciado_gabarito: boolean;
+  sem_ambiguidade_relevante: boolean;
+  aprovada_para_exibicao: boolean;
 };
 
 const CORS_HEADERS = {
@@ -134,6 +158,134 @@ function normalizePromptSignature(prompt: string): string {
     .trim();
 }
 
+function normalizeComparableText(value: string): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseAlternatives(raw: unknown): Record<"A" | "B" | "C" | "D", string> | null {
+  if (Array.isArray(raw)) {
+    if (raw.length !== 4 || !raw.every((item) => typeof item === "string" && item.trim())) return null;
+    return {
+      A: raw[0].trim(),
+      B: raw[1].trim(),
+      C: raw[2].trim(),
+      D: raw[3].trim(),
+    };
+  }
+
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const A = typeof obj.A === "string" ? obj.A.trim() : "";
+  const B = typeof obj.B === "string" ? obj.B.trim() : "";
+  const C = typeof obj.C === "string" ? obj.C.trim() : "";
+  const D = typeof obj.D === "string" ? obj.D.trim() : "";
+  if (!A || !B || !C || !D) return null;
+  return { A, B, C, D };
+}
+
+function asStructuredGeneratedQuestion(value: unknown): StructuredGeneratedQuestion | null {
+  if (!value || typeof value !== "object") return null;
+  const obj = value as Record<string, unknown>;
+  const enunciado = typeof obj.enunciado === "string" ? obj.enunciado.trim() : "";
+  const raciocinio_privado = typeof obj.raciocinio_privado === "string" ? obj.raciocinio_privado.trim() : "";
+  const resposta_correta = typeof obj.resposta_correta === "string" ? obj.resposta_correta.trim() : "";
+  const justificativa_curta = typeof obj.justificativa_curta === "string" ? obj.justificativa_curta.trim() : "";
+  const nivel_dificuldade = typeof obj.nivel_dificuldade === "string" ? obj.nivel_dificuldade.trim() : "";
+  const tema = typeof obj.tema === "string" ? obj.tema.trim() : "";
+  const tipo_validacao = typeof obj.tipo_validacao === "string" ? obj.tipo_validacao.trim() : "";
+  const alternativas = parseAlternatives(obj.alternativas);
+
+  if (!enunciado || !resposta_correta || !justificativa_curta || !alternativas) return null;
+  return {
+    enunciado,
+    raciocinio_privado,
+    resposta_correta,
+    alternativas,
+    justificativa_curta,
+    nivel_dificuldade,
+    tema,
+    tipo_validacao,
+  };
+}
+
+function findMatchingCorrectAlternative(
+  respostaCorreta: string,
+  alternativas: Record<"A" | "B" | "C" | "D", string>,
+): { matches: ("A" | "B" | "C" | "D")[]; normalizedAnswer: string } {
+  const normalizedAnswer = normalizeComparableText(respostaCorreta);
+  const entries: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
+  const matches = entries.filter((key) => normalizeComparableText(alternativas[key]) === normalizedAnswer);
+  return { matches, normalizedAnswer };
+}
+
+function hasAmbiguousAlternatives(alternativas: Record<"A" | "B" | "C" | "D", string>): boolean {
+  const normalized = ["A", "B", "C", "D"].map((key) => normalizeComparableText(alternativas[key as "A" | "B" | "C" | "D"]));
+  return new Set(normalized).size !== normalized.length;
+}
+
+function computeEstimatedReadTimeFromText(enunciado: string): number {
+  const words = normalizeComparableText(enunciado).split(" ").filter(Boolean).length;
+  const seconds = Math.round(words * 0.9 + 7);
+  return Math.max(6, Math.min(30, seconds));
+}
+
+function buildQuestionFromStructured(
+  input: GenerateInput,
+  structured: StructuredGeneratedQuestion,
+  solverResult: StudentSolverResult,
+): { question: QuestionPayload | null; validation: ValidationResult; correctLetter: "A" | "B" | "C" | "D" | null } {
+  const matchResult = findMatchingCorrectAlternative(structured.resposta_correta, structured.alternativas);
+  const correctExists = matchResult.matches.length >= 1;
+  const onlyOneCorrect = matchResult.matches.length === 1;
+  const correctLetter = onlyOneCorrect ? matchResult.matches[0] : null;
+  const coherence = !!correctLetter && solverResult.alternativa_escolhida === correctLetter;
+  const notAmbiguous = !hasAmbiguousAlternatives(structured.alternativas) && solverResult.confianca >= 0.55;
+
+  const validation: ValidationResult = {
+    alternativa_correta_existe: correctExists,
+    apenas_uma_correta: onlyOneCorrect,
+    coerencia_enunciado_gabarito: coherence,
+    sem_ambiguidade_relevante: notAmbiguous,
+    aprovada_para_exibicao: correctExists && onlyOneCorrect && coherence && notAmbiguous,
+  };
+
+  if (!validation.aprovada_para_exibicao || !correctLetter) {
+    return { question: null, validation, correctLetter };
+  }
+
+  const options: [string, string, string, string] = [
+    structured.alternativas.A,
+    structured.alternativas.B,
+    structured.alternativas.C,
+    structured.alternativas.D,
+  ];
+  const correctOptionIndex: 0 | 1 | 2 | 3 =
+    correctLetter === "A" ? 0 : correctLetter === "B" ? 1 : correctLetter === "C" ? 2 : 3;
+
+  const question: QuestionPayload = {
+    category: input.category,
+    grade: input.grade,
+    difficulty: input.difficulty,
+    prompt: structured.enunciado,
+    options,
+    correctOptionIndex,
+    explanation: structured.justificativa_curta,
+    tags: [input.category, input.band, structured.tema || "bncc", structured.nivel_dificuldade || input.difficulty]
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+      .slice(0, 6),
+    estimatedReadTime: computeEstimatedReadTimeFromText(structured.enunciado),
+  };
+
+  return { question, validation, correctLetter };
+}
+
 function buildWords(signature: string): Set<string> {
   return new Set(signature.split(" ").filter((word) => word.length > 3));
 }
@@ -205,7 +357,7 @@ function buildPrompt(input: GenerateInput): string {
   const avoidList = (input.avoidQuestionPatterns ?? []).filter(Boolean).slice(0, 6);
   return [
     "Você é um gerador de questões para o jogo educacional Teste dos Lobos.",
-    "Retorne SOMENTE JSON válido (sem markdown).",
+    "Retorne SOMENTE JSON válido (sem markdown) seguindo o schema obrigatório.",
     "Público: estudantes de 11 a 18 anos em ambiente escolar.",
     "A questão deve ser aderente à BNCC e condizente com a série solicitada.",
     buildDifficultyBoostInstruction(input.grade),
@@ -225,9 +377,72 @@ function buildPrompt(input: GenerateInput): string {
     avoidList.length ? `Evite repetir estes padrões recentes: ${avoidList.join(" | ")}` : "",
     "NÃO repita perguntas já usadas para o mesmo aluno.",
     "Crie contexto original e diferente de exemplos repetidos.",
-    "Retorne objeto com campos: category, grade, difficulty, prompt, options, correctOptionIndex, explanation, tags, estimatedReadTime.",
-    "estimatedReadTime deve ser número inteiro em segundos (4 a 30).",
+    "Campos obrigatórios e separados:",
+    "- enunciado",
+    "- raciocinio_privado",
+    "- resposta_correta",
+    "- alternativas (objeto com chaves A, B, C, D)",
+    "- justificativa_curta",
+    "- nivel_dificuldade",
+    "- tema",
+    "- tipo_validacao",
+    "Regra-mãe: nenhuma questão pode ser exibida se resposta_correta não estiver presente de forma inequívoca entre as alternativas.",
+    "Não produza alternativas duplicadas ou semanticamente equivalentes.",
   ].join("\n");
+}
+
+async function runStudentSolverValidation(params: {
+  openAiKey: string;
+  enunciado: string;
+  alternativas: Record<"A" | "B" | "C" | "D", string>;
+}): Promise<StudentSolverResult> {
+  const solverPrompt = [
+    "Resolva a questão abaixo como um aluno, sem acessar gabarito.",
+    "Retorne apenas JSON no formato:",
+    '{ "alternativa_escolhida": "A|B|C|D", "confianca": 0.0 }',
+    "Questão:",
+    params.enunciado,
+    "Alternativas:",
+    `A) ${params.alternativas.A}`,
+    `B) ${params.alternativas.B}`,
+    `C) ${params.alternativas.C}`,
+    `D) ${params.alternativas.D}`,
+  ].join("\n");
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.openAiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Responda apenas JSON válido." },
+        { role: "user", content: solverPrompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    return { alternativa_escolhida: null, confianca: 0 };
+  }
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content;
+  const parsed = typeof content === "string" ? JSON.parse(content) : null;
+  const rawAlternative = String(parsed?.alternativa_escolhida ?? "").trim().toUpperCase();
+  const alternativa_escolhida =
+    rawAlternative === "A" || rawAlternative === "B" || rawAlternative === "C" || rawAlternative === "D"
+      ? (rawAlternative as "A" | "B" | "C" | "D")
+      : null;
+  const confianca = Number(parsed?.confianca ?? 0);
+  return {
+    alternativa_escolhida,
+    confianca: Number.isFinite(confianca) ? Math.max(0, Math.min(1, confianca)) : 0,
+  };
 }
 
 async function getOpenAiKey(supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
@@ -370,12 +585,35 @@ Deno.serve(async (req) => {
       const parsed = typeof content === "string" ? JSON.parse(content) : null;
       lastParsedPayload = parsed;
 
-      const question = asQuestionPayload(parsed);
-      if (!question) {
-        lastFailureReason = "invalid_question_payload";
+      const structured = asStructuredGeneratedQuestion(parsed);
+      if (!structured) {
+        lastFailureReason = "invalid_structured_payload";
         continue;
       }
 
+      const solverResult = await runStudentSolverValidation({
+        openAiKey,
+        enunciado: structured.enunciado,
+        alternativas: structured.alternativas,
+      });
+
+      const built = buildQuestionFromStructured(input, structured, solverResult);
+      if (!built.question) {
+        if (!built.validation.alternativa_correta_existe) {
+          lastFailureReason = "correct_answer_not_in_options";
+        } else if (!built.validation.apenas_uma_correta) {
+          lastFailureReason = "multiple_or_no_unique_correct_options";
+        } else if (!built.validation.coerencia_enunciado_gabarito) {
+          lastFailureReason = "student_solver_mismatch";
+        } else {
+          lastFailureReason = "ambiguous_question";
+        }
+        dynamicAvoidPatterns.push(structured.enunciado.slice(0, 220));
+        dynamicAvoidPatterns.push(structured.resposta_correta.slice(0, 120));
+        continue;
+      }
+
+      const question = built.question;
       const repeatedForUser = isPromptTooSimilar(question.prompt, recentSignatures);
       if (repeatedForUser) {
         lastFailureReason = "repeated_question_for_user";
@@ -392,12 +630,31 @@ Deno.serve(async (req) => {
         difficulty: input.difficulty,
         model: "gpt-4o-mini",
         prompt_snapshot: promptForAttempt,
-        response_snapshot: question,
+        response_snapshot: {
+          enunciado: structured.enunciado,
+          resposta_correta: structured.resposta_correta,
+          alternativas: structured.alternativas,
+          justificativa_curta: structured.justificativa_curta,
+          tema: structured.tema,
+          nivel_dificuldade: structured.nivel_dificuldade,
+          tipo_validacao: structured.tipo_validacao,
+          validacao: built.validation,
+          alternativa_escolhida_aluno_simulado: solverResult.alternativa_escolhida,
+          confianca_aluno_simulado: solverResult.confianca,
+          question,
+        },
         status: "success",
         latency_ms: Date.now() - startedAt,
       });
 
-      return json(200, { question });
+      return json(200, {
+        enunciado: structured.enunciado,
+        alternativas: structured.alternativas,
+        gabarito: structured.resposta_correta,
+        justificativa: structured.justificativa_curta,
+        question,
+        validacao: built.validation,
+      });
     }
 
     await supabaseAdmin.from("game_ai_generations").insert({
