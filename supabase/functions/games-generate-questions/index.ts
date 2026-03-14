@@ -41,42 +41,84 @@ function json(status: number, payload: unknown) {
   });
 }
 
-function isCategory(value: unknown): value is WolfPhaseCategory {
-  return value === "reflexo" || value === "logica" || value === "conhecimento" || value === "lideranca";
+function normalizeCategory(value: unknown): WolfPhaseCategory | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "reflexo") return "reflexo";
+  if (raw === "logica" || raw === "lógica") return "logica";
+  if (raw === "conhecimento") return "conhecimento";
+  if (raw === "lideranca" || raw === "liderança") return "lideranca";
+  return null;
 }
 
-function isBand(value: unknown): value is WolfBand {
-  return value === "exploradores" || value === "cacadores" || value === "estrategistas";
+function normalizeBand(value: unknown): WolfBand | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "exploradores") return "exploradores";
+  if (raw === "cacadores" || raw === "caçadores") return "cacadores";
+  if (raw === "estrategistas") return "estrategistas";
+  return null;
 }
 
-function isDifficulty(value: unknown): value is WolfDifficulty {
-  return value === "easy" || value === "medium" || value === "hard";
+function normalizeDifficulty(value: unknown): WolfDifficulty | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "easy" || raw === "facil" || raw === "fácil") return "easy";
+  if (raw === "medium" || raw === "medio" || raw === "médio") return "medium";
+  if (raw === "hard" || raw === "dificil" || raw === "difícil") return "hard";
+  return null;
+}
+
+function normalizeEstimatedReadTime(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(4, Math.min(30, Math.round(value)));
+  }
+
+  if (typeof value !== "string") return null;
+  const raw = value.trim().toLowerCase();
+  if (!raw) return null;
+
+  const match = raw.match(/(\d+)/);
+  if (!match) return null;
+  const base = Number(match[1]);
+  if (!Number.isFinite(base) || base <= 0) return null;
+
+  const inMinutes =
+    raw.includes("min") ||
+    raw.includes("minuto") ||
+    raw.includes("minutos") ||
+    raw === "1m" ||
+    raw === "2m";
+
+  const seconds = inMinutes ? base * 60 : base;
+  return Math.max(4, Math.min(30, Math.round(seconds)));
 }
 
 function asQuestionPayload(value: unknown): QuestionPayload | null {
   if (!value || typeof value !== "object") return null;
   const obj = value as Record<string, unknown>;
-  if (!isCategory(obj.category)) return null;
+  const category = normalizeCategory(obj.category);
+  if (!category) return null;
   if (typeof obj.grade !== "string" || !obj.grade.trim()) return null;
-  if (!isDifficulty(obj.difficulty)) return null;
+  const difficulty = normalizeDifficulty(obj.difficulty);
+  if (!difficulty) return null;
   if (typeof obj.prompt !== "string" || !obj.prompt.trim()) return null;
   if (!Array.isArray(obj.options) || obj.options.length !== 4) return null;
   if (!obj.options.every((x) => typeof x === "string" && x.trim().length > 0)) return null;
   if (![0, 1, 2, 3].includes(Number(obj.correctOptionIndex))) return null;
   if (typeof obj.explanation !== "string" || !obj.explanation.trim()) return null;
   if (!Array.isArray(obj.tags) || !obj.tags.every((x) => typeof x === "string")) return null;
-  if (typeof obj.estimatedReadTime !== "number" || !Number.isFinite(obj.estimatedReadTime)) return null;
+  const estimatedReadTime = normalizeEstimatedReadTime(obj.estimatedReadTime);
+  if (estimatedReadTime === null) return null;
 
   return {
-    category: obj.category,
+    category,
     grade: obj.grade.trim(),
-    difficulty: obj.difficulty,
+    difficulty,
     prompt: obj.prompt.trim(),
     options: [obj.options[0], obj.options[1], obj.options[2], obj.options[3]],
     correctOptionIndex: Number(obj.correctOptionIndex) as 0 | 1 | 2 | 3,
     explanation: obj.explanation.trim(),
     tags: obj.tags,
-    estimatedReadTime: Math.max(4, Math.min(30, Math.round(obj.estimatedReadTime))),
+    estimatedReadTime,
   };
 }
 
@@ -98,6 +140,7 @@ function buildPrompt(input: GenerateInput): string {
     `Dificuldade: ${input.difficulty}`,
     `Limite máximo de caracteres do enunciado: ${input.maxChars}`,
     "Retorne objeto com campos: category, grade, difficulty, prompt, options, correctOptionIndex, explanation, tags, estimatedReadTime.",
+    "estimatedReadTime deve ser número inteiro em segundos (4 a 30).",
   ].join("\n");
 }
 
@@ -152,13 +195,13 @@ Deno.serve(async (req) => {
   const inputObj = inputRaw as Record<string, unknown>;
   const input: GenerateInput = {
     grade: typeof inputObj.grade === "string" ? inputObj.grade.trim() : "",
-    band: inputObj.band as WolfBand,
-    category: inputObj.category as WolfPhaseCategory,
-    difficulty: inputObj.difficulty as WolfDifficulty,
+    band: normalizeBand(inputObj.band) as WolfBand,
+    category: normalizeCategory(inputObj.category) as WolfPhaseCategory,
+    difficulty: normalizeDifficulty(inputObj.difficulty) as WolfDifficulty,
     maxChars: Number(inputObj.maxChars ?? 220),
   };
 
-  if (!input.grade || !isBand(input.band) || !isCategory(input.category) || !isDifficulty(input.difficulty)) {
+  if (!input.grade || !input.band || !input.category || !input.difficulty) {
     return json(400, { error: "invalid_input_fields" });
   }
 
