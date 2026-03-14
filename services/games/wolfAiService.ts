@@ -1,7 +1,12 @@
 import { buildMockWolfQuestionsForGrade } from "../../content/games/wolf-mock-questions";
+import { supabase } from "../../lib/supabase/client";
 import type { WolfAiQuestionPayload, WolfQuestionRequestInput } from "../../types/games/wolf";
 
-const DEFAULT_AI_ENDPOINT = process.env.EXPO_PUBLIC_GAMES_AI_GENERATE_URL ?? "";
+const DEFAULT_AI_ENDPOINT =
+  process.env.EXPO_PUBLIC_GAMES_AI_GENERATE_URL ??
+  (process.env.EXPO_PUBLIC_SUPABASE_URL
+    ? `${process.env.EXPO_PUBLIC_SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/games-generate-questions`
+    : "");
 
 function buildSafetyPrompt(input: WolfQuestionRequestInput): string {
   return [
@@ -53,9 +58,19 @@ export async function generateWolfQuestionWithFallback(input: WolfQuestionReques
   }
 
   try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token ?? null;
+    if (!accessToken) throw new Error("Sessão inválida para geração IA.");
+
     const response = await fetch(DEFAULT_AI_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
+      },
       body: JSON.stringify({
         game: "teste-dos-lobos",
         schemaVersion: "1.0.0",
