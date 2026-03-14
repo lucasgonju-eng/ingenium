@@ -12,6 +12,8 @@ type GenerateInput = {
   category: WolfPhaseCategory;
   difficulty: WolfDifficulty;
   maxChars: number;
+  bnccTopicHint?: string;
+  avoidQuestionPatterns?: string[];
 };
 
 type QuestionPayload = {
@@ -123,10 +125,12 @@ function asQuestionPayload(value: unknown): QuestionPayload | null {
 }
 
 function buildPrompt(input: GenerateInput): string {
+  const avoidList = (input.avoidQuestionPatterns ?? []).filter(Boolean).slice(0, 6);
   return [
     "Você é um gerador de questões para o jogo educacional Teste dos Lobos.",
     "Retorne SOMENTE JSON válido (sem markdown).",
     "Público: estudantes de 11 a 18 anos em ambiente escolar.",
+    "A questão deve ser aderente à BNCC e condizente com a série solicitada.",
     "Restrições obrigatórias:",
     "- questão curta, clara e sem ambiguidade;",
     "- exatamente 4 alternativas;",
@@ -139,6 +143,9 @@ function buildPrompt(input: GenerateInput): string {
     `Categoria: ${input.category}`,
     `Dificuldade: ${input.difficulty}`,
     `Limite máximo de caracteres do enunciado: ${input.maxChars}`,
+    input.bnccTopicHint ? `Habilidade/tema BNCC prioritário: ${input.bnccTopicHint}` : "",
+    avoidList.length ? `Evite repetir estes padrões recentes: ${avoidList.join(" | ")}` : "",
+    "Crie contexto original e diferente de exemplos repetidos.",
     "Retorne objeto com campos: category, grade, difficulty, prompt, options, correctOptionIndex, explanation, tags, estimatedReadTime.",
     "estimatedReadTime deve ser número inteiro em segundos (4 a 30).",
   ].join("\n");
@@ -199,6 +206,10 @@ Deno.serve(async (req) => {
     category: normalizeCategory(inputObj.category) as WolfPhaseCategory,
     difficulty: normalizeDifficulty(inputObj.difficulty) as WolfDifficulty,
     maxChars: Number(inputObj.maxChars ?? 220),
+    bnccTopicHint: typeof inputObj.bnccTopicHint === "string" ? inputObj.bnccTopicHint.trim() : undefined,
+    avoidQuestionPatterns: Array.isArray(inputObj.avoidQuestionPatterns)
+      ? inputObj.avoidQuestionPatterns.filter((item) => typeof item === "string").map((item) => String(item))
+      : undefined,
   };
 
   if (!input.grade || !input.band || !input.category || !input.difficulty) {

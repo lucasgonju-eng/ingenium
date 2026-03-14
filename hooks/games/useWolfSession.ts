@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildMockWolfQuestionsForGrade } from "../../content/games/wolf-mock-questions";
-import { getWolfBandByGrade, wolfTimersByBand } from "../../content/games/wolf-config";
+import { wolfTimersByBand } from "../../content/games/wolf-config";
 import { calculateWolfAttemptXp } from "../../services/games/wolfEngine";
 import type { WolfGrade, WolfPhaseCategory, WolfQuestion } from "../../types/games/wolf";
 
@@ -22,6 +22,7 @@ export function useWolfSession(input: {
   ) => Promise<{ questions: WolfQuestion[]; source?: "ai" | "mock" }>;
 }) {
   const [stage, setStage] = useState<WolfSessionStage>("home");
+  const [activeGrade, setActiveGrade] = useState<WolfGrade>(input.grade);
   const [countdown, setCountdown] = useState(3);
   const [questions, setQuestions] = useState<WolfQuestion[]>([]);
   const [questionSource, setQuestionSource] = useState<"ai" | "mock" | null>(null);
@@ -34,7 +35,6 @@ export function useWolfSession(input: {
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
 
   const currentQuestion = questions[phaseIndex] ?? null;
-  const currentBand = getWolfBandByGrade(input.grade);
 
   const hits = useMemo(() => answers.filter((item) => item.isCorrect).length, [answers]);
   const xpCalc = useMemo(
@@ -49,6 +49,7 @@ export function useWolfSession(input: {
 
   function resetSession() {
     setStage("home");
+    setActiveGrade(input.grade);
     setCountdown(3);
     setQuestions([]);
     setQuestionSource(null);
@@ -61,13 +62,15 @@ export function useWolfSession(input: {
     setSelectedOptionIndex(null);
   }
 
-  async function startSession() {
+  async function startSession(options?: { grade?: WolfGrade }) {
+    const targetGrade = options?.grade ?? input.grade;
+    setActiveGrade(targetGrade);
     setQuestionLoading(true);
     setQuestionError(null);
     try {
       const loaded = input.buildQuestions
-        ? await input.buildQuestions(input.grade)
-        : { questions: buildMockWolfQuestionsForGrade(input.grade), source: "mock" as const };
+        ? await input.buildQuestions(targetGrade)
+        : { questions: buildMockWolfQuestionsForGrade(targetGrade), source: "mock" as const };
 
       if (!loaded.questions.length) {
         throw new Error("Nenhuma questão disponível para iniciar o teste.");
@@ -92,7 +95,7 @@ export function useWolfSession(input: {
 
   function markQuestionReady() {
     if (stage !== "question" || !currentQuestion) return;
-    const initialTime = wolfTimersByBand[currentBand][currentQuestion.category];
+    const initialTime = wolfTimersByBand[currentQuestion.band][currentQuestion.category];
     setQuestionReady(true);
     setSecondsLeft(initialTime);
   }
@@ -158,6 +161,7 @@ export function useWolfSession(input: {
 
   return {
     stage,
+    activeGrade,
     countdown,
     questions,
     questionSource,

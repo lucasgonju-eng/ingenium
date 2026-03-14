@@ -9,10 +9,12 @@ const DEFAULT_AI_ENDPOINT =
     : "");
 
 function buildSafetyPrompt(input: WolfQuestionRequestInput): string {
+  const avoidPatterns = (input.avoidQuestionPatterns ?? []).filter(Boolean).slice(0, 6);
   return [
     "Você é um gerador de questões pedagógicas para o jogo Teste dos Lobos.",
     "Retorne somente JSON válido.",
     "Público: estudantes de 11 a 18 anos.",
+    "A questão deve ser aderente à BNCC e adequada à série solicitada.",
     "Restrições obrigatórias:",
     "- questão curta, clara e sem ambiguidades;",
     "- múltipla escolha com exatamente 4 opções;",
@@ -25,8 +27,14 @@ function buildSafetyPrompt(input: WolfQuestionRequestInput): string {
     `Categoria: ${input.category}`,
     `Dificuldade: ${input.difficulty}`,
     `Limite máximo de caracteres no enunciado: ${input.maxChars}`,
+    input.bnccTopicHint ? `Foco BNCC sugerido: ${input.bnccTopicHint}` : "",
+    avoidPatterns.length
+      ? `Evite repetir estes padrões/temas já usados recentemente: ${avoidPatterns.join(" | ")}`
+      : "",
+    "Crie contexto novo e diferente dos exemplos anteriores.",
     "Campos obrigatórios de saída:",
     "category, grade, difficulty, prompt, options, correctOptionIndex, explanation, tags, estimatedReadTime",
+    "estimatedReadTime deve ser número inteiro (segundos).",
   ].join("\n");
 }
 

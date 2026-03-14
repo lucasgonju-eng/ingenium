@@ -57,6 +57,8 @@ export type WolfQuestionRequestInput = {
   category: WolfPhaseCategory;
   difficulty: WolfDifficulty;
   maxChars: number;
+  bnccTopicHint?: string;
+  avoidQuestionPatterns?: string[];
 };
 
 export type WolfAiQuestionPayload = {

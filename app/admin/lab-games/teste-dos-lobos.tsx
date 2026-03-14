@@ -16,6 +16,7 @@ import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
 import type { WolfBand, WolfDifficulty, WolfGrade, WolfPhaseCategory, WolfQuestion } from "../../../types/games/wolf";
 
 const DEFAULT_GRADE: WolfGrade = "8º Ano";
+type GradePreference = "random" | WolfGrade;
 const PHASE_ORDER: WolfPhaseCategory[] = ["reflexo", "logica", "conhecimento", "lideranca"];
 const DIFFICULTY_BY_BAND: Record<WolfBand, Record<WolfPhaseCategory, WolfDifficulty>> = {
   exploradores: {
@@ -38,12 +39,111 @@ const DIFFICULTY_BY_BAND: Record<WolfBand, Record<WolfPhaseCategory, WolfDifficu
   },
 };
 const WOLF_GRADES: WolfGrade[] = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"];
+const BNCC_HINTS: Record<WolfBand, Record<WolfPhaseCategory, string[]>> = {
+  exploradores: {
+    reflexo: [
+      "EF06MA11 (operações com números naturais em contexto escolar)",
+      "EF67LP11 (leitura de instruções curtas e objetivas)",
+      "EF06CI03 (observação de padrões simples em fenômenos)",
+    ],
+    logica: [
+      "EF06MA01 (resolução de problemas com estratégias variadas)",
+      "EF67LP28 (inferência em textos curtos)",
+      "EF06MA06 (organização lógica de informações)",
+    ],
+    conhecimento: [
+      "EF06GE01 (orientação e leitura de mapas)",
+      "EF06HI01 (noções temporais e fatos históricos introdutórios)",
+      "EF06CI01 (conceitos básicos de ciência e ambiente)",
+    ],
+    lideranca: [
+      "EF67LP25 (escuta e colaboração em atividades coletivas)",
+      "Competências Gerais 8 e 9 da BNCC (autoconhecimento, empatia e cooperação)",
+      "Situações de convivência escolar e resolução de conflitos",
+    ],
+  },
+  cacadores: {
+    reflexo: [
+      "EF08MA04 (proporcionalidade em situações do cotidiano)",
+      "EF89LP07 (compreensão rápida de textos instrucionais)",
+      "EF08CI01 (análise de relações simples de causa e efeito)",
+    ],
+    logica: [
+      "EF08MA12 (argumentação e validação de estratégias)",
+      "EF89LP14 (relações lógicas em enunciados)",
+      "EF09MA11 (raciocínio dedutivo em problemas estruturados)",
+    ],
+    conhecimento: [
+      "EF08GE06 (dinâmicas socioespaciais em escalas locais e globais)",
+      "EF09HI12 (eventos históricos e cidadania)",
+      "EF08CI07 (conceitos científicos aplicados ao cotidiano)",
+    ],
+    lideranca: [
+      "Competências Gerais 9 e 10 (cooperação e responsabilidade)",
+      "Projetos colaborativos com tomada de decisão em grupo",
+      "Mediação de conflitos em contexto escolar",
+    ],
+  },
+  estrategistas: {
+    reflexo: [
+      "EM13MAT101 (resolução ágil de problemas quantitativos)",
+      "EM13LGG103 (leitura precisa de comandos e critérios)",
+      "EM13CNT201 (análise rápida de cenários científicos)",
+    ],
+    logica: [
+      "EM13MAT401 (argumentação lógico-matemática)",
+      "EM13LGG302 (interpretação crítica e inferência)",
+      "EM13CHS103 (análise de premissas e consequências)",
+    ],
+    conhecimento: [
+      "EM13CHS101 (contextos históricos e sociais contemporâneos)",
+      "EM13CNT301 (conceitos científicos em problemas reais)",
+      "EM13MAT303 (modelagem e interpretação de dados)",
+    ],
+    lideranca: [
+      "EM13CHS502 (ética, participação e cidadania)",
+      "Competências socioemocionais em liderança colaborativa",
+      "Tomada de decisão responsável em projetos escolares",
+    ],
+  },
+};
 
 function coerceWolfGrade(raw: unknown, fallback: WolfGrade): WolfGrade {
   if (typeof raw !== "string") return fallback;
   const normalized = raw.trim();
   if (WOLF_GRADES.includes(normalized as WolfGrade)) return normalized as WolfGrade;
   return fallback;
+}
+
+function pickRandomGrade(): WolfGrade {
+  const idx = Math.floor(Math.random() * WOLF_GRADES.length);
+  return WOLF_GRADES[idx] ?? DEFAULT_GRADE;
+}
+
+function normalizePromptSignature(prompt: string): string {
+  return prompt
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isTooSimilarPrompt(candidate: string, seen: string[]): boolean {
+  const normalized = normalizePromptSignature(candidate);
+  if (!normalized) return false;
+  return seen.some((item) => {
+    const wordsA = new Set(normalized.split(" ").filter((w) => w.length > 3));
+    const wordsB = new Set(item.split(" ").filter((w) => w.length > 3));
+    if (!wordsA.size || !wordsB.size) return false;
+    let overlap = 0;
+    wordsA.forEach((word) => {
+      if (wordsB.has(word)) overlap += 1;
+    });
+    const ratio = overlap / Math.max(wordsA.size, wordsB.size);
+    return ratio >= 0.55;
+  });
 }
 
 function CorrectAnswerExplosion({ answerText }: { answerText: string }) {
@@ -127,8 +227,9 @@ export default function AdminWolfGameScreen() {
   const [attemptsUsedToday, setAttemptsUsedToday] = useState(0);
   const [bestAttemptHits, setBestAttemptHits] = useState(0);
   const [streakDays, setStreakDays] = useState(4);
+  const [selectedGradePreference, setSelectedGradePreference] = useState<GradePreference>("random");
 
-  const grade = (params.grade as WolfGrade | undefined) ?? DEFAULT_GRADE;
+  const grade = coerceWolfGrade(params.grade, DEFAULT_GRADE);
   const session = useWolfSession({
     grade,
     streakDays,
@@ -136,34 +237,60 @@ export default function AdminWolfGameScreen() {
     buildQuestions: async (targetGrade) => {
       const band = getWolfBandByGrade(targetGrade);
       let hasMockFallback = false;
+      const seenPromptSignatures: string[] = [];
 
       const builtQuestions = await Promise.all(
         PHASE_ORDER.map(async (category, index) => {
-          const result = await generateWolfQuestionWithFallback({
-            grade: targetGrade,
-            band,
-            category,
-            difficulty: DIFFICULTY_BY_BAND[band][category],
-            maxChars: 220,
-          });
-          if (result.source === "mock") hasMockFallback = true;
+          const hints = BNCC_HINTS[band][category];
+          let bestQuestion: WolfQuestion | null = null;
 
-          const payload = result.question;
-          const resolvedGrade = coerceWolfGrade(payload.grade, targetGrade);
-          const question: WolfQuestion = {
-            id: `run-${Date.now()}-${category}-${index + 1}`,
-            category,
-            grade: resolvedGrade,
-            band,
-            difficulty: payload.difficulty,
-            prompt: payload.prompt,
-            options: payload.options,
-            correctOptionIndex: payload.correctOptionIndex,
-            explanation: payload.explanation,
-            tags: payload.tags,
-            estimatedReadTime: payload.estimatedReadTime,
-          };
-          return question;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            const hint = hints[(index + attempt) % hints.length] ?? "";
+            const result = await generateWolfQuestionWithFallback({
+              grade: targetGrade,
+              band,
+              category,
+              difficulty: DIFFICULTY_BY_BAND[band][category],
+              maxChars: 220,
+              bnccTopicHint: hint,
+              avoidQuestionPatterns: [
+                ...seenPromptSignatures.slice(-4),
+                "questao de gatos, caes ou mamiferos",
+                "premissa repetida de animais domesticos",
+              ],
+            });
+
+            if (result.source === "mock") hasMockFallback = true;
+            const payload = result.question;
+            const resolvedGrade = coerceWolfGrade(payload.grade, targetGrade);
+            const candidate: WolfQuestion = {
+              id: `run-${Date.now()}-${category}-${index + 1}-${attempt + 1}`,
+              category,
+              grade: resolvedGrade,
+              band,
+              difficulty: payload.difficulty,
+              prompt: payload.prompt,
+              options: payload.options,
+              correctOptionIndex: payload.correctOptionIndex,
+              explanation: payload.explanation,
+              tags: payload.tags,
+              estimatedReadTime: payload.estimatedReadTime,
+            };
+
+            const signature = normalizePromptSignature(candidate.prompt);
+            const tooSimilar = isTooSimilarPrompt(candidate.prompt, seenPromptSignatures);
+            if (!tooSimilar || attempt === 2) {
+              seenPromptSignatures.push(signature);
+              bestQuestion = candidate;
+              break;
+            }
+          }
+
+          if (!bestQuestion) {
+            throw new Error(`Falha ao preparar a fase ${category} para ${targetGrade}.`);
+          }
+
+          return bestQuestion;
         }),
       );
 
@@ -237,7 +364,7 @@ export default function AdminWolfGameScreen() {
         xpAwarded: String(session.xpAwarded),
         bestAttemptHits: String(Math.max(bestAttemptHits, finalHits)),
         streakDays: String(streakDays + 1),
-        grade,
+        grade: session.activeGrade,
         inspiration: message,
       },
     });
@@ -289,8 +416,46 @@ export default function AdminWolfGameScreen() {
             <View style={loadingCardStyle}>
               <ActivityIndicator color={colors.einsteinYellow} />
               <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: spacing.xs }}>
-                Gerando fases via IA para a série {grade}...
+                Gerando fases via IA para a série {session.activeGrade}...
               </Text>
+            </View>
+          ) : null}
+
+          {session.stage === "home" ? (
+            <View style={seriesPickerCardStyle}>
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="bold">
+                Série para teste (somente admin)
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
+                Escolha uma série fixa ou deixe em aleatório para variar de 6º Ano até 3ª Série.
+              </Text>
+              <View style={seriesPickerRowStyle}>
+                <Pressable
+                  onPress={() => setSelectedGradePreference("random")}
+                  style={[
+                    seriesChipStyle,
+                    selectedGradePreference === "random" ? seriesChipActiveStyle : seriesChipInactiveStyle,
+                  ]}
+                >
+                  <Text style={selectedGradePreference === "random" ? seriesChipActiveTextStyle : seriesChipInactiveTextStyle} weight="bold">
+                    Aleatória
+                  </Text>
+                </Pressable>
+                {WOLF_GRADES.map((item) => (
+                  <Pressable
+                    key={item}
+                    onPress={() => setSelectedGradePreference(item)}
+                    style={[
+                      seriesChipStyle,
+                      selectedGradePreference === item ? seriesChipActiveStyle : seriesChipInactiveStyle,
+                    ]}
+                  >
+                    <Text style={selectedGradePreference === item ? seriesChipActiveTextStyle : seriesChipInactiveTextStyle} weight="bold">
+                      {item}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
           ) : null}
 
@@ -303,7 +468,8 @@ export default function AdminWolfGameScreen() {
               startDisabled={!attemptGate.canStart || session.questionLoading}
               disabledReason={attemptGate.reason}
               onStart={() => {
-                void session.startSession();
+                const runGrade = selectedGradePreference === "random" ? pickRandomGrade() : selectedGradePreference;
+                void session.startSession({ grade: runGrade });
               }}
             />
           ) : null}
@@ -329,7 +495,7 @@ export default function AdminWolfGameScreen() {
                   ADMIN (apenas teste interno)
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 4 }}>
-                  Série selecionada: {grade} • Série da questão IA: {session.currentQuestion.grade}
+                  Série da rodada: {session.activeGrade} • Série da questão IA: {session.currentQuestion.grade}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 2 }}>
                   Fonte desta rodada: {session.questionSource === "ai" ? "IA" : "IA com fallback mock"}
@@ -427,6 +593,50 @@ const errorCardStyle = {
   borderColor: "rgba(248,113,113,0.46)",
   backgroundColor: "rgba(127,29,29,0.35)",
   padding: spacing.md,
+};
+
+const seriesPickerCardStyle = {
+  borderRadius: radii.lg,
+  borderWidth: 1,
+  borderColor: "rgba(255,199,0,0.34)",
+  backgroundColor: "rgba(255,199,0,0.08)",
+  padding: spacing.md,
+};
+
+const seriesPickerRowStyle = {
+  marginTop: spacing.sm,
+  flexDirection: "row" as const,
+  flexWrap: "wrap" as const,
+  gap: spacing.xs,
+};
+
+const seriesChipStyle = {
+  borderRadius: 999,
+  borderWidth: 1,
+  minHeight: 34,
+  paddingHorizontal: spacing.sm,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
+
+const seriesChipActiveStyle = {
+  borderColor: "rgba(255,199,0,0.85)",
+  backgroundColor: "rgba(255,199,0,0.20)",
+};
+
+const seriesChipInactiveStyle = {
+  borderColor: "rgba(255,255,255,0.25)",
+  backgroundColor: "rgba(255,255,255,0.05)",
+};
+
+const seriesChipActiveTextStyle = {
+  color: colors.einsteinYellow,
+  fontSize: typography.small.fontSize,
+};
+
+const seriesChipInactiveTextStyle = {
+  color: "rgba(255,255,255,0.86)",
+  fontSize: typography.small.fontSize,
 };
 
 const adminMetaCardStyle = {
