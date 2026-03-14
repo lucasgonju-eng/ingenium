@@ -261,7 +261,7 @@ export default function AdminDashboardScreen() {
   } as const;
 
   const isAdminStrict = accessRole === "admin";
-  const visibleTabs = isAdminStrict ? ADMIN_TABS : ADMIN_TABS.filter((tab) => tab.key !== "lab-games");
+  const visibleTabs = ADMIN_TABS;
 
   useEffect(() => {
     let mounted = true;
@@ -370,13 +370,6 @@ export default function AdminDashboardScreen() {
       mounted = false;
     };
   }, [authorized, analyticsPeriodDays]);
-
-  useEffect(() => {
-    if (activeTab === "lab-games" && !isAdminStrict) {
-      setActiveTab("dashboard");
-      setErrorText("Lab Games é exclusivo do administrador principal.");
-    }
-  }, [activeTab, isAdminStrict]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
