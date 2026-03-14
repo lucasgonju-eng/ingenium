@@ -142,6 +142,10 @@ Deno.serve(async (req) => {
     requestedBy = data.user?.id ?? null;
   }
 
+  if (!requestedBy) {
+    return json(401, { error: "unauthorized" });
+  }
+
   const body = await req.json().catch(() => null);
   const inputRaw = body && typeof body === "object" ? (body as Record<string, unknown>).input : null;
   if (!inputRaw || typeof inputRaw !== "object") {
