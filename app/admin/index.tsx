@@ -25,6 +25,7 @@ import {
   fetchOlympiads,
   hardDeleteUserAdmin,
   setUserActiveAdmin,
+  type MyAccessRole,
   type AccessRequestRow,
   type FullStudentRow,
   type RankingStudentRow,
@@ -37,6 +38,11 @@ import { supabase } from "../../lib/supabase/client";
 import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
+import AdminLabGamesSection from "../../components/sections/admin/AdminLabGamesSection";
+import { getWolfAdminConfigSnapshot, listLabGamesForAdmin, updateLabGameStatus } from "../../services/games/labGamesService";
+import { generateWolfQuestionWithFallback } from "../../services/games/wolfAiService";
+import type { LabGameAction, LabGameListItem } from "../../types/games/lab-games";
+import type { WolfAiQuestionPayload } from "../../types/games/wolf";
 
 type AdminTab =
   | ReturnType<typeof getAdminCoreTabs>[number]["key"]
@@ -44,9 +50,11 @@ type AdminTab =
   | "importacao-2026"
   | "visao-aluno"
   | "gtm"
-  | "notificacoes";
+  | "notificacoes"
+  | "lab-games";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
+  { key: "lab-games", label: "Lab Games" },
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
   { key: "visao-aluno", label: "Visão do aluno" },
@@ -178,6 +186,7 @@ function summarizeDataLayerPayload(item: Record<string, unknown>): string {
 export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [accessRole, setAccessRole] = useState<MyAccessRole>(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -222,6 +231,16 @@ export default function AdminDashboardScreen() {
   const [studentPreviewReloadKey, setStudentPreviewReloadKey] = useState(0);
   const [crmSearch, setCrmSearch] = useState("");
   const [crmDeletingUserId, setCrmDeletingUserId] = useState<string | null>(null);
+  const [labGamesLoading, setLabGamesLoading] = useState(false);
+  const [labGames, setLabGames] = useState<LabGameListItem[]>([]);
+  const [wolfConfigSummary, setWolfConfigSummary] = useState({
+    attemptsPerDay: 3,
+    cooldownMinutes: 10,
+    dailyXpCap: 25,
+  });
+  const [wolfQuestionPreview, setWolfQuestionPreview] = useState<WolfAiQuestionPayload | null>(null);
+  const [wolfQuestionSource, setWolfQuestionSource] = useState<"ai" | "mock" | null>(null);
+  const [wolfQuestionLoading, setWolfQuestionLoading] = useState(false);
 
   const categoryCardStyles = {
     uso: {
@@ -240,6 +259,9 @@ export default function AdminDashboardScreen() {
       titleColor: "#fcd34d",
     },
   } as const;
+
+  const isAdminStrict = accessRole === "admin";
+  const visibleTabs = isAdminStrict ? ADMIN_TABS : ADMIN_TABS.filter((tab) => tab.key !== "lab-games");
 
   useEffect(() => {
     let mounted = true;
@@ -262,10 +284,12 @@ export default function AdminDashboardScreen() {
         const role = await fetchMyAccessRole();
         if (role !== "admin" && role !== "coord" && role !== "gestao") {
           if (!mounted) return;
+          setAccessRole(role);
           setAuthorized(false);
           setErrorText("Acesso restrito. Entre com uma conta de gestão autorizada.");
           return;
         }
+        setAccessRole(role);
 
         const [studentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData] = await Promise.all([
           fetchRegisteredStudentsFull(),
@@ -283,6 +307,23 @@ export default function AdminDashboardScreen() {
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
         setSaasAnalytics(analyticsData);
         setPendingRequests(requestsData);
+        setLabGamesLoading(true);
+        try {
+          const [labItems, wolfConfig] = await Promise.all([
+            listLabGamesForAdmin(),
+            getWolfAdminConfigSnapshot(),
+          ]);
+          if (mounted) {
+            setLabGames(labItems);
+            setWolfConfigSummary({
+              attemptsPerDay: wolfConfig.attemptsConfig.attemptsPerDay,
+              cooldownMinutes: wolfConfig.attemptsConfig.cooldownMinutes,
+              dailyXpCap: wolfConfig.dailyXpCap,
+            });
+          }
+        } finally {
+          if (mounted) setLabGamesLoading(false);
+        }
         try {
           const pendingStudentsData = await listStudentSignupPendingRequestsAdmin();
           if (mounted) setPendingStudentRows(pendingStudentsData);
@@ -329,6 +370,13 @@ export default function AdminDashboardScreen() {
       mounted = false;
     };
   }, [authorized, analyticsPeriodDays]);
+
+  useEffect(() => {
+    if (activeTab === "lab-games" && !isAdminStrict) {
+      setActiveTab("dashboard");
+      setErrorText("Lab Games é exclusivo do administrador principal.");
+    }
+  }, [activeTab, isAdminStrict]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -421,6 +469,102 @@ export default function AdminDashboardScreen() {
       }
     };
   }, []);
+
+  async function reloadLabGames() {
+    try {
+      setLabGamesLoading(true);
+      const [labItems, wolfConfig] = await Promise.all([
+        listLabGamesForAdmin(),
+        getWolfAdminConfigSnapshot(),
+      ]);
+      setLabGames(labItems);
+      setWolfConfigSummary({
+        attemptsPerDay: wolfConfig.attemptsConfig.attemptsPerDay,
+        cooldownMinutes: wolfConfig.attemptsConfig.cooldownMinutes,
+        dailyXpCap: wolfConfig.dailyXpCap,
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao recarregar Lab Games.";
+      setErrorText(message);
+    } finally {
+      setLabGamesLoading(false);
+    }
+  }
+
+  async function handleLabGamesAction(action: LabGameAction, item: LabGameListItem) {
+    if (!isAdminStrict) {
+      Alert.alert("Acesso restrito", "Somente o administrador principal pode executar ações de publicação.");
+      return;
+    }
+
+    if (action === "test_game") {
+      router.push("/admin/lab-games/teste-dos-lobos");
+      return;
+    }
+
+    if (action === "simulate_student_view") {
+      router.push("/(tabs)/dashboard");
+      return;
+    }
+
+    if (action === "view") {
+      Alert.alert(
+        "Visão geral",
+        `Status atual: ${item.game.status}. Publicado para alunos: ${item.publication.published ? "sim" : "não"}.`,
+      );
+      return;
+    }
+
+    if (action === "edit_settings") {
+      Alert.alert(
+        "Configurações",
+        "Nesta versão inicial você já pode testar e publicar. Edição detalhada de parâmetros entra na próxima etapa.",
+      );
+      return;
+    }
+
+    if (action === "publish") {
+      await updateLabGameStatus({
+        gameId: item.game.id,
+        status: "published",
+        actorEmail: currentUserEmail,
+      });
+      await reloadLabGames();
+      Alert.alert("Jogo publicado", "Teste dos Lobos foi liberado para alunos elegíveis.");
+      return;
+    }
+
+    if (action === "unpublish" || action === "pause") {
+      await updateLabGameStatus({
+        gameId: item.game.id,
+        status: "paused",
+        actorEmail: currentUserEmail,
+      });
+      await reloadLabGames();
+      Alert.alert("Jogo pausado", "Teste dos Lobos voltou para modo interno (somente admin).");
+      return;
+    }
+  }
+
+  async function handleGenerateWolfQuestionPreview() {
+    try {
+      setWolfQuestionLoading(true);
+      const result = await generateWolfQuestionWithFallback({
+        grade: "8º Ano",
+        band: "cacadores",
+        category: "logica",
+        difficulty: "medium",
+        maxChars: 220,
+      });
+      setWolfQuestionPreview(result.question);
+      setWolfQuestionSource(result.source);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao gerar questão de teste.";
+      Alert.alert("Erro", message);
+    } finally {
+      setWolfQuestionLoading(false);
+    }
+  }
 
   async function handleChangePasswordNow() {
     if (!newPassword || !confirmPassword) {
@@ -1023,7 +1167,7 @@ export default function AdminDashboardScreen() {
 
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
           <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
-            {ADMIN_TABS.map((tab) => {
+            {visibleTabs.map((tab) => {
               const active = activeTab === tab.key;
               return (
                 <Pressable
@@ -1174,7 +1318,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
-                teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
+                teacherCreationFeedback={teacherCreationFeedback}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -1264,7 +1408,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
-                teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
+                teacherCreationFeedback={teacherCreationFeedback}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -1354,7 +1498,7 @@ export default function AdminDashboardScreen() {
                 teacherArea={teacherArea}
                 selectedCreateOlympiadId={selectedCreateOlympiadId}
                 teacherPendingOlympiadName={teacherPendingOlympiadName}
-                teacherCreationFeedback={activeTab === "professores" ? teacherCreationFeedback : null}
+                teacherCreationFeedback={teacherCreationFeedback}
                 olympiadSelectionByTeacher={olympiadSelectionByTeacher}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
@@ -1428,6 +1572,28 @@ export default function AdminDashboardScreen() {
                 }}
                 onSetTeacherActive={(teacherId, isActive) => {
                   void handleSetTeacherActive(teacherId, isActive);
+                }}
+              />
+            ) : null}
+
+            {activeTab === "lab-games" ? (
+              <AdminLabGamesSection
+                items={labGames}
+                loading={labGamesLoading}
+                canPublish={isAdminStrict}
+                canAccessLab={isAdminStrict}
+                configSummary={wolfConfigSummary}
+                generatedQuestion={wolfQuestionPreview}
+                generatedQuestionSource={wolfQuestionSource}
+                generatingQuestion={wolfQuestionLoading}
+                onGenerateQuestion={() => {
+                  void handleGenerateWolfQuestionPreview();
+                }}
+                onRefresh={() => {
+                  void reloadLabGames();
+                }}
+                onAction={(action, item) => {
+                  void handleLabGamesAction(action, item);
                 }}
               />
             ) : null}

@@ -19,6 +19,8 @@ Regra aplicada: manter uma variante canônica (mais completa/recente) por títul
 | Admin: Gestão de Olimpíadas | `projects/14208087628780676024/screens/c6e2bf903ca2473ea6f59948286631a4` | `/admin/olimpiadas` |
 | Admin: Resultados e Pontuação | `projects/14208087628780676024/screens/c2f7a70bee024c4aa6853a7af2ecd752` | `/admin/resultados` |
 | Admin: Moderação e Usuários | `projects/14208087628780676024/screens/51c9a85c516d48fc8e1c8d695b652de8` | `/admin/moderacao` |
+| Admin: Lab Games | `projects/14208087628780676024/screens/labgames001` | `/admin#lab-games` |
+| Admin: Teste dos Lobos | `projects/14208087628780676024/screens/labgames002` | `/admin/lab-games/teste-dos-lobos` |
 | Dashboard: Meu Desempenho | `projects/14208087628780676024/screens/ee25c05dc12a43f1b4b3dadd93e8c420` | `/(app)/desempenho` |
 
 ## Catalog / auxiliary screens

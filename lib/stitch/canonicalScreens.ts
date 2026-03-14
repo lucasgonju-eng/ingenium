@@ -99,6 +99,20 @@ export const canonicalScreens: CanonicalScreen[] = [
     summary: "Moderação de mural e usuários.",
   },
   {
+    title: "Admin: Lab Games",
+    screenId: "projects/14208087628780676024/screens/labgames001",
+    route: "/admin#lab-games",
+    group: "core",
+    summary: "Laboratório de jogos com publicação controlada para alunos.",
+  },
+  {
+    title: "Admin: Teste dos Lobos",
+    screenId: "projects/14208087628780676024/screens/labgames002",
+    route: "/admin/lab-games/teste-dos-lobos",
+    group: "core",
+    summary: "Fluxo mobile-first de teste interno do jogo assinatura.",
+  },
+  {
     title: "Dashboard: Meu Desempenho",
     screenId: "projects/14208087628780676024/screens/ee25c05dc12a43f1b4b3dadd93e8c420",
     route: "/(app)/desempenho",

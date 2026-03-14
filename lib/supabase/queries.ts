@@ -1488,3 +1488,78 @@ export async function hardDeleteUserAdmin(userId: string) {
   });
   if (error) throw error;
 }
+
+export type LabGameAdminRow = {
+  game_id: string;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  status: string;
+  published: boolean;
+  visibility_rule: string;
+  updated_at: string;
+};
+
+export async function fetchLabGamesAdminRpc() {
+  const { data, error } = await supabase.rpc("list_lab_games_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    game_id: String(row.game_id ?? ""),
+    slug: String(row.slug ?? ""),
+    title: String(row.title ?? ""),
+    subtitle: row.subtitle ? String(row.subtitle) : null,
+    description: row.description ? String(row.description) : null,
+    status: String(row.status ?? "development"),
+    published: Boolean(row.published),
+    visibility_rule: String(row.visibility_rule ?? "admin_only"),
+    updated_at: String(row.updated_at ?? new Date().toISOString()),
+  })) as LabGameAdminRow[];
+}
+
+export async function setLabGameStatusAdminRpc(input: {
+  gameId: string;
+  status: "development" | "internal_test" | "published" | "paused";
+  publish?: boolean | null;
+}) {
+  const { data, error } = await supabase.rpc("set_lab_game_status_admin", {
+    p_game_id: input.gameId,
+    p_status: input.status,
+    p_publish: input.publish ?? null,
+  });
+  if (error) throw error;
+  return String(data ?? input.gameId);
+}
+
+export async function fetchWolfGameConfigAdminRpc() {
+  const { data, error } = await supabase.rpc("get_wolf_game_config_admin");
+  if (error) throw error;
+  if (!data || typeof data !== "object") return null;
+  return data as Record<string, unknown>;
+}
+
+export async function listPublishedGamesForStudentsRpc() {
+  const { data, error } = await supabase.rpc("list_published_games_for_students");
+  if (error) throw error;
+  return (data ?? []) as Array<Record<string, unknown>>;
+}
+
+export async function upsertWolfAttemptResultRpc(input: {
+  attemptNumber: number;
+  hits: number;
+  xpBase: number;
+  xpStreakBonus: number;
+  xpAwarded: number;
+  metadata?: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase.rpc("upsert_wolf_attempt_result", {
+    p_attempt_number: input.attemptNumber,
+    p_hits: input.hits,
+    p_xp_base: input.xpBase,
+    p_xp_streak_bonus: input.xpStreakBonus,
+    p_xp_awarded: input.xpAwarded,
+    p_metadata: input.metadata ?? {},
+  });
+  if (error) throw error;
+  return String(data ?? "");
+}
