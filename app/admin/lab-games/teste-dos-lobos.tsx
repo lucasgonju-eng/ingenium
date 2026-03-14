@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../components/layout/StitchScreenFrame";
 import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHomeCard";
 import WolfQuestionCard from "../../../components/sections/games/wolf/WolfQuestionCard";
@@ -15,6 +15,80 @@ import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
 import type { WolfGrade } from "../../../types/games/wolf";
 
 const DEFAULT_GRADE: WolfGrade = "8º Ano";
+
+function CorrectAnswerExplosion({ answerText }: { answerText: string }) {
+  const ringScale = useRef(new Animated.Value(0.45)).current;
+  const ringOpacity = useRef(new Animated.Value(0.85)).current;
+  const cardScale = useRef(new Animated.Value(0.9)).current;
+
+  useEffect(() => {
+    const burst = Animated.parallel([
+      Animated.timing(ringScale, {
+        toValue: 1.8,
+        duration: 520,
+        useNativeDriver: true,
+      }),
+      Animated.timing(ringOpacity, {
+        toValue: 0,
+        duration: 520,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(cardScale, {
+          toValue: 1.08,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cardScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 150,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]);
+
+    burst.start();
+  }, [ringScale, ringOpacity, cardScale]);
+
+  return (
+    <View style={{ marginTop: spacing.sm, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          width: 176,
+          height: 176,
+          borderRadius: 88,
+          borderWidth: 3,
+          borderColor: "rgba(74,222,128,0.78)",
+          transform: [{ scale: ringScale }],
+          opacity: ringOpacity,
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: "100%",
+          borderRadius: radii.md,
+          borderWidth: 1,
+          borderColor: "rgba(74,222,128,0.65)",
+          backgroundColor: "rgba(22,163,74,0.24)",
+          paddingHorizontal: spacing.sm,
+          paddingVertical: spacing.sm,
+          transform: [{ scale: cardScale }],
+        }}
+      >
+        <Text style={{ color: "#86efac", fontSize: typography.small.fontSize }} weight="bold">
+          Resposta certa (explosao verde)
+        </Text>
+        <Text style={{ color: "#dcfce7", marginTop: 4, lineHeight: 20 }} weight="semibold">
+          {answerText}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function AdminWolfGameScreen() {
   const params = useLocalSearchParams<{ grade?: string }>();
@@ -176,21 +250,27 @@ export default function AdminWolfGameScreen() {
 
           {session.stage === "feedback" && session.currentQuestion ? (
             <View style={feedbackCardStyle}>
+              {(() => {
+                const answeredCorrect = session.selectedOptionIndex === session.currentQuestion.correctOptionIndex;
+                const correctAnswer = session.currentQuestion.options[session.currentQuestion.correctOptionIndex];
+                return (
+                  <>
               <Text
                 style={{
-                  color:
-                    session.selectedOptionIndex === session.currentQuestion.correctOptionIndex
-                      ? colors.einsteinYellow
-                      : "rgba(255,255,255,0.88)",
+                        color: answeredCorrect ? "#86efac" : "rgba(255,255,255,0.88)",
                   fontSize: typography.titleMd.fontSize,
                 }}
                 weight="bold"
               >
-                {session.selectedOptionIndex === session.currentQuestion.correctOptionIndex ? "Resposta correta" : "Resposta registrada"}
+                      {answeredCorrect ? "Acertou! Excelente resposta." : "Resposta registrada"}
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.80)", marginTop: spacing.xs, lineHeight: 20 }}>
                 {session.currentQuestion.explanation}
               </Text>
+                    <CorrectAnswerExplosion answerText={correctAnswer} />
+                  </>
+                );
+              })()}
 
               <Pressable onPress={session.goNext} style={nextButtonStyle}>
                 <Text style={{ color: colors.einsteinBlue }} weight="bold">
