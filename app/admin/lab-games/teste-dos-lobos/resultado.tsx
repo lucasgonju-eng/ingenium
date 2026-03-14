@@ -1,13 +1,16 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../../components/layout/StitchScreenFrame";
 import WolfResultCard from "../../../../components/sections/games/wolf/WolfResultCard";
 import { Text } from "../../../../components/ui/Text";
+import { useWolfSfx } from "../../../../hooks/games/useWolfSfx";
 import { buildWolfPercentileSnapshot } from "../../../../services/games/wolfEngine";
 import { colors, radii, spacing, typography } from "../../../../lib/theme/tokens";
 
 export default function AdminWolfResultScreen() {
+  const sfx = useWolfSfx();
   const params = useLocalSearchParams<{
     hits?: string;
     xpAwarded?: string;
@@ -29,6 +32,11 @@ export default function AdminWolfResultScreen() {
     seriesLabel: grade,
     sampleSize: 34,
   });
+
+  useEffect(() => {
+    void sfx.preload();
+    void sfx.play("result");
+  }, [sfx]);
 
   return (
     <StitchScreenFrame>

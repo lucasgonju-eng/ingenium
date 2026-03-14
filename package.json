@@ -11,7 +11,10 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@supabase/supabase-js": "^2.97.0",
+    "buffer": "^6.0.3",
     "expo": "~54.0.33",
+    "expo-av": "~16.0.8",
+    "expo-haptics": "~15.0.8",
     "expo-image-picker": "^17.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-router": "~6.0.23",

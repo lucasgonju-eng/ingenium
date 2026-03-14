@@ -1,13 +1,16 @@
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../components/layout/StitchScreenFrame";
 import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHomeCard";
+import WolfCelebration from "../../../components/sections/games/wolf/WolfCelebration";
 import WolfQuestionCard from "../../../components/sections/games/wolf/WolfQuestionCard";
 import { Text } from "../../../components/ui/Text";
 import { wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
 import { useWolfSession } from "../../../hooks/games/useWolfSession";
+import { useWolfSfx } from "../../../hooks/games/useWolfSfx";
 import { buildWolfQuestionSetFromBankWithFallback } from "../../../services/games/wolfQuestionBankService";
 import { canStartWolfAttempt } from "../../../services/games/wolfEngine";
 import { supabase } from "../../../lib/supabase/client";
@@ -38,80 +41,6 @@ function pickRandomGrade(): WolfGrade {
   return WOLF_GRADES[idx] ?? DEFAULT_GRADE;
 }
 
-function CorrectAnswerExplosion({ answerText }: { answerText: string }) {
-  const ringScale = useRef(new Animated.Value(0.45)).current;
-  const ringOpacity = useRef(new Animated.Value(0.85)).current;
-  const cardScale = useRef(new Animated.Value(0.9)).current;
-
-  useEffect(() => {
-    const burst = Animated.parallel([
-      Animated.timing(ringScale, {
-        toValue: 1.8,
-        duration: 520,
-        useNativeDriver: true,
-      }),
-      Animated.timing(ringOpacity, {
-        toValue: 0,
-        duration: 520,
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.timing(cardScale, {
-          toValue: 1.08,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.spring(cardScale, {
-          toValue: 1,
-          friction: 6,
-          tension: 150,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]);
-
-    burst.start();
-  }, [ringScale, ringOpacity, cardScale]);
-
-  return (
-    <View style={{ marginTop: spacing.sm, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          width: 176,
-          height: 176,
-          borderRadius: 88,
-          borderWidth: 3,
-          borderColor: "rgba(74,222,128,0.78)",
-          transform: [{ scale: ringScale }],
-          opacity: ringOpacity,
-        }}
-      />
-
-      <Animated.View
-        style={{
-          width: "100%",
-          borderRadius: radii.md,
-          borderWidth: 1,
-          borderColor: "rgba(74,222,128,0.65)",
-          backgroundColor: "rgba(22,163,74,0.24)",
-          paddingHorizontal: spacing.sm,
-          paddingVertical: spacing.sm,
-          transform: [{ scale: cardScale }],
-        }}
-      >
-        <Text style={{ color: "#86efac", fontSize: typography.small.fontSize }} weight="bold">
-          Resposta certa (explosao verde)
-        </Text>
-        <Text style={{ color: "#dcfce7", marginTop: 4, lineHeight: 20 }} weight="semibold">
-          {answerText}
-        </Text>
-      </Animated.View>
-    </View>
-  );
-}
-
 export default function AdminWolfGameScreen() {
   const params = useLocalSearchParams<{ grade?: string }>();
   const [guardLoading, setGuardLoading] = useState(true);
@@ -120,7 +49,14 @@ export default function AdminWolfGameScreen() {
   const [bestAttemptHits, setBestAttemptHits] = useState(0);
   const [streakDays, setStreakDays] = useState(4);
   const [selectedGradePreference, setSelectedGradePreference] = useState<GradePreference>("random");
+  const [comboStreak, setComboStreak] = useState(0);
+  const [isPhaseTransitioning, setIsPhaseTransitioning] = useState(false);
+  const [nextPhaseLabel, setNextPhaseLabel] = useState<string | null>(null);
+  const sfx = useWolfSfx();
   const countdownPulse = useRef(new Animated.Value(1)).current;
+  const feedbackEnter = useRef(new Animated.Value(0)).current;
+  const comboPulse = useRef(new Animated.Value(1)).current;
+  const transitionAnim = useRef(new Animated.Value(0)).current;
 
   const grade = coerceWolfGrade(params.grade, DEFAULT_GRADE);
   const session = useWolfSession({
@@ -167,6 +103,10 @@ export default function AdminWolfGameScreen() {
   }, []);
 
   useEffect(() => {
+    void sfx.preload();
+  }, [sfx]);
+
+  useEffect(() => {
     if (session.stage !== "countdown") {
       countdownPulse.stopAnimation();
       countdownPulse.setValue(1);
@@ -193,6 +133,54 @@ export default function AdminWolfGameScreen() {
       loop.stop();
     };
   }, [session.stage, countdownPulse]);
+
+  useEffect(() => {
+    if (session.stage !== "feedback") {
+      feedbackEnter.stopAnimation();
+      feedbackEnter.setValue(0);
+      return;
+    }
+
+    feedbackEnter.setValue(0);
+    Animated.spring(feedbackEnter, {
+      toValue: 1,
+      friction: 7,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [session.stage, session.phaseIndex, feedbackEnter]);
+
+  useEffect(() => {
+    if (!session.answers.length) {
+      setComboStreak(0);
+      return;
+    }
+    const last = session.answers[session.answers.length - 1];
+    if (!last) return;
+
+    if (last.isCorrect) {
+      setComboStreak((prev) => {
+        const next = prev + 1;
+        comboPulse.stopAnimation();
+        comboPulse.setValue(0.86);
+        Animated.spring(comboPulse, {
+          toValue: 1,
+          friction: 5,
+          tension: 120,
+          useNativeDriver: true,
+        }).start();
+
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        void sfx.play(next >= 2 ? "combo" : "success");
+        return next;
+      });
+      return;
+    }
+
+    setComboStreak(0);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    void sfx.play("error");
+  }, [session.answers, comboPulse, sfx]);
 
   const attemptGate = useMemo(
     () =>
@@ -232,6 +220,44 @@ export default function AdminWolfGameScreen() {
       },
     });
   }, [session.stage]);
+
+  function handleGoNext() {
+    const isLastQuestion = session.phaseIndex + 1 >= session.questions.length;
+    if (isLastQuestion) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      session.goNext();
+      return;
+    }
+
+    const upcoming = session.questions[session.phaseIndex + 1];
+    if (!upcoming) {
+      session.goNext();
+      return;
+    }
+
+    setNextPhaseLabel(PHASE_LABEL[upcoming.category]);
+    setIsPhaseTransitioning(true);
+    void sfx.play("transition");
+    transitionAnim.stopAnimation();
+    transitionAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(transitionAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.delay(260),
+      Animated.timing(transitionAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsPhaseTransitioning(false);
+      setNextPhaseLabel(null);
+      session.goNext();
+    });
+  }
 
   if (guardLoading) {
     return (
@@ -398,6 +424,20 @@ export default function AdminWolfGameScreen() {
                   Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "bank" ? "Banco" : "Fallback mock"}
                 </Text>
               </View>
+              <Animated.View
+                style={[
+                  comboHudStyle,
+                  comboStreak >= 2 ? comboHudActiveStyle : null,
+                  { transform: [{ scale: comboPulse }] },
+                ]}
+              >
+                <Text style={{ color: comboStreak >= 2 ? colors.goldSoft : colors.textTechnical, fontSize: typography.small.fontSize }} weight="semibold">
+                  Combo de precisão
+                </Text>
+                <Text style={{ color: colors.textPrimary, marginTop: 2 }} weight="bold">
+                  {comboStreak >= 2 ? `🔥 ${comboStreak} acertos seguidos` : "Construa sequência de acertos para entrar em ritmo"}
+                </Text>
+              </Animated.View>
               <WolfQuestionCard
                 question={session.currentQuestion}
                 index={session.phaseIndex + 1}
@@ -406,64 +446,125 @@ export default function AdminWolfGameScreen() {
                 maxSeconds={currentMaxSeconds}
                 selectedOptionIndex={session.selectedOptionIndex}
                 onReady={session.markQuestionReady}
-                onSelect={session.registerAnswer}
+                onSelect={(idx) => {
+                  void Haptics.selectionAsync().catch(() => {});
+                  session.registerAnswer(idx);
+                }}
               />
             </>
           ) : null}
 
           {session.stage === "feedback" && session.currentQuestion ? (
-            <LinearGradient colors={["rgba(20,30,70,0.98)", "rgba(11,18,50,0.98)"]} style={feedbackCardStyle}>
-              {(() => {
-                const answeredCorrect = session.selectedOptionIndex === session.currentQuestion.correctOptionIndex;
-                const correctAnswer = session.currentQuestion.options[session.currentQuestion.correctOptionIndex];
-                return (
-                  <>
-                    <View style={[feedbackBadgeStyle, answeredCorrect ? feedbackBadgeCorrectStyle : feedbackBadgeNeutralStyle]}>
-                      <Text style={{ color: answeredCorrect ? "#E4FDEB" : colors.textSecondary }} weight="semibold">
-                        {answeredCorrect ? "Resposta validada com excelência" : "Resposta registrada"}
-                      </Text>
-                    </View>
-
-                    <Text
-                      style={{
-                        color: answeredCorrect ? colors.statusSuccess : colors.textPrimary,
-                        fontSize: typography.titleMd.fontSize,
-                        marginTop: spacing.sm,
-                      }}
-                      weight="bold"
-                    >
-                      {answeredCorrect ? "Acerto confirmado" : "Boa tentativa, continue evoluindo"}
-                    </Text>
-
-                    <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
-                      {session.currentQuestion.explanation}
-                    </Text>
-
-                    {answeredCorrect ? (
-                      <CorrectAnswerExplosion answerText={correctAnswer} />
-                    ) : (
-                      <View style={correctAnswerBoxStyle}>
-                        <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize }} weight="semibold">
-                          Resposta correta
-                        </Text>
-                        <Text style={{ color: colors.textPrimary, marginTop: 2 }} weight="bold">
-                          {correctAnswer}
+            <Animated.View
+              style={{
+                opacity: feedbackEnter,
+                transform: [
+                  {
+                    translateY: feedbackEnter.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                  {
+                    scale: feedbackEnter.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.98, 1],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <LinearGradient colors={["rgba(20,30,70,0.98)", "rgba(11,18,50,0.98)"]} style={feedbackCardStyle}>
+                {(() => {
+                  const answeredCorrect = session.selectedOptionIndex === session.currentQuestion.correctOptionIndex;
+                  const correctAnswer = session.currentQuestion.options[session.currentQuestion.correctOptionIndex];
+                  return (
+                    <>
+                      <View style={[feedbackBadgeStyle, answeredCorrect ? feedbackBadgeCorrectStyle : feedbackBadgeNeutralStyle]}>
+                        <Text style={{ color: answeredCorrect ? "#E4FDEB" : colors.textSecondary }} weight="semibold">
+                          {answeredCorrect ? "Resposta validada com excelência" : "Resposta registrada"}
                         </Text>
                       </View>
-                    )}
-                  </>
-                );
-              })()}
 
-              <Pressable onPress={session.goNext} style={({ pressed }) => [nextButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}>
-                <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
-                  {session.phaseIndex + 1 >= session.questions.length ? "Ver resultado premium" : "Seguir para próxima fase"}
-                </Text>
-              </Pressable>
-            </LinearGradient>
+                      <Text
+                        style={{
+                          color: answeredCorrect ? colors.statusSuccess : colors.textPrimary,
+                          fontSize: typography.titleMd.fontSize,
+                          marginTop: spacing.sm,
+                        }}
+                        weight="bold"
+                      >
+                        {answeredCorrect ? "Acerto confirmado" : "Boa tentativa, continue evoluindo"}
+                      </Text>
+
+                      <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
+                        {session.currentQuestion.explanation}
+                      </Text>
+
+                      {answeredCorrect ? (
+                        <WolfCelebration answerText={correctAnswer} />
+                      ) : (
+                        <View style={correctAnswerBoxStyle}>
+                          <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize }} weight="semibold">
+                            Resposta correta
+                          </Text>
+                          <Text style={{ color: colors.textPrimary, marginTop: 2 }} weight="bold">
+                            {correctAnswer}
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+
+                <Pressable onPress={handleGoNext} disabled={isPhaseTransitioning} style={({ pressed }) => [nextButtonStyle, isPhaseTransitioning ? nextButtonDisabledStyle : null, pressed ? { transform: [{ scale: 0.988 }] } : null]}>
+                  <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
+                    {isPhaseTransitioning
+                      ? "Abrindo próxima fase..."
+                      : session.phaseIndex + 1 >= session.questions.length
+                        ? "Ver resultado premium"
+                        : "Seguir para próxima fase"}
+                  </Text>
+                </Pressable>
+              </LinearGradient>
+            </Animated.View>
           ) : null}
         </View>
       </ScrollView>
+      {isPhaseTransitioning && nextPhaseLabel ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            phaseTransitionOverlayStyle,
+            {
+              opacity: transitionAnim,
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              phaseTransitionCardStyle,
+              {
+                transform: [
+                  {
+                    scale: transitionAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.96, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.35 }} weight="bold">
+              PRÓXIMA FASE
+            </Text>
+            <Text style={{ color: colors.textPrimary, marginTop: spacing.xs, fontSize: typography.titleMd.fontSize }} weight="bold">
+              {nextPhaseLabel}
+            </Text>
+          </Animated.View>
+        </Animated.View>
+      ) : null}
     </StitchScreenFrame>
   );
 }
@@ -637,6 +738,20 @@ const adminMetaCardStyle = {
   paddingVertical: spacing.sm,
 };
 
+const comboHudStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.18)",
+  backgroundColor: "rgba(255,255,255,0.05)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: spacing.xs,
+};
+
+const comboHudActiveStyle = {
+  borderColor: colors.borderGoldStrong,
+  backgroundColor: "rgba(255,199,0,0.12)",
+};
+
 const feedbackBadgeStyle = {
   minHeight: 30,
   borderRadius: radii.pill,
@@ -679,5 +794,37 @@ const nextButtonStyle = {
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 0 },
   elevation: 5,
+};
+
+const nextButtonDisabledStyle = {
+  opacity: 0.78,
+};
+
+const phaseTransitionOverlayStyle = {
+  position: "absolute" as const,
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: "rgba(2,6,23,0.44)",
+};
+
+const phaseTransitionCardStyle = {
+  minWidth: 240,
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderGoldStrong,
+  backgroundColor: "rgba(11,18,50,0.94)",
+  paddingHorizontal: spacing.md,
+  paddingVertical: spacing.md,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  shadowColor: colors.goldBase,
+  shadowOpacity: 0.26,
+  shadowRadius: 18,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 8,
 };
 
