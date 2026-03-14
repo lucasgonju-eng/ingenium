@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import DashboardActions from "../../components/sections/DashboardActions";
@@ -13,6 +13,7 @@ import {
   ensureTeacherAccessRequestFromCurrentUser,
   fetchMyAccessRole,
   fetchMyLatestAccessRequest,
+  fetchMyStudentMessages,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudents,
   fetchMyProfile,
@@ -98,10 +99,39 @@ export default function DashboardScreen() {
   const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
   const [xpHistoryRows, setXpHistoryRows] = useState<MyXpHistoryRow[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [latestMessageTitle, setLatestMessageTitle] = useState<string | null>(null);
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
   const [xpTab, setXpTab] = useState<XpTab>("howWorks");
+  const mailPulseAnim = useRef(new Animated.Value(0)).current;
   const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
+
+  useEffect(() => {
+    if (unreadMessages <= 0) {
+      mailPulseAnim.stopAnimation();
+      mailPulseAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(mailPulseAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(mailPulseAnim, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [mailPulseAnim, unreadMessages]);
 
   async function load() {
     try {
@@ -142,13 +172,14 @@ export default function DashboardScreen() {
         setShowTeacherPendingBanner(false);
       }
 
-      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes, xpHistoryRes] = await Promise.allSettled([
+      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes, xpHistoryRes, messagesRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
         fetchOlympiads(),
         fetchRegisteredStudents(),
         fetchRankingAllRegisteredStudents(500),
         fetchMyXpHistory(200),
+        fetchMyStudentMessages(20),
       ]);
 
       const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
@@ -157,6 +188,9 @@ export default function DashboardScreen() {
       const students = studentsRes.status === "fulfilled" ? studentsRes.value : [];
       const rankingData = rankingRes.status === "fulfilled" ? rankingRes.value : [];
       const xpHistoryData = xpHistoryRes.status === "fulfilled" ? xpHistoryRes.value : [];
+      const messagesData = messagesRes.status === "fulfilled" ? messagesRes.value : [];
+      const unread = messagesData.filter((msg) => !msg.read_at).length;
+      const latestMessage = messagesData[0] ?? null;
 
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
@@ -171,6 +205,8 @@ export default function DashboardScreen() {
       setStudentsByGrade(grouped);
       setRankingRows(rankingData);
       setXpHistoryRows(xpHistoryData);
+      setUnreadMessages(unread);
+      setLatestMessageTitle(latestMessage?.title ?? null);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar seu desempenho";
       Alert.alert("Erro", message);
@@ -252,6 +288,67 @@ export default function DashboardScreen() {
           <Text style={{ color: "white", fontSize: typography.titleLg.fontSize }} weight="bold">
             Bem-vindo, {name}
           </Text>
+        </View>
+
+        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+          <Pressable
+            onPress={() => router.push("/(tabs)/perfil")}
+            style={{
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: unreadMessages > 0 ? "rgba(255,199,0,0.85)" : colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.sm,
+              overflow: "hidden",
+            }}
+          >
+            {unreadMessages > 0 ? (
+              <Animated.View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: colors.einsteinYellow,
+                  opacity: mailPulseAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.08, 0.22],
+                  }),
+                }}
+              />
+            ) : null}
+
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs, flex: 1 }}>
+                <Text style={{ color: unreadMessages > 0 ? colors.einsteinYellow : colors.white, fontSize: 20 }} weight="bold">
+                  ✉
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.white }} weight="bold">
+                    Caixa de Mensagens
+                  </Text>
+                  <Text
+                    style={{ color: "rgba(255,255,255,0.75)", fontSize: typography.small.fontSize, marginTop: 2 }}
+                    numberOfLines={1}
+                  >
+                    {latestMessageTitle ? latestMessageTitle : "Sem mensagens no momento"}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={{
+                  color: unreadMessages > 0 ? colors.einsteinYellow : "rgba(255,255,255,0.72)",
+                  fontSize: typography.small.fontSize,
+                }}
+                weight="semibold"
+              >
+                {unreadMessages > 0 ? `${unreadMessages} nova(s)` : "Sem novas"}
+              </Text>
+            </View>
+          </Pressable>
         </View>
 
       {showTeacherPendingBanner ? (
