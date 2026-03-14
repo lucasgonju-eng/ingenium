@@ -10,7 +10,7 @@ type Props = {
 
 const PARTICLE_COUNT = 8;
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
-const ENABLE_MOTION = Platform.OS !== "web";
+const ENABLE_MOTION = true;
 const WOLF_MEDAL = require("../../../../assets/wolf-gold.png");
 
 export default function WolfCelebration({ answerText }: Props) {
@@ -18,7 +18,6 @@ export default function WolfCelebration({ answerText }: Props) {
   const wolfTilt = useRef(new Animated.Value(0)).current;
   const glowPulse = useRef(new Animated.Value(0.65)).current;
   const wolfScale = useRef(new Animated.Value(0.86)).current;
-  const sweep = useRef(new Animated.Value(-180)).current;
   const particleProgress = useRef(Array.from({ length: PARTICLE_COUNT }, () => new Animated.Value(0))).current;
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function WolfCelebration({ answerText }: Props) {
       wolfTilt.setValue(0);
       glowPulse.setValue(0.82);
       wolfScale.setValue(1);
-      sweep.setValue(180);
       particleProgress.forEach((particle) => particle.setValue(1));
       return;
     }
@@ -74,20 +72,6 @@ export default function WolfCelebration({ answerText }: Props) {
           ]),
         ),
       ]),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(sweep, {
-            toValue: 220,
-            duration: 1180,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-          Animated.timing(sweep, {
-            toValue: -180,
-            duration: 0,
-            useNativeDriver: USE_NATIVE_DRIVER,
-          }),
-        ]),
-      ),
       Animated.loop(
         Animated.sequence([
           Animated.timing(glowPulse, {
@@ -155,9 +139,8 @@ export default function WolfCelebration({ answerText }: Props) {
     return () => {
       celebration.stop();
       glowPulse.stopAnimation();
-      sweep.stopAnimation();
     };
-  }, [glowPulse, particleProgress, sweep, wolfJump, wolfScale, wolfTilt]);
+  }, [glowPulse, particleProgress, wolfJump, wolfScale, wolfTilt]);
 
   return (
     <View style={{ marginTop: spacing.sm }}>
@@ -173,16 +156,6 @@ export default function WolfCelebration({ answerText }: Props) {
               },
             ]}
           />
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              sweepStyle,
-              {
-                transform: [{ translateX: sweep }, { rotate: "-17deg" }],
-              },
-            ]}
-          />
-
           {particleProgress.map((particle, idx) => {
             const xDirection = idx % 2 === 0 ? -1 : 1;
             const horizontalOffset = 14 + (idx % 4) * 13;
@@ -246,10 +219,7 @@ export default function WolfCelebration({ answerText }: Props) {
           </Animated.View>
         </View>
 
-        <Text style={{ color: "#d9ffe7", fontSize: typography.small.fontSize }} weight="bold">
-          Acerto confirmado. Lobo em modo celebração.
-        </Text>
-        <Text style={{ color: "#e7fff3", marginTop: 4, lineHeight: 20 }} weight="semibold">
+        <Text style={{ color: "#d9ffe7", fontSize: typography.small.fontSize, lineHeight: 20 }} weight="bold">
           Resposta correta: {answerText}
         </Text>
       </LinearGradient>
@@ -280,14 +250,6 @@ const glowHaloStyle = {
   height: 130,
   borderRadius: 65,
   backgroundColor: "rgba(56,189,248,0.20)",
-};
-
-const sweepStyle = {
-  position: "absolute" as const,
-  width: 86,
-  height: 188,
-  borderRadius: 999,
-  backgroundColor: "rgba(255,255,255,0.16)",
 };
 
 const wolfImageStyle = {
