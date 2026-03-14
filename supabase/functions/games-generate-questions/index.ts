@@ -105,15 +105,12 @@ async function getOpenAiKey(supabaseAdmin: ReturnType<typeof createClient>): Pro
   const envKey = Deno.env.get("INGENIUM_GAMES_OPENAI_API_KEY")?.trim();
   if (envKey) return envKey;
 
-  const { data, error } = await supabaseAdmin
-    .schema("private")
-    .from("app_secrets")
-    .select("value")
-    .eq("key", "ingenium_games_openai_api_key")
-    .maybeSingle();
+  const { data, error } = await supabaseAdmin.rpc("get_app_secret_service", {
+    p_key: "ingenium_games_openai_api_key",
+  });
 
   if (error) return null;
-  const key = typeof data?.value === "string" ? data.value.trim() : "";
+  const key = typeof data === "string" ? data.trim() : "";
   return key || null;
 }
 
