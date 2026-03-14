@@ -124,6 +124,83 @@ function asQuestionPayload(value: unknown): QuestionPayload | null {
   };
 }
 
+function normalizePromptSignature(prompt: string): string {
+  return String(prompt ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildWords(signature: string): Set<string> {
+  return new Set(signature.split(" ").filter((word) => word.length > 3));
+}
+
+function isPromptTooSimilar(candidatePrompt: string, previousSignatures: string[]): boolean {
+  const candidate = normalizePromptSignature(candidatePrompt);
+  if (!candidate) return false;
+
+  if (previousSignatures.includes(candidate)) return true;
+
+  const wordsA = buildWords(candidate);
+  if (!wordsA.size) return false;
+
+  return previousSignatures.some((signature) => {
+    const wordsB = buildWords(signature);
+    if (!wordsB.size) return false;
+
+    let overlap = 0;
+    wordsA.forEach((word) => {
+      if (wordsB.has(word)) overlap += 1;
+    });
+    const ratio = overlap / Math.max(wordsA.size, wordsB.size);
+    return ratio >= 0.58;
+  });
+}
+
+function getDifficultyBoostPct(grade: string): number {
+  const normalized = grade.toLowerCase().trim();
+  if (normalized === "2ª série" || normalized === "3ª série") {
+    return 60;
+  }
+  return 30;
+}
+
+function buildDifficultyBoostInstruction(grade: string): string {
+  const boost = getDifficultyBoostPct(grade);
+  if (boost >= 60) {
+    return "Aumente o nível de desafio cognitivo em 60% para esta série, com maior abstração, inferência e rigor conceitual.";
+  }
+  return "Aumente o nível de desafio cognitivo em 30% para esta série, elevando complexidade de raciocínio e precisão conceitual.";
+}
+
+async function getRecentPromptSignaturesForUser(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  requestedBy: string,
+): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("game_ai_generations")
+    .select("response_snapshot")
+    .eq("game_id", "game_teste_dos_lobos")
+    .eq("requested_by", requestedBy)
+    .eq("status", "success")
+    .order("created_at", { ascending: false })
+    .limit(120);
+
+  if (!Array.isArray(data)) return [];
+
+  const signatures: string[] = [];
+  for (const row of data) {
+    const snapshot = row?.response_snapshot as Record<string, unknown> | null;
+    const prompt = typeof snapshot?.prompt === "string" ? snapshot.prompt : "";
+    const signature = normalizePromptSignature(prompt);
+    if (signature) signatures.push(signature);
+  }
+  return signatures;
+}
+
 function buildPrompt(input: GenerateInput): string {
   const avoidList = (input.avoidQuestionPatterns ?? []).filter(Boolean).slice(0, 6);
   return [
@@ -131,6 +208,7 @@ function buildPrompt(input: GenerateInput): string {
     "Retorne SOMENTE JSON válido (sem markdown).",
     "Público: estudantes de 11 a 18 anos em ambiente escolar.",
     "A questão deve ser aderente à BNCC e condizente com a série solicitada.",
+    buildDifficultyBoostInstruction(input.grade),
     "Restrições obrigatórias:",
     "- questão curta, clara e sem ambiguidade;",
     "- exatamente 4 alternativas;",
@@ -145,6 +223,7 @@ function buildPrompt(input: GenerateInput): string {
     `Limite máximo de caracteres do enunciado: ${input.maxChars}`,
     input.bnccTopicHint ? `Habilidade/tema BNCC prioritário: ${input.bnccTopicHint}` : "",
     avoidList.length ? `Evite repetir estes padrões recentes: ${avoidList.join(" | ")}` : "",
+    "NÃO repita perguntas já usadas para o mesmo aluno.",
     "Crie contexto original e diferente de exemplos repetidos.",
     "Retorne objeto com campos: category, grade, difficulty, prompt, options, correctOptionIndex, explanation, tags, estimatedReadTime.",
     "estimatedReadTime deve ser número inteiro em segundos (4 a 30).",
@@ -235,27 +314,75 @@ Deno.serve(async (req) => {
 
   const prompt = buildPrompt(input);
   const startedAt = Date.now();
+  const recentSignatures = await getRecentPromptSignaturesForUser(supabaseAdmin, requestedBy);
+  const dynamicAvoidPatterns = [...(input.avoidQuestionPatterns ?? [])];
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: "Responda apenas JSON válido." },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
+    const maxAttempts = 5;
+    let lastParsedPayload: unknown = null;
+    let lastPrompt = prompt;
+    let lastFailureReason = "invalid_question_payload";
 
-    if (!response.ok) {
-      const errBody = await response.text();
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const promptForAttempt = buildPrompt({
+        ...input,
+        avoidQuestionPatterns: [...dynamicAvoidPatterns, ...recentSignatures.slice(0, 10)],
+      });
+
+      lastPrompt = promptForAttempt;
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.52,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: "Responda apenas JSON válido." },
+            { role: "user", content: promptForAttempt },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        await supabaseAdmin.from("game_ai_generations").insert({
+          game_id: "game_teste_dos_lobos",
+          requested_by: requestedBy,
+          grade: input.grade,
+          band: input.band,
+          category: input.category,
+          difficulty: input.difficulty,
+          model: "gpt-4o-mini",
+          prompt_snapshot: promptForAttempt,
+          status: "failed",
+          error_message: `openai_http_${response.status}:${errBody.slice(0, 220)}`,
+          latency_ms: Date.now() - startedAt,
+        });
+        return json(502, { error: "openai_request_failed" });
+      }
+
+      const openAiPayload = await response.json();
+      const content = openAiPayload?.choices?.[0]?.message?.content;
+      const parsed = typeof content === "string" ? JSON.parse(content) : null;
+      lastParsedPayload = parsed;
+
+      const question = asQuestionPayload(parsed);
+      if (!question) {
+        lastFailureReason = "invalid_question_payload";
+        continue;
+      }
+
+      const repeatedForUser = isPromptTooSimilar(question.prompt, recentSignatures);
+      if (repeatedForUser) {
+        lastFailureReason = "repeated_question_for_user";
+        dynamicAvoidPatterns.push(question.prompt.slice(0, 200));
+        continue;
+      }
+
       await supabaseAdmin.from("game_ai_generations").insert({
         game_id: "game_teste_dos_lobos",
         requested_by: requestedBy,
@@ -264,34 +391,13 @@ Deno.serve(async (req) => {
         category: input.category,
         difficulty: input.difficulty,
         model: "gpt-4o-mini",
-        prompt_snapshot: prompt,
-        status: "failed",
-        error_message: `openai_http_${response.status}:${errBody.slice(0, 220)}`,
+        prompt_snapshot: promptForAttempt,
+        response_snapshot: question,
+        status: "success",
         latency_ms: Date.now() - startedAt,
       });
-      return json(502, { error: "openai_request_failed" });
-    }
 
-    const openAiPayload = await response.json();
-    const content = openAiPayload?.choices?.[0]?.message?.content;
-    const parsed = typeof content === "string" ? JSON.parse(content) : null;
-    const question = asQuestionPayload(parsed);
-    if (!question) {
-      await supabaseAdmin.from("game_ai_generations").insert({
-        game_id: "game_teste_dos_lobos",
-        requested_by: requestedBy,
-        grade: input.grade,
-        band: input.band,
-        category: input.category,
-        difficulty: input.difficulty,
-        model: "gpt-4o-mini",
-        prompt_snapshot: prompt,
-        response_snapshot: parsed,
-        status: "failed",
-        error_message: "invalid_question_payload",
-        latency_ms: Date.now() - startedAt,
-      });
-      return json(502, { error: "invalid_question_payload" });
+      return json(200, { question });
     }
 
     await supabaseAdmin.from("game_ai_generations").insert({
@@ -302,13 +408,13 @@ Deno.serve(async (req) => {
       category: input.category,
       difficulty: input.difficulty,
       model: "gpt-4o-mini",
-      prompt_snapshot: prompt,
-      response_snapshot: question,
-      status: "success",
+      prompt_snapshot: lastPrompt,
+      response_snapshot: lastParsedPayload,
+      status: "failed",
+      error_message: lastFailureReason,
       latency_ms: Date.now() - startedAt,
     });
-
-    return json(200, { question });
+    return json(502, { error: lastFailureReason });
   } catch (error) {
     await supabaseAdmin.from("game_ai_generations").insert({
       game_id: "game_teste_dos_lobos",
