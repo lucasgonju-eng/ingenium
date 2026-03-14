@@ -1569,8 +1569,12 @@ export type WolfBankQuestionRow = {
   phase_category: string;
   grade: string;
   band: string;
+  discipline: string | null;
   difficulty: string;
   prompt: string;
+  vestibular_name: string | null;
+  vestibular_year: number | null;
+  vestibular_url: string | null;
   options: string[];
   correct_option_index: number;
   explanation: string;
@@ -1591,8 +1595,14 @@ function mapWolfBankQuestionRow(row: Record<string, unknown>): WolfBankQuestionR
     phase_category: String(row.phase_category ?? ""),
     grade: String(row.grade ?? ""),
     band: String(row.band ?? ""),
+    discipline: row.discipline ? String(row.discipline) : null,
     difficulty: String(row.difficulty ?? ""),
     prompt: String(row.prompt ?? ""),
+    vestibular_name: row.vestibular_name ? String(row.vestibular_name) : null,
+    vestibular_year: row.vestibular_year === null || row.vestibular_year === undefined
+      ? null
+      : Number(row.vestibular_year),
+    vestibular_url: row.vestibular_url ? String(row.vestibular_url) : null,
     options: normalizeQuestionOptions(row.options),
     correct_option_index: Number(row.correct_option_index ?? 0),
     explanation: String(row.explanation ?? ""),

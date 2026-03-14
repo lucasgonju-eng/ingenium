@@ -43,6 +43,9 @@ export default function WolfQuestionCard({
   const isCritical = timerPct <= 20;
   const isAttention = timerPct > 20 && timerPct <= 45;
   const timerColor = isCritical ? "#F98B8B" : isAttention ? "#FFD978" : colors.goldBase;
+  const vestibularLabel = question.vestibularName
+    ? `${question.vestibularName}${question.vestibularYear ? ` ${question.vestibularYear}` : ""}`.trim()
+    : null;
 
   return (
     <LinearGradient colors={["rgba(22,32,74,0.98)", "rgba(12,18,52,0.96)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyle}>
@@ -61,6 +64,13 @@ export default function WolfQuestionCard({
       </View>
 
       <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+        {vestibularLabel ? (
+          <View style={vestibularBadgeStyle}>
+            <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize }} weight="semibold">
+              Vestibular de referência: {vestibularLabel}
+            </Text>
+          </View>
+        ) : null}
         <Text style={{ color: colors.textTechnical, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="semibold">
           FASE {index} • DESAFIO DE ALTO NÍVEL
         </Text>
@@ -126,6 +136,16 @@ const phaseBadgeStyle = {
   gap: spacing.xs,
   borderRadius: radii.pill,
   borderWidth: 1,
+  paddingHorizontal: spacing.sm,
+  paddingVertical: 6,
+};
+
+const vestibularBadgeStyle = {
+  alignSelf: "flex-start" as const,
+  borderRadius: radii.pill,
+  borderWidth: 1,
+  borderColor: colors.borderGoldSoft,
+  backgroundColor: "rgba(255,199,0,0.12)",
   paddingHorizontal: spacing.sm,
   paddingVertical: 6,
 };

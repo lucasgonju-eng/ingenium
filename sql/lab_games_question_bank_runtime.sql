@@ -38,8 +38,12 @@ returns table (
   phase_category text,
   grade text,
   band text,
+  discipline text,
   difficulty text,
   prompt text,
+  vestibular_name text,
+  vestibular_year int,
+  vestibular_url text,
   options jsonb,
   correct_option_index int,
   explanation text,
@@ -85,6 +89,7 @@ begin
       and q.phase_category = v_category
       and q.band = v_band
       and q.is_safe = true
+      and coalesce(q.ai_audit_status, 'pending') = 'approved'
       and not exists (
         select 1
         from public.game_question_usage u
@@ -125,8 +130,12 @@ begin
       v_q.phase_category,
       v_q.grade,
       v_q.band,
+      v_q.discipline,
       v_q.difficulty,
       v_q.prompt,
+      v_q.vestibular_name,
+      v_q.vestibular_year,
+      v_q.vestibular_url,
       v_q.options,
       v_q.correct_option_index,
       v_q.explanation,
@@ -148,8 +157,12 @@ returns table (
   phase_category text,
   grade text,
   band text,
+  discipline text,
   difficulty text,
   prompt text,
+  vestibular_name text,
+  vestibular_year int,
+  vestibular_url text,
   options jsonb,
   correct_option_index int,
   explanation text,
@@ -190,8 +203,12 @@ begin
     q.phase_category,
     q.grade,
     q.band,
+    q.discipline,
     q.difficulty,
     q.prompt,
+    q.vestibular_name,
+    q.vestibular_year,
+    q.vestibular_url,
     q.options,
     q.correct_option_index,
     q.explanation,
@@ -202,6 +219,7 @@ begin
     and q.phase_category = v_category
     and q.band = v_band
     and q.is_safe = true
+    and coalesce(q.ai_audit_status, 'pending') = 'approved'
   order by
     case when q.grade = v_grade then 0 else 1 end,
     random()

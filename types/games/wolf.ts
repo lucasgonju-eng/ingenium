@@ -18,8 +18,12 @@ export type WolfQuestion = {
   category: WolfPhaseCategory;
   grade: WolfGrade;
   band: WolfBand;
+  discipline?: string | null;
   difficulty: WolfDifficulty;
   prompt: string;
+  vestibularName?: string | null;
+  vestibularYear?: number | null;
+  vestibularUrl?: string | null;
   options: [string, string, string, string];
   correctOptionIndex: 0 | 1 | 2 | 3;
   explanation: string;
