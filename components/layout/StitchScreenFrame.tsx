@@ -27,8 +27,16 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isMarketingHome = pathname === "/" || pathname === "/(marketing)";
+  const isLoginRoute = /\/login(?:-link)?$/.test(pathname);
 
   useEffect(() => {
+    if (isLoginRoute) {
+      setIsAuthenticated(false);
+      setFullName("Aluno");
+      setAvatarUrl(null);
+      return;
+    }
+
     let mounted = true;
     let profileFetchVersion = 0;
     let profileTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -112,7 +120,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
       if (profileTimeout) clearTimeout(profileTimeout);
       authSub.subscription.unsubscribe();
     };
-  }, []);
+  }, [isLoginRoute]);
 
   function handleBack() {
     if (canGoBack) {

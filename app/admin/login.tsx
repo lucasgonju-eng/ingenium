@@ -45,6 +45,27 @@ export default function AdminLoginScreen() {
 
     try {
       setLoading(true);
+      const normalizedAdminEmail = ADMIN_EMAIL.toLowerCase();
+
+      const {
+        data: { session: existingSession },
+      } = await supabase.auth.getSession();
+      const existingEmail = existingSession?.user?.email?.toLowerCase() ?? "";
+
+      // Evita disputa de lock em mobile quando já existe sessão válida do admin.
+      if (existingSession?.user && existingEmail === normalizedAdminEmail) {
+        const role = await fetchMyAccessRole();
+        if (role !== "admin") {
+          await supabase.auth.signOut();
+          setErrorText("Esta conta não possui permissão de administrador.");
+          Alert.alert("Acesso negado", "Esta conta não possui permissão de administrador.");
+          return;
+        }
+        trackEvent("admin_login_success", { method: "existing_session" });
+        router.replace("/admin");
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email: ADMIN_EMAIL,
         password,
