@@ -175,7 +175,7 @@ export default function WolfCelebration({ answerText }: Props) {
 
   return (
     <View style={{ marginTop: spacing.sm }}>
-      <LinearGradient colors={["rgba(6,18,62,0.97)", "rgba(7,48,112,0.9)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyle}>
+      <LinearGradient colors={["rgba(22,14,8,0.96)", "rgba(58,35,18,0.9)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyle}>
         <View style={mascotWrapStyle}>
           <Animated.View
             pointerEvents="none"
@@ -265,6 +265,7 @@ export default function WolfCelebration({ answerText }: Props) {
               </View>
 
               <View style={wolfForeheadMarkStyle} />
+              <View style={wolfBrowStyle} />
 
               <Animated.View style={[wolfEyeStyle, wolfEyeLeftStyle, { transform: [{ scaleY: eyeBlink }] }]}>
                 <View style={wolfEyeSparkStyle} />
@@ -278,11 +279,12 @@ export default function WolfCelebration({ answerText }: Props) {
                 <View style={wolfMouthBridgeStyle} />
                 <View style={wolfSmileDotStyle} />
               </View>
+              <View style={wolfChinPointStyle} />
             </View>
           </Animated.View>
         </View>
 
-        <Text style={{ color: "#dbe9ff", fontSize: typography.small.fontSize, lineHeight: 20 }} weight="bold">
+        <Text style={{ color: "#fde7c9", fontSize: typography.small.fontSize, lineHeight: 20 }} weight="bold">
           Resposta correta: {answerText}
         </Text>
       </LinearGradient>
@@ -293,7 +295,7 @@ export default function WolfCelebration({ answerText }: Props) {
 const cardStyle = {
   borderRadius: radii.lg,
   borderWidth: 1,
-  borderColor: "rgba(96,165,250,0.44)",
+  borderColor: "rgba(217,119,6,0.45)",
   paddingHorizontal: spacing.sm,
   paddingVertical: spacing.sm,
   overflow: "hidden" as const,
@@ -313,8 +315,8 @@ const ringStyle = {
   height: 154,
   borderRadius: 77,
   borderWidth: 1.5,
-  borderColor: "rgba(56,189,248,0.50)",
-  backgroundColor: "rgba(56,189,248,0.08)",
+  borderColor: "rgba(251,191,36,0.52)",
+  backgroundColor: "rgba(251,191,36,0.08)",
 };
 
 const glowHaloStyle = {
@@ -322,17 +324,17 @@ const glowHaloStyle = {
   width: 130,
   height: 130,
   borderRadius: 65,
-  backgroundColor: "rgba(59,130,246,0.26)",
+  backgroundColor: "rgba(245,158,11,0.24)",
 };
 
 const wolfHeadStyle = {
-  width: 118,
-  height: 110,
-  borderRadius: 56,
-  backgroundColor: "#2f7bff",
+  width: 114,
+  height: 108,
+  borderRadius: 46,
+  backgroundColor: "#8b5a2b",
   borderWidth: 2,
-  borderColor: "rgba(191,219,254,0.9)",
-  shadowColor: "#38bdf8",
+  borderColor: "rgba(255,229,180,0.82)",
+  shadowColor: "#f59e0b",
   shadowOpacity: 0.45,
   shadowRadius: 16,
   shadowOffset: { width: 0, height: 4 },
@@ -342,71 +344,86 @@ const wolfHeadStyle = {
 
 const wolfEarStyle = {
   position: "absolute" as const,
-  top: -14,
-  width: 34,
+  top: -18,
+  width: 28,
   height: 34,
-  borderRadius: 16,
-  backgroundColor: "#2563eb",
+  borderRadius: 8,
+  backgroundColor: "#6f4420",
   borderWidth: 2,
-  borderColor: "rgba(191,219,254,0.88)",
+  borderColor: "rgba(255,229,180,0.76)",
   alignItems: "center" as const,
   justifyContent: "center" as const,
 };
 
 const wolfEarLeftStyle = {
-  left: 12,
-  transform: [{ rotate: "-18deg" }],
+  left: 10,
+  transform: [{ rotate: "-24deg" }],
 };
 
 const wolfEarRightStyle = {
-  right: 12,
-  transform: [{ rotate: "18deg" }],
+  right: 10,
+  transform: [{ rotate: "24deg" }],
 };
 
 const wolfEarInnerStyle = {
-  width: 14,
+  width: 10,
   height: 14,
-  borderRadius: 7,
-  backgroundColor: "#7dd3fc",
+  borderRadius: 5,
+  backgroundColor: "#c08457",
 };
 
 const wolfForeheadMarkStyle = {
   position: "absolute" as const,
-  top: 16,
-  width: 26,
-  height: 14,
+  top: 14,
+  width: 30,
+  height: 16,
   borderRadius: 8,
-  backgroundColor: "rgba(186,230,253,0.72)",
+  backgroundColor: "rgba(255,221,170,0.68)",
+};
+
+const wolfBrowStyle = {
+  position: "absolute" as const,
+  top: 34,
+  width: 44,
+  height: 8,
+  borderRadius: 999,
+  backgroundColor: "rgba(76,43,20,0.86)",
 };
 
 const wolfEyeStyle = {
   position: "absolute" as const,
-  top: 40,
-  width: 16,
-  height: 12,
-  borderRadius: 6,
-  backgroundColor: "#082f49",
+  top: 42,
+  width: 14,
+  height: 10,
+  borderRadius: 5,
+  backgroundColor: "#fef08a",
+  borderWidth: 1,
+  borderColor: "rgba(250,204,21,0.95)",
   alignItems: "center" as const,
   justifyContent: "center" as const,
+  shadowColor: "#fde047",
+  shadowOpacity: 0.95,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 0 },
 };
 
-const wolfEyeLeftStyle = { left: 28 };
-const wolfEyeRightStyle = { right: 28 };
+const wolfEyeLeftStyle = { left: 30 };
+const wolfEyeRightStyle = { right: 30 };
 
 const wolfEyeSparkStyle = {
-  width: 4,
-  height: 4,
-  borderRadius: 2,
-  backgroundColor: "#f0f9ff",
+  width: 5,
+  height: 5,
+  borderRadius: 2.5,
+  backgroundColor: "#422006",
 };
 
 const wolfMuzzleStyle = {
   position: "absolute" as const,
-  bottom: 15,
-  width: 58,
-  height: 34,
-  borderRadius: 17,
-  backgroundColor: "#bfdbfe",
+  bottom: 16,
+  width: 56,
+  height: 32,
+  borderRadius: 16,
+  backgroundColor: "#e7c7a0",
   alignItems: "center" as const,
   justifyContent: "center" as const,
 };
@@ -415,7 +432,7 @@ const wolfNoseStyle = {
   width: 14,
   height: 10,
   borderRadius: 5,
-  backgroundColor: "#1e3a8a",
+  backgroundColor: "#2d1b12",
 };
 
 const wolfMouthBridgeStyle = {
@@ -423,7 +440,7 @@ const wolfMouthBridgeStyle = {
   width: 2,
   height: 7,
   borderRadius: 2,
-  backgroundColor: "#1e3a8a",
+  backgroundColor: "#2d1b12",
 };
 
 const wolfSmileDotStyle = {
@@ -431,7 +448,16 @@ const wolfSmileDotStyle = {
   width: 12,
   height: 4,
   borderRadius: 999,
-  backgroundColor: "rgba(30,58,138,0.8)",
+  backgroundColor: "rgba(45,27,18,0.8)",
+};
+
+const wolfChinPointStyle = {
+  position: "absolute" as const,
+  bottom: 4,
+  width: 18,
+  height: 12,
+  borderRadius: 4,
+  backgroundColor: "#5c3518",
 };
 
 const particleStyle = {
@@ -439,6 +465,6 @@ const particleStyle = {
   width: 9,
   height: 9,
   borderRadius: 999,
-  backgroundColor: "rgba(125,211,252,0.95)",
+  backgroundColor: "rgba(251,191,36,0.92)",
 };
 
