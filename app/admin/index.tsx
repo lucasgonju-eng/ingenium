@@ -40,7 +40,7 @@ import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 import AdminLabGamesSection from "../../components/sections/admin/AdminLabGamesSection";
 import { getWolfAdminConfigSnapshot, listLabGamesForAdmin, updateLabGameStatus } from "../../services/games/labGamesService";
-import { generateWolfQuestionWithFallback } from "../../services/games/wolfAiService";
+import { previewWolfQuestionFromBankAdminWithFallback } from "../../services/games/wolfQuestionBankService";
 import type { LabGameAction, LabGameListItem } from "../../types/games/lab-games";
 import type { WolfAiQuestionPayload } from "../../types/games/wolf";
 
@@ -239,7 +239,7 @@ export default function AdminDashboardScreen() {
     dailyXpCap: 25,
   });
   const [wolfQuestionPreview, setWolfQuestionPreview] = useState<WolfAiQuestionPayload | null>(null);
-  const [wolfQuestionSource, setWolfQuestionSource] = useState<"ai" | "mock" | null>(null);
+  const [wolfQuestionSource, setWolfQuestionSource] = useState<"bank" | "mock" | null>(null);
   const [wolfQuestionLoading, setWolfQuestionLoading] = useState(false);
 
   const categoryCardStyles = {
@@ -542,17 +542,14 @@ export default function AdminDashboardScreen() {
   async function handleGenerateWolfQuestionPreview() {
     try {
       setWolfQuestionLoading(true);
-      const result = await generateWolfQuestionWithFallback({
+      const result = await previewWolfQuestionFromBankAdminWithFallback({
         grade: "8º Ano",
-        band: "cacadores",
         category: "logica",
-        difficulty: "medium",
-        maxChars: 220,
       });
       setWolfQuestionPreview(result.question);
       setWolfQuestionSource(result.source);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Falha ao gerar questão de teste.";
+      const message = e instanceof Error ? e.message : "Falha ao buscar questão de teste no banco.";
       Alert.alert("Erro", message);
     } finally {
       setWolfQuestionLoading(false);

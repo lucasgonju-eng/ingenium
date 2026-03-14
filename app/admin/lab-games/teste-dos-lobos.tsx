@@ -6,107 +6,18 @@ import StitchScreenFrame from "../../../components/layout/StitchScreenFrame";
 import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHomeCard";
 import WolfQuestionCard from "../../../components/sections/games/wolf/WolfQuestionCard";
 import { Text } from "../../../components/ui/Text";
-import { getWolfBandByGrade, wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
+import { wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
 import { useWolfSession } from "../../../hooks/games/useWolfSession";
-import { generateWolfQuestionWithFallback } from "../../../services/games/wolfAiService";
+import { buildWolfQuestionSetFromBankWithFallback } from "../../../services/games/wolfQuestionBankService";
 import { canStartWolfAttempt } from "../../../services/games/wolfEngine";
 import { supabase } from "../../../lib/supabase/client";
 import { fetchMyAccessRole } from "../../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
-import type { WolfBand, WolfDifficulty, WolfGrade, WolfPhaseCategory, WolfQuestion } from "../../../types/games/wolf";
+import type { WolfGrade, WolfPhaseCategory } from "../../../types/games/wolf";
 
 const DEFAULT_GRADE: WolfGrade = "8º Ano";
 type GradePreference = "random" | WolfGrade;
-const PHASE_ORDER: WolfPhaseCategory[] = ["reflexo", "logica", "conhecimento", "lideranca"];
-const DIFFICULTY_BY_BAND: Record<WolfBand, Record<WolfPhaseCategory, WolfDifficulty>> = {
-  exploradores: {
-    reflexo: "easy",
-    logica: "easy",
-    conhecimento: "medium",
-    lideranca: "medium",
-  },
-  cacadores: {
-    reflexo: "easy",
-    logica: "medium",
-    conhecimento: "medium",
-    lideranca: "medium",
-  },
-  estrategistas: {
-    reflexo: "medium",
-    logica: "hard",
-    conhecimento: "hard",
-    lideranca: "hard",
-  },
-};
 const WOLF_GRADES: WolfGrade[] = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"];
-const BNCC_HINTS: Record<WolfBand, Record<WolfPhaseCategory, string[]>> = {
-  exploradores: {
-    reflexo: [
-      "EF06MA11 (operações com números naturais em contexto escolar)",
-      "EF67LP11 (leitura de instruções curtas e objetivas)",
-      "EF06CI03 (observação de padrões simples em fenômenos)",
-    ],
-    logica: [
-      "EF06MA01 (resolução de problemas com estratégias variadas)",
-      "EF67LP28 (inferência em textos curtos)",
-      "EF06MA06 (organização lógica de informações)",
-    ],
-    conhecimento: [
-      "EF06GE01 (orientação e leitura de mapas)",
-      "EF06HI01 (noções temporais e fatos históricos introdutórios)",
-      "EF06CI01 (conceitos básicos de ciência e ambiente)",
-    ],
-    lideranca: [
-      "EF67LP25 (escuta e colaboração em atividades coletivas)",
-      "Competências Gerais 8 e 9 da BNCC (autoconhecimento, empatia e cooperação)",
-      "Situações de convivência escolar e resolução de conflitos",
-    ],
-  },
-  cacadores: {
-    reflexo: [
-      "EF08MA04 (proporcionalidade em situações do cotidiano)",
-      "EF89LP07 (compreensão rápida de textos instrucionais)",
-      "EF08CI01 (análise de relações simples de causa e efeito)",
-    ],
-    logica: [
-      "EF08MA12 (argumentação e validação de estratégias)",
-      "EF89LP14 (relações lógicas em enunciados)",
-      "EF09MA11 (raciocínio dedutivo em problemas estruturados)",
-    ],
-    conhecimento: [
-      "EF08GE06 (dinâmicas socioespaciais em escalas locais e globais)",
-      "EF09HI12 (eventos históricos e cidadania)",
-      "EF08CI07 (conceitos científicos aplicados ao cotidiano)",
-    ],
-    lideranca: [
-      "Competências Gerais 9 e 10 (cooperação e responsabilidade)",
-      "Projetos colaborativos com tomada de decisão em grupo",
-      "Mediação de conflitos em contexto escolar",
-    ],
-  },
-  estrategistas: {
-    reflexo: [
-      "EM13MAT101 (resolução ágil de problemas quantitativos)",
-      "EM13LGG103 (leitura precisa de comandos e critérios)",
-      "EM13CNT201 (análise rápida de cenários científicos)",
-    ],
-    logica: [
-      "EM13MAT401 (argumentação lógico-matemática)",
-      "EM13LGG302 (interpretação crítica e inferência)",
-      "EM13CHS103 (análise de premissas e consequências)",
-    ],
-    conhecimento: [
-      "EM13CHS101 (contextos históricos e sociais contemporâneos)",
-      "EM13CNT301 (conceitos científicos em problemas reais)",
-      "EM13MAT303 (modelagem e interpretação de dados)",
-    ],
-    lideranca: [
-      "EM13CHS502 (ética, participação e cidadania)",
-      "Competências socioemocionais em liderança colaborativa",
-      "Tomada de decisão responsável em projetos escolares",
-    ],
-  },
-};
 
 const PHASE_LABEL: Record<WolfPhaseCategory, string> = {
   reflexo: "Reflexo",
@@ -125,32 +36,6 @@ function coerceWolfGrade(raw: unknown, fallback: WolfGrade): WolfGrade {
 function pickRandomGrade(): WolfGrade {
   const idx = Math.floor(Math.random() * WOLF_GRADES.length);
   return WOLF_GRADES[idx] ?? DEFAULT_GRADE;
-}
-
-function normalizePromptSignature(prompt: string): string {
-  return prompt
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isTooSimilarPrompt(candidate: string, seen: string[]): boolean {
-  const normalized = normalizePromptSignature(candidate);
-  if (!normalized) return false;
-  return seen.some((item) => {
-    const wordsA = new Set(normalized.split(" ").filter((w) => w.length > 3));
-    const wordsB = new Set(item.split(" ").filter((w) => w.length > 3));
-    if (!wordsA.size || !wordsB.size) return false;
-    let overlap = 0;
-    wordsA.forEach((word) => {
-      if (wordsB.has(word)) overlap += 1;
-    });
-    const ratio = overlap / Math.max(wordsA.size, wordsB.size);
-    return ratio >= 0.55;
-  });
 }
 
 function CorrectAnswerExplosion({ answerText }: { answerText: string }) {
@@ -243,69 +128,11 @@ export default function AdminWolfGameScreen() {
     streakDays,
     xpAlreadyAwardedToday: 0,
     buildQuestions: async (targetGrade) => {
-      const band = getWolfBandByGrade(targetGrade);
-      let hasMockFallback = false;
-      const seenPromptSignatures: string[] = [];
-
-      const builtQuestions = await Promise.all(
-        PHASE_ORDER.map(async (category, index) => {
-          const hints = BNCC_HINTS[band][category];
-          let bestQuestion: WolfQuestion | null = null;
-
-          for (let attempt = 0; attempt < 3; attempt += 1) {
-            const hint = hints[(index + attempt) % hints.length] ?? "";
-            const result = await generateWolfQuestionWithFallback({
-              grade: targetGrade,
-              band,
-              category,
-              difficulty: DIFFICULTY_BY_BAND[band][category],
-              maxChars: 220,
-              bnccTopicHint: hint,
-              avoidQuestionPatterns: [
-                ...seenPromptSignatures.slice(-4),
-                "questao de gatos, caes ou mamiferos",
-                "premissa repetida de animais domesticos",
-              ],
-            });
-
-            if (result.source === "mock") hasMockFallback = true;
-            const payload = result.question;
-            const resolvedGrade = coerceWolfGrade(payload.grade, targetGrade);
-            const candidate: WolfQuestion = {
-              id: `run-${Date.now()}-${category}-${index + 1}-${attempt + 1}`,
-              category,
-              grade: resolvedGrade,
-              band,
-              difficulty: payload.difficulty,
-              prompt: payload.prompt,
-              options: payload.options,
-              correctOptionIndex: payload.correctOptionIndex,
-              explanation: payload.explanation,
-              tags: payload.tags,
-              estimatedReadTime: payload.estimatedReadTime,
-            };
-
-            const signature = normalizePromptSignature(candidate.prompt);
-            const tooSimilar = isTooSimilarPrompt(candidate.prompt, seenPromptSignatures);
-            if (!tooSimilar || attempt === 2) {
-              seenPromptSignatures.push(signature);
-              bestQuestion = candidate;
-              break;
-            }
-          }
-
-          if (!bestQuestion) {
-            throw new Error(`Falha ao preparar a fase ${category} para ${targetGrade}.`);
-          }
-
-          return bestQuestion;
-        }),
-      );
-
-      return {
-        questions: builtQuestions,
-        source: hasMockFallback ? "mock" : "ai",
-      };
+      const runSessionKey = `wolf-${Date.now()}-${targetGrade}`;
+      return buildWolfQuestionSetFromBankWithFallback({
+        grade: targetGrade,
+        sessionKey: runSessionKey,
+      });
     },
   });
 
@@ -444,7 +271,7 @@ export default function AdminWolfGameScreen() {
                 Teste dos Lobos
               </Text>
               <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
-                Ambiente premium de validação interna com IA, progressão e desafios por série.
+                Ambiente premium de validação interna com banco de questões, progressão e desafios por série.
               </Text>
             </View>
             <View style={heroMonogramStyle}>
@@ -462,7 +289,7 @@ export default function AdminWolfGameScreen() {
             </View>
             <View style={heroMetaChipStyle}>
               <Text style={heroMetaChipTextStyle} weight="semibold">
-                Fonte: {session.questionSource === "ai" ? "IA" : session.questionSource === "mock" ? "Fallback" : "Preparando"}
+                Fonte: {session.questionSource === "bank" ? "Banco" : session.questionSource === "mock" ? "Fallback" : "Preparando"}
               </Text>
             </View>
           </View>
@@ -482,7 +309,7 @@ export default function AdminWolfGameScreen() {
             <LinearGradient colors={["rgba(255,199,0,0.18)", "rgba(255,199,0,0.08)"]} style={loadingCardStyle}>
               <ActivityIndicator color={colors.einsteinYellow} />
               <Text style={{ color: colors.textPrimary, marginTop: spacing.xs }}>
-                Gerando fases via IA para a série {session.activeGrade}...
+                Carregando fases do banco para a série {session.activeGrade}...
               </Text>
             </LinearGradient>
           ) : null}
@@ -565,10 +392,10 @@ export default function AdminWolfGameScreen() {
                   CAMADA ADMIN • TESTE INTERNO
                 </Text>
                 <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
-                  Série da rodada: {session.activeGrade} • Série da questão IA: {session.currentQuestion.grade}
+                  Série da rodada: {session.activeGrade} • Série da questão do banco: {session.currentQuestion.grade}
                 </Text>
                 <Text style={{ color: colors.textMuted, marginTop: 2 }}>
-                  Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "ai" ? "IA" : "IA + fallback mock"}
+                  Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "bank" ? "Banco" : "Fallback mock"}
                 </Text>
               </View>
               <WolfQuestionCard

@@ -19,13 +19,13 @@ export function useWolfSession(input: {
   xpAlreadyAwardedToday?: number;
   buildQuestions?: (
     grade: WolfGrade,
-  ) => Promise<{ questions: WolfQuestion[]; source?: "ai" | "mock" }>;
+  ) => Promise<{ questions: WolfQuestion[]; source?: "bank" | "mock" }>;
 }) {
   const [stage, setStage] = useState<WolfSessionStage>("home");
   const [activeGrade, setActiveGrade] = useState<WolfGrade>(input.grade);
   const [countdown, setCountdown] = useState(3);
   const [questions, setQuestions] = useState<WolfQuestion[]>([]);
-  const [questionSource, setQuestionSource] = useState<"ai" | "mock" | null>(null);
+  const [questionSource, setQuestionSource] = useState<"bank" | "mock" | null>(null);
   const [questionLoading, setQuestionLoading] = useState(false);
   const [questionError, setQuestionError] = useState<string | null>(null);
   const [phaseIndex, setPhaseIndex] = useState(0);

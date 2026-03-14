@@ -17,7 +17,7 @@ type Props = {
     dailyXpCap: number;
   };
   generatedQuestion: WolfAiQuestionPayload | null;
-  generatedQuestionSource: "ai" | "mock" | null;
+  generatedQuestionSource: "bank" | "mock" | null;
   generatingQuestion: boolean;
   onGenerateQuestion: () => void;
   onRefresh: () => void;
@@ -101,14 +101,15 @@ export default function AdminLabGamesSection({
         <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
           <Pressable onPress={onGenerateQuestion} disabled={generatingQuestion} style={generateButtonStyle}>
             <Text style={{ color: colors.einsteinBlue }} weight="bold">
-              {generatingQuestion ? "Gerando questão..." : "Disparar geração de questão teste (IA)"}
+              {generatingQuestion ? "Buscando questão..." : "Buscar prévia de questão teste (banco)"}
             </Text>
           </Pressable>
 
           {generatedQuestion ? (
             <View style={previewBoxStyle}>
               <Text style={{ color: colors.white }} weight="semibold">
-                Prévia da questão gerada {generatedQuestionSource ? `(${generatedQuestionSource.toUpperCase()})` : ""}
+                Prévia da questão do banco{" "}
+                {generatedQuestionSource ? `(${generatedQuestionSource === "bank" ? "BANCO" : "FALLBACK"})` : ""}
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 6, lineHeight: 20 }}>
                 {generatedQuestion.prompt}

@@ -1563,3 +1563,63 @@ export async function upsertWolfAttemptResultRpc(input: {
   if (error) throw error;
   return String(data ?? "");
 }
+
+export type WolfBankQuestionRow = {
+  question_id: string;
+  phase_category: string;
+  grade: string;
+  band: string;
+  difficulty: string;
+  prompt: string;
+  options: string[];
+  correct_option_index: number;
+  explanation: string;
+  tags: string[];
+  estimated_read_time: number;
+};
+
+function normalizeQuestionOptions(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean).slice(0, 4);
+  }
+  return [];
+}
+
+function mapWolfBankQuestionRow(row: Record<string, unknown>): WolfBankQuestionRow {
+  return {
+    question_id: String(row.question_id ?? ""),
+    phase_category: String(row.phase_category ?? ""),
+    grade: String(row.grade ?? ""),
+    band: String(row.band ?? ""),
+    difficulty: String(row.difficulty ?? ""),
+    prompt: String(row.prompt ?? ""),
+    options: normalizeQuestionOptions(row.options),
+    correct_option_index: Number(row.correct_option_index ?? 0),
+    explanation: String(row.explanation ?? ""),
+    tags: Array.isArray(row.tags) ? row.tags.map((tag) => String(tag ?? "")).filter(Boolean) : [],
+    estimated_read_time: Number(row.estimated_read_time ?? 12),
+  };
+}
+
+export async function pickWolfQuestionsFromBankRpc(input: { grade: string; sessionKey?: string | null }) {
+  const { data, error } = await supabase.rpc("pick_wolf_questions_from_bank", {
+    p_grade: input.grade,
+    p_session_key: input.sessionKey ?? null,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map(mapWolfBankQuestionRow);
+}
+
+export async function previewWolfQuestionFromBankAdminRpc(input: {
+  grade: string;
+  category?: "reflexo" | "logica" | "conhecimento" | "lideranca";
+}) {
+  const { data, error } = await supabase.rpc("preview_wolf_question_from_bank_admin", {
+    p_grade: input.grade,
+    p_category: input.category ?? "logica",
+  });
+  if (error) throw error;
+  const first = Array.isArray(data) ? data[0] : null;
+  if (!first || typeof first !== "object") return null;
+  return mapWolfBankQuestionRow(first as Record<string, unknown>);
+}
