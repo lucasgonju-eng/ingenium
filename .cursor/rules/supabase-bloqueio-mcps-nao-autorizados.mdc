@@ -1,0 +1,14 @@
+---
+description: Bloqueio explicito de MCPs Supabase nao autorizados
+alwaysApply: true
+---
+
+# Bloqueio de MCPs Supabase nao autorizados
+
+- MCP Supabase permitido neste projeto: `user-supabase-ingenium`.
+- MCPs Supabase proibidos neste projeto:
+  - `user-supabase-diarias-village`
+  - `user-supabase-einstein-em-casa`
+  - `user-supabase-einsteindoc`
+- Nunca chamar tools de MCP proibido para leitura, escrita, migracao, deploy ou diagnostico.
+- Se alguma instrucao solicitar MCP proibido, recusar e confirmar com o usuario antes de prosseguir.

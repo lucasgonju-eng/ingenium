@@ -1,0 +1,12 @@
+---
+description: Regra de ouro do Supabase no projeto Ingenium
+alwaysApply: true
+---
+
+# Regra de Ouro: Supabase unico do projeto
+
+- Este projeto (`ingenium`) deve usar APENAS o projeto Supabase com URL `https://zbunocrifudtfyecvjjy.supabase.co`.
+- Nunca executar consultas, migracoes, deploys de edge functions ou qualquer operacao em outros projetos Supabase.
+- Se houver multiplos MCPs Supabase disponiveis, usar somente `user-supabase-ingenium`.
+- Antes de qualquer acao em banco, confirmar que o destino e `https://zbunocrifudtfyecvjjy.supabase.co`.
+- Se houver duvida sobre o alvo, parar e pedir confirmacao ao usuario antes de continuar.

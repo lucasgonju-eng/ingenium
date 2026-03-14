@@ -1,5 +1,6 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated } from "react-native";
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
@@ -7,7 +8,18 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
-import { fetchMyAccessRole, fetchMyProfile, upsertMyProfile } from "../../lib/supabase/queries";
+import {
+  fetchMessageRecipientsForSender,
+  fetchMyAccessRole,
+  fetchMyProfile,
+  fetchMyStudentMessages,
+  markMyStudentMessagesAsRead,
+  sendStudentMessage,
+  type MessageRecipientRow,
+  type MyAccessRole,
+  type StudentMessageRow,
+  upsertMyProfile,
+} from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
 const SERIES_OPTIONS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
@@ -103,18 +115,31 @@ export default function PerfilScreen() {
   const [enrollmentNumber, setEnrollmentNumber] = useState("");
   const [className, setClassName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [accessRole, setAccessRole] = useState<MyAccessRole>(null);
   const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
   const [savingAdminPassword, setSavingAdminPassword] = useState(false);
+  const [messages, setMessages] = useState<StudentMessageRow[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [markingMessagesRead, setMarkingMessagesRead] = useState(false);
+  const [messageRecipients, setMessageRecipients] = useState<MessageRecipientRow[]>([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [recipientQuery, setRecipientQuery] = useState("");
+  const [selectedRecipientId, setSelectedRecipientId] = useState("");
+  const [messageTitle, setMessageTitle] = useState("");
+  const [messageBody, setMessageBody] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(0)).current;
 
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const [{ data: userData }, profile, accessRole] = await Promise.all([
+      const [{ data: userData }, profile, accessRole, studentMessages] = await Promise.all([
         supabase.auth.getUser(),
         fetchMyProfile(),
         fetchMyAccessRole(),
+        fetchMyStudentMessages().catch(() => []),
       ]);
       const metadata = userData.user?.user_metadata ?? {};
       setUserId(userData.user?.id ?? null);
@@ -128,7 +153,15 @@ export default function PerfilScreen() {
       setEmail(userData.user?.email ?? "");
       setClassName(profile?.class_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
+      setAccessRole(accessRole);
       setIsAdminAccount(accessRole === "admin" || accessRole === "coord");
+      setMessages(studentMessages);
+      if (accessRole === "teacher" || accessRole === "coord" || accessRole === "gestao" || accessRole === "admin") {
+        const recipients = await fetchMessageRecipientsForSender().catch(() => []);
+        setMessageRecipients(recipients);
+      } else {
+        setMessageRecipients([]);
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível carregar seu perfil.";
       Alert.alert("Erro", message);
@@ -136,6 +169,47 @@ export default function PerfilScreen() {
       setLoading(false);
     }
   };
+
+  const unreadCount = messages.filter((message) => !message.read_at).length;
+  const canSendMessages = accessRole === "teacher" || accessRole === "coord" || accessRole === "gestao" || accessRole === "admin";
+  const selectedRecipient = messageRecipients.find((recipient) => recipient.id === selectedRecipientId) ?? null;
+  const filteredRecipients = useMemo(() => {
+    const query = recipientQuery.trim().toLowerCase();
+    if (!query) return messageRecipients.slice(0, 8);
+    return messageRecipients
+      .filter((recipient) => {
+        const name = String(recipient.full_name ?? "").toLowerCase();
+        const gradeValue = String(recipient.grade ?? "").toLowerCase();
+        return name.includes(query) || gradeValue.includes(query);
+      })
+      .slice(0, 8);
+  }, [messageRecipients, recipientQuery]);
+
+  useEffect(() => {
+    if (unreadCount <= 0) {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [pulseAnim, unreadCount]);
 
   const handleAdminPasswordChange = async () => {
     if (!newAdminPassword || !confirmAdminPassword) {
@@ -347,6 +421,76 @@ export default function PerfilScreen() {
       return;
     }
     router.replace("/(marketing)");
+  };
+
+  const handleMarkMessagesAsRead = async () => {
+    if (unreadCount <= 0) return;
+    try {
+      setMarkingMessagesRead(true);
+      await markMyStudentMessagesAsRead();
+      setMessages((prev) => prev.map((message) => ({ ...message, read_at: message.read_at ?? new Date().toISOString() })));
+      Alert.alert("Mensagens atualizadas", "Todas as mensagens foram marcadas como lidas.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível marcar as mensagens como lidas.";
+      Alert.alert("Erro", message);
+    } finally {
+      setMarkingMessagesRead(false);
+    }
+  };
+
+  const handleRefreshMessages = async () => {
+    try {
+      setLoadingMessages(true);
+      const rows = await fetchMyStudentMessages();
+      setMessages(rows);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível atualizar suas mensagens.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleRefreshRecipients = async () => {
+    if (!canSendMessages) return;
+    try {
+      setLoadingRecipients(true);
+      const recipients = await fetchMessageRecipientsForSender();
+      setMessageRecipients(recipients);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível atualizar a lista de alunos.";
+      Alert.alert("Erro", message);
+    } finally {
+      setLoadingRecipients(false);
+    }
+  };
+
+  const handleSendMessageToStudent = async () => {
+    if (!canSendMessages) return;
+    if (!selectedRecipientId) {
+      Alert.alert("Aluno obrigatório", "Selecione um aluno para enviar a mensagem.");
+      return;
+    }
+    if (!messageTitle.trim() || !messageBody.trim()) {
+      Alert.alert("Campos obrigatórios", "Preencha título e mensagem.");
+      return;
+    }
+    try {
+      setSendingMessage(true);
+      await sendStudentMessage({
+        student_id: selectedRecipientId,
+        title: messageTitle.trim(),
+        body: messageBody.trim(),
+      });
+      setMessageTitle("");
+      setMessageBody("");
+      Alert.alert("Mensagem enviada", "A notificação foi enviada para a caixa de mensagens do aluno.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível enviar a mensagem.";
+      Alert.alert("Erro", message);
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   if (loading) {
@@ -707,6 +851,302 @@ export default function PerfilScreen() {
               >
                 <Text style={{ color: colors.einsteinBlue }} weight="bold">
                   {savingAdminPassword ? "Atualizando..." : "Atualizar senha"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View
+            style={{
+              marginTop: spacing.md,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: unreadCount > 0 ? "rgba(255,199,0,0.85)" : colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: spacing.md,
+              overflow: "hidden",
+            }}
+          >
+            {unreadCount > 0 ? (
+              <Animated.View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: colors.einsteinYellow,
+                  opacity: pulseAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.08, 0.22],
+                  }),
+                }}
+              />
+            ) : null}
+
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+              <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+                Caixa de Mensagens
+              </Text>
+              <Text style={{ color: unreadCount > 0 ? colors.einsteinYellow : "rgba(255,255,255,0.7)" }} weight="semibold">
+                {unreadCount > 0 ? `${unreadCount} nova(s)` : "Sem novas"}
+              </Text>
+            </View>
+
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
+              Recados enviados por professores, coordenação, gestão e diretoria.
+            </Text>
+
+            <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs }}>
+              <Pressable
+                onPress={() => {
+                  void handleRefreshMessages();
+                }}
+                disabled={loadingMessages}
+                style={{
+                  borderRadius: radii.pill,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 6,
+                  opacity: loadingMessages ? 0.7 : 1,
+                }}
+              >
+                <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                  {loadingMessages ? "Atualizando..." : "Atualizar"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  void handleMarkMessagesAsRead();
+                }}
+                disabled={markingMessagesRead || unreadCount <= 0}
+                style={{
+                  borderRadius: radii.pill,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: unreadCount > 0 ? colors.einsteinYellow : "rgba(255,255,255,0.08)",
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 6,
+                  opacity: markingMessagesRead || unreadCount <= 0 ? 0.55 : 1,
+                }}
+              >
+                <Text
+                  style={{
+                    color: unreadCount > 0 ? colors.einsteinBlue : colors.white,
+                    fontSize: typography.small.fontSize,
+                  }}
+                  weight="semibold"
+                >
+                  {markingMessagesRead ? "Marcando..." : "Marcar todas como lidas"}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+              {messages.length === 0 ? (
+                <View
+                  style={{
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.02)",
+                    padding: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                    Você ainda não possui mensagens.
+                  </Text>
+                </View>
+              ) : (
+                messages.map((message) => (
+                  <View
+                    key={message.id}
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: !message.read_at ? "rgba(255,199,0,0.85)" : colors.borderSoft,
+                      backgroundColor: !message.read_at ? "rgba(255,199,0,0.09)" : "rgba(255,255,255,0.02)",
+                      padding: spacing.sm,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+                      <Text style={{ color: colors.white }} weight="bold">
+                        {message.title}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: typography.small.fontSize }}>
+                        {new Date(message.created_at).toLocaleDateString("pt-BR")}
+                      </Text>
+                    </View>
+                    <Text style={{ marginTop: 6, color: "rgba(255,255,255,0.78)" }}>
+                      {message.body}
+                    </Text>
+                    <Text style={{ marginTop: 6, color: "rgba(255,255,255,0.62)", fontSize: typography.small.fontSize }}>
+                      De: {message.sender_name} ({message.sender_role})
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+
+          {canSendMessages ? (
+            <View
+              style={{
+                marginTop: spacing.md,
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+                <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+                  Enviar notificação ao aluno
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    void handleRefreshRecipients();
+                  }}
+                  disabled={loadingRecipients}
+                  style={{
+                    borderRadius: radii.pill,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                    opacity: loadingRecipients ? 0.7 : 1,
+                  }}
+                >
+                  <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                    {loadingRecipients ? "Atualizando..." : "Atualizar alunos"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
+                Esta mensagem será entregue na Caixa de Mensagens do perfil do aluno.
+              </Text>
+
+              <TextInput
+                placeholder="Buscar aluno por nome ou série"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                value={recipientQuery}
+                onChangeText={setRecipientQuery}
+                style={{
+                  marginTop: spacing.sm,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                {filteredRecipients.map((recipient) => {
+                  const selected = recipient.id === selectedRecipientId;
+                  return (
+                    <Pressable
+                      key={recipient.id}
+                      onPress={() => {
+                        setSelectedRecipientId(recipient.id);
+                      }}
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: selected ? "rgba(255,199,0,0.85)" : colors.borderSoft,
+                        backgroundColor: selected ? "rgba(255,199,0,0.12)" : "rgba(255,255,255,0.02)",
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 8,
+                      }}
+                    >
+                      <Text style={{ color: colors.white }} weight={selected ? "bold" : "semibold"}>
+                        {recipient.full_name?.trim() || "Aluno sem nome"}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
+                        {recipient.grade ? `Série: ${recipient.grade}` : "Série não informada"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+                {filteredRecipients.length === 0 ? (
+                  <Text style={{ color: "rgba(255,255,255,0.65)" }}>
+                    Nenhum aluno encontrado para este filtro.
+                  </Text>
+                ) : null}
+              </View>
+
+              <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.sm, fontSize: typography.small.fontSize }}>
+                Aluno selecionado
+              </Text>
+              <Text style={{ color: colors.white, marginTop: 2 }} weight="semibold">
+                {selectedRecipient ? (selectedRecipient.full_name?.trim() || "Aluno sem nome") : "Nenhum aluno selecionado"}
+              </Text>
+
+              <TextInput
+                placeholder="Título da mensagem"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                value={messageTitle}
+                onChangeText={setMessageTitle}
+                style={{
+                  marginTop: spacing.sm,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <TextInput
+                placeholder="Escreva a mensagem"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                value={messageBody}
+                onChangeText={setMessageBody}
+                multiline
+                textAlignVertical="top"
+                style={{
+                  marginTop: spacing.xs,
+                  minHeight: 110,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <Pressable
+                onPress={() => {
+                  void handleSendMessageToStudent();
+                }}
+                disabled={sendingMessage}
+                style={{
+                  marginTop: spacing.md,
+                  height: 46,
+                  borderRadius: radii.md,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: colors.einsteinYellow,
+                  opacity: sendingMessage ? 0.7 : 1,
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  {sendingMessage ? "Enviando..." : "Enviar mensagem"}
                 </Text>
               </Pressable>
             </View>

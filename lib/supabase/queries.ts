@@ -148,6 +148,24 @@ export type StudentSignupPendingRequestRow = {
   attempted_at: string;
 };
 
+export type StudentMessageRow = {
+  id: string;
+  student_id: string;
+  sender_id: string;
+  sender_role: "teacher" | "coord" | "gestao" | "admin";
+  sender_name: string;
+  title: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+};
+
+export type MessageRecipientRow = {
+  id: string;
+  full_name: string | null;
+  grade: string | null;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -438,6 +456,66 @@ export async function fetchMyProfile(userIdOverride?: string) {
 
   if (error) throw error;
   return (data ?? null) as ProfileRow | null;
+}
+
+export async function fetchMyStudentMessages(limit = 30) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { data, error } = await supabase
+    .from("student_messages")
+    .select("id,student_id,sender_id,sender_role,sender_name,title,body,created_at,read_at")
+    .eq("student_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as StudentMessageRow[];
+}
+
+export async function markMyStudentMessagesAsRead() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const nowIso = new Date().toISOString();
+  const { error } = await supabase
+    .from("student_messages")
+    .update({ read_at: nowIso })
+    .eq("student_id", user.id)
+    .is("read_at", null);
+  if (error) throw error;
+}
+
+export async function fetchMessageRecipientsForSender() {
+  const { data, error } = await supabase.rpc("list_message_recipients_for_sender");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    full_name: row.full_name ? String(row.full_name) : null,
+    grade: row.grade ? String(row.grade) : null,
+  })) as MessageRecipientRow[];
+}
+
+export async function sendStudentMessage(input: {
+  student_id: string;
+  title: string;
+  body: string;
+}) {
+  const { data, error } = await supabase.rpc("send_student_message", {
+    p_student_id: input.student_id,
+    p_title: input.title,
+    p_body: input.body,
+  });
+  if (error) throw error;
+  return String(data ?? "");
 }
 
 export async function fetchMyAccessRole(): Promise<MyAccessRole> {
