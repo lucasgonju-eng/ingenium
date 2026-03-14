@@ -472,14 +472,15 @@ if ($isPaid && $paymentId !== "") {
   // Regra de negócio: o aluno alvo vem da externalReference.
   // Para envio de e-mail, usa exclusivamente o aluno da referência (nunca o e-mail do pagador Asaas).
   $supabaseCfgPath = __DIR__ . "/supabase-admin-config.json";
-  $sourceRef = "asaas_pro_payment_" . $paymentId;
+  // Referência legada por paymentId (mantida para rastreio e compatibilidade).
+  $paymentSourceRef = "asaas_pro_payment_" . $paymentId;
   if (is_file($supabaseCfgPath) && $paymentId !== "") {
     $supabaseCfgRawForResolve = json_decode((string) file_get_contents($supabaseCfgPath), true);
     if (is_array($supabaseCfgRawForResolve)) {
       $supabaseUrlForResolve = rtrim((string) ($supabaseCfgRawForResolve["url"] ?? ""), "/");
       $serviceKeyForResolve = trim((string) ($supabaseCfgRawForResolve["serviceRoleKey"] ?? ""));
       if ($supabaseUrlForResolve !== "" && $serviceKeyForResolve !== "") {
-        $sourceRefCheckUrl = $supabaseUrlForResolve . "/rest/v1/xp_events?select=user_id&source_ref=eq." . rawurlencode($sourceRef) . "&limit=1";
+        $sourceRefCheckUrl = $supabaseUrlForResolve . "/rest/v1/xp_events?select=user_id&source_ref=eq." . rawurlencode($paymentSourceRef) . "&limit=1";
         $sourceRefCheck = supabase_request("GET", $sourceRefCheckUrl, $serviceKeyForResolve);
         if ($sourceRefCheck["ok"] && is_array($sourceRefCheck["json"]) && count($sourceRefCheck["json"]) > 0) {
           $sourceRefRow = $sourceRefCheck["json"][0];
@@ -620,11 +621,22 @@ if ($isPaid && $paymentId !== "") {
           }
 
           $xpCredited = false;
-          $checkUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=eq." . rawurlencode($sourceRef) . "&limit=1";
+          // Idempotência forte: 1 bônus de Plano PRO por aluno/ano (2026),
+          // independentemente de quantidade de webhooks ou parcelas.
+          $planBonusSourceRef = "asaas_planopro_bonus_2026_" . $profileId;
+          $checkUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=eq." . rawurlencode($planBonusSourceRef) . "&limit=1";
           $checkResult = supabase_request("GET", $checkUrl, $supabaseServiceRoleKey);
           $alreadyExists = false;
           if ($checkResult["ok"] && is_array($checkResult["json"])) {
             $alreadyExists = count($checkResult["json"]) > 0;
+          }
+          if (!$alreadyExists) {
+            // Compatibilidade com eventos antigos que usavam source_ref por paymentId.
+            $legacyCheckUrl = $supabaseUrl . "/rest/v1/xp_events?select=id&user_id=eq." . rawurlencode($profileId) . "&source_ref=like.asaas_pro_payment_*&limit=1";
+            $legacyCheck = supabase_request("GET", $legacyCheckUrl, $supabaseServiceRoleKey);
+            if ($legacyCheck["ok"] && is_array($legacyCheck["json"])) {
+              $alreadyExists = count($legacyCheck["json"]) > 0;
+            }
           }
 
           if (!$alreadyExists) {
@@ -634,7 +646,7 @@ if ($isPaid && $paymentId !== "") {
               "event_type" => "volunteer_mentorship_bronze",
               "xp_amount" => 8000,
               "occurred_on" => gmdate("Y-m-d"),
-              "source_ref" => $sourceRef,
+              "source_ref" => $planBonusSourceRef,
               "note" => "Bônus Plano PRO confirmado via webhook Asaas (+8000 XP)",
             ];
             $insertResult = supabase_request("POST", $insertUrl, $supabaseServiceRoleKey, $insertPayload);
