@@ -3,6 +3,7 @@ import { router, useNavigation, usePathname } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Image, Platform, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { User } from "@supabase/supabase-js";
 import AvatarWithFallback from "../ui/AvatarWithFallback";
 import { Text } from "../ui/Text";
 import { supabase } from "../../lib/supabase/client";
@@ -29,62 +30,86 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
 
   useEffect(() => {
     let mounted = true;
+    let profileFetchVersion = 0;
+    let profileTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function applySignedOutState() {
+      setIsAuthenticated(false);
+      setFullName("Aluno");
+      setAvatarUrl(null);
+    }
+
+    function scheduleProfileFetch(user: User, fallbackName: string, avatarFromMetadata: string | null) {
+      profileFetchVersion += 1;
+      const currentVersion = profileFetchVersion;
+      if (profileTimeout) clearTimeout(profileTimeout);
+
+      // Evita lock contention no callback de auth em browsers mobile.
+      profileTimeout = setTimeout(async () => {
+        if (!mounted || currentVersion !== profileFetchVersion) return;
+        try {
+          const profile = await fetchMyProfile(user.id);
+          if (!mounted || currentVersion !== profileFetchVersion) return;
+          setFullName(profile?.full_name?.trim() || fallbackName);
+          setAvatarUrl(profile?.avatar_url ?? avatarFromMetadata);
+        } catch {
+          if (!mounted || currentVersion !== profileFetchVersion) return;
+          setAvatarUrl(avatarFromMetadata);
+        }
+      }, 0);
+    }
+
+    function applyUserState(user: User | null) {
+      if (!mounted) return;
+      if (!user) {
+        applySignedOutState();
+        return;
+      }
+
+      setIsAuthenticated(true);
+      const fallbackName =
+        String(user.user_metadata?.full_name ?? "").trim() ||
+        user.email?.split("@")[0] ||
+        "Aluno";
+      const avatarFromMetadata = typeof user.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null;
+      setFullName(fallbackName);
+      setAvatarUrl(avatarFromMetadata);
+      scheduleProfileFetch(user, fallbackName, avatarFromMetadata);
+    }
+
     async function loadProfile() {
       try {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-          const message = String(userError.message ?? "").toLowerCase();
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+        if (sessionError) {
+          const message = String(sessionError.message ?? "").toLowerCase();
           if (message.includes("user from sub claim in jwt does not exist")) {
             await supabase.auth.signOut({ scope: "local" });
             if (!mounted) return;
-            setIsAuthenticated(false);
-            setFullName("Aluno");
-            setAvatarUrl(null);
+            applySignedOutState();
             return;
           }
-          throw userError;
+          throw sessionError;
         }
-        const user = userData.user ?? null;
-        if (!mounted) return;
-
-        if (!user) {
-          setIsAuthenticated(false);
-          setFullName("Aluno");
-          setAvatarUrl(null);
-          return;
-        }
-
-        setIsAuthenticated(true);
-        const fallbackName =
-          String(user.user_metadata?.full_name ?? "").trim() ||
-          user.email?.split("@")[0] ||
-          "Aluno";
-        setFullName(fallbackName);
-
-        try {
-          const profile = await fetchMyProfile(user.id);
-          if (!mounted) return;
-          setFullName(profile?.full_name?.trim() || fallbackName);
-          setAvatarUrl(profile?.avatar_url ?? null);
-        } catch {
-          if (!mounted) return;
-          setAvatarUrl(null);
-        }
+        applyUserState(session?.user ?? null);
       } catch {
         if (!mounted) return;
-        setIsAuthenticated(false);
-        setFullName("Aluno");
-        setAvatarUrl(null);
+        applySignedOutState();
       }
     }
 
     void loadProfile();
-    const { data: authSub } = supabase.auth.onAuthStateChange(() => {
-      void loadProfile();
+    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Não chamar métodos auth aqui para evitar timeout de LockManager no mobile web.
+      applyUserState(session?.user ?? null);
     });
 
     return () => {
       mounted = false;
+      profileFetchVersion += 1;
+      if (profileTimeout) clearTimeout(profileTimeout);
       authSub.subscription.unsubscribe();
     };
   }, []);
