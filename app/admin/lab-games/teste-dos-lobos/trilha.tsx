@@ -1,10 +1,10 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../../components/layout/StitchScreenFrame";
 import WolfTrailProgressCard from "../../../../components/sections/games/wolf/WolfTrailProgressCard";
-import StitchHeader from "../../../../components/ui/StitchHeader";
 import { computeWolfTrailProgress } from "../../../../services/games/wolfEngine";
-import { colors, radii, spacing } from "../../../../lib/theme/tokens";
+import { colors, radii, spacing, typography } from "../../../../lib/theme/tokens";
 import { Text } from "../../../../components/ui/Text";
 
 export default function AdminWolfTrailScreen() {
@@ -21,12 +21,20 @@ export default function AdminWolfTrailScreen() {
 
   return (
     <StitchScreenFrame>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Trilha do Lobo" subtitle="Progressão híbrida por XP + consistência" variant="feed" />
-        </View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xxxl, gap: spacing.sm }} showsVerticalScrollIndicator={false}>
+        <LinearGradient colors={["rgba(18,28,68,0.96)", "rgba(9,16,44,0.94)"]} style={heroStyle}>
+          <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="semibold">
+            EVOLUÇÃO CONTÍNUA
+          </Text>
+          <Text style={{ color: colors.textPrimary, fontSize: typography.headingLg.fontSize, marginTop: spacing.xxs }} weight="bold">
+            Trilha do Lobo
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginTop: spacing.xs }}>
+            Caminho de progressão por XP, consistência e desempenho.
+          </Text>
+        </LinearGradient>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+        <View>
           <WolfTrailProgressCard
             currentLevel={progress.currentLevel}
             nextLevel={progress.nextLevel}
@@ -38,34 +46,20 @@ export default function AdminWolfTrailScreen() {
           />
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
-          <View
-            style={{
-              borderRadius: radii.md,
-              borderWidth: 1,
-              borderColor: colors.borderSoft,
-              backgroundColor: "rgba(255,255,255,0.03)",
-              padding: spacing.sm,
-            }}
-          >
-            <Text style={{ color: "rgba(255,255,255,0.82)", lineHeight: 20 }}>
-              Esta visualização já está preparada para refletir progresso real quando a persistência Supabase estiver ativa.
+        <View>
+          <View style={footnoteStyle}>
+            <Text style={{ color: colors.textSecondary, lineHeight: typography.bodyMd.lineHeight }}>
+              Camada de teste interno: a interface já está preparada para refletir progresso real quando a persistência estiver ativa.
             </Text>
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+        <View>
           <Pressable
             onPress={() => router.replace("/admin/lab-games/teste-dos-lobos")}
-            style={{
-              minHeight: 44,
-              borderRadius: radii.md,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: colors.einsteinYellow,
-            }}
+            style={({ pressed }) => [backButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}
           >
-            <Text style={{ color: colors.einsteinBlue }} weight="bold">
+            <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
               Voltar para teste
             </Text>
           </Pressable>
@@ -74,4 +68,33 @@ export default function AdminWolfTrailScreen() {
     </StitchScreenFrame>
   );
 }
+
+const heroStyle = {
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
+  padding: spacing.md,
+  marginTop: spacing.xs,
+};
+
+const footnoteStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  padding: spacing.sm,
+};
+
+const backButtonStyle = {
+  minHeight: 48,
+  borderRadius: radii.md,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: colors.goldBase,
+  shadowColor: colors.goldBase,
+  shadowOpacity: 0.22,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 5,
+};
 

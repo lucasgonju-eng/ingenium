@@ -1,10 +1,10 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../components/layout/StitchScreenFrame";
 import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHomeCard";
 import WolfQuestionCard from "../../../components/sections/games/wolf/WolfQuestionCard";
-import StitchHeader from "../../../components/ui/StitchHeader";
 import { Text } from "../../../components/ui/Text";
 import { getWolfBandByGrade, wolfAttemptsConfig, wolfInspirationalMessages, wolfTimersByBand } from "../../../content/games/wolf-config";
 import { useWolfSession } from "../../../hooks/games/useWolfSession";
@@ -106,6 +106,13 @@ const BNCC_HINTS: Record<WolfBand, Record<WolfPhaseCategory, string[]>> = {
       "Tomada de decisão responsável em projetos escolares",
     ],
   },
+};
+
+const PHASE_LABEL: Record<WolfPhaseCategory, string> = {
+  reflexo: "Reflexo",
+  logica: "Lógica",
+  conhecimento: "Conhecimento",
+  lideranca: "Liderança",
 };
 
 function coerceWolfGrade(raw: unknown, fallback: WolfGrade): WolfGrade {
@@ -228,6 +235,7 @@ export default function AdminWolfGameScreen() {
   const [bestAttemptHits, setBestAttemptHits] = useState(0);
   const [streakDays, setStreakDays] = useState(4);
   const [selectedGradePreference, setSelectedGradePreference] = useState<GradePreference>("random");
+  const countdownPulse = useRef(new Animated.Value(1)).current;
 
   const grade = coerceWolfGrade(params.grade, DEFAULT_GRADE);
   const session = useWolfSession({
@@ -331,6 +339,34 @@ export default function AdminWolfGameScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (session.stage !== "countdown") {
+      countdownPulse.stopAnimation();
+      countdownPulse.setValue(1);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(countdownPulse, {
+          toValue: 1.08,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        Animated.timing(countdownPulse, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+    };
+  }, [session.stage, countdownPulse]);
+
   const attemptGate = useMemo(
     () =>
       canStartWolfAttempt({
@@ -397,44 +433,75 @@ export default function AdminWolfGameScreen() {
 
   return (
     <StitchScreenFrame>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Lab Games" subtitle="Teste interno • Teste dos Lobos" variant="feed" />
-        </View>
+      <ScrollView contentContainerStyle={screenContentStyle} showsVerticalScrollIndicator={false}>
+        <LinearGradient colors={["rgba(17,28,67,0.96)", "rgba(8,16,43,0.92)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={heroSectionStyle}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.35 }} weight="semibold">
+                LAB GAMES • ÁREA ESPECIAL
+              </Text>
+              <Text style={{ color: colors.textPrimary, fontSize: typography.headingLg.fontSize, marginTop: spacing.xxs }} weight="bold">
+                Teste dos Lobos
+              </Text>
+              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
+                Ambiente premium de validação interna com IA, progressão e desafios por série.
+              </Text>
+            </View>
+            <View style={heroMonogramStyle}>
+              <Text style={{ color: colors.goldBase, fontSize: 22 }} weight="bold">
+                ◈
+              </Text>
+            </View>
+          </View>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm, gap: spacing.sm }}>
+          <View style={heroChipRowStyle}>
+            <View style={heroMetaChipStyle}>
+              <Text style={heroMetaChipTextStyle} weight="semibold">
+                Modo admin
+              </Text>
+            </View>
+            <View style={heroMetaChipStyle}>
+              <Text style={heroMetaChipTextStyle} weight="semibold">
+                Fonte: {session.questionSource === "ai" ? "IA" : session.questionSource === "mock" ? "Fallback" : "Preparando"}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        <View style={contentStackStyle}>
           {session.stage === "home" && session.questionError ? (
             <View style={errorCardStyle}>
               <Text style={{ color: "#fecaca", fontSize: typography.small.fontSize }} weight="bold">
                 Não foi possível preparar o teste
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: spacing.xs }}>{session.questionError}</Text>
+              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs }}>{session.questionError}</Text>
             </View>
           ) : null}
 
           {session.stage === "home" && session.questionLoading ? (
-            <View style={loadingCardStyle}>
+            <LinearGradient colors={["rgba(255,199,0,0.18)", "rgba(255,199,0,0.08)"]} style={loadingCardStyle}>
               <ActivityIndicator color={colors.einsteinYellow} />
-              <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: spacing.xs }}>
+              <Text style={{ color: colors.textPrimary, marginTop: spacing.xs }}>
                 Gerando fases via IA para a série {session.activeGrade}...
               </Text>
-            </View>
+            </LinearGradient>
           ) : null}
 
           {session.stage === "home" ? (
-            <View style={seriesPickerCardStyle}>
-              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="bold">
-                Série para teste (somente admin)
+            <LinearGradient colors={["rgba(17,27,66,0.96)", "rgba(12,19,52,0.95)"]} style={seriesPickerCardStyle}>
+              <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="bold">
+                CONTROLE DE SÉRIE (ADMIN)
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
-                Escolha uma série fixa ou deixe em aleatório para variar de 6º Ano até 3ª Série.
+              <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
+                Selecione uma série fixa ou mantenha em aleatório para validar o grau de dificuldade completo.
               </Text>
               <View style={seriesPickerRowStyle}>
                 <Pressable
                   onPress={() => setSelectedGradePreference("random")}
-                  style={[
+                  style={({ pressed }) => [
                     seriesChipStyle,
                     selectedGradePreference === "random" ? seriesChipActiveStyle : seriesChipInactiveStyle,
+                    pressed ? chipPressedStyle : null,
                   ]}
                 >
                   <Text style={selectedGradePreference === "random" ? seriesChipActiveTextStyle : seriesChipInactiveTextStyle} weight="bold">
@@ -445,9 +512,10 @@ export default function AdminWolfGameScreen() {
                   <Pressable
                     key={item}
                     onPress={() => setSelectedGradePreference(item)}
-                    style={[
+                    style={({ pressed }) => [
                       seriesChipStyle,
                       selectedGradePreference === item ? seriesChipActiveStyle : seriesChipInactiveStyle,
+                      pressed ? chipPressedStyle : null,
                     ]}
                   >
                     <Text style={selectedGradePreference === item ? seriesChipActiveTextStyle : seriesChipInactiveTextStyle} weight="bold">
@@ -456,14 +524,14 @@ export default function AdminWolfGameScreen() {
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </LinearGradient>
           ) : null}
 
           {session.stage === "home" ? (
             <WolfGameHomeCard
               attemptsRemaining={attemptGate.attemptsRemaining}
               streakDays={streakDays}
-              activeEvent="Semana da Lógica"
+              activeEvent="Semana da Lógica Estruturada"
               estimatedDurationMinutes={3}
               startDisabled={!attemptGate.canStart || session.questionLoading}
               disabledReason={attemptGate.reason}
@@ -475,30 +543,32 @@ export default function AdminWolfGameScreen() {
           ) : null}
 
           {session.stage === "countdown" ? (
-            <View style={countdownCardStyle}>
-              <Text style={{ color: "rgba(255,255,255,0.75)" }} weight="semibold">
-                Preparar...
+            <LinearGradient colors={["rgba(20,30,70,0.96)", "rgba(10,16,45,0.96)"]} style={countdownCardStyle}>
+              <Text style={{ color: colors.textTechnical }} weight="semibold">
+                Ritual de preparação mental
               </Text>
-              <Text style={{ color: colors.einsteinYellow, fontSize: 72, marginTop: spacing.xs }} weight="bold">
-                {session.countdown}
+              <Animated.View style={[countdownOrbStyle, { transform: [{ scale: countdownPulse }] }]}>
+                <Text style={{ color: colors.goldSoft, fontSize: 78 }} weight="bold">
+                  {session.countdown}
+                </Text>
+              </Animated.View>
+              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, textAlign: "center", lineHeight: typography.bodyMd.lineHeight }}>
+                Respire fundo. O cronômetro inicia quando a questão estiver pronta para leitura.
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs }}>
-                O tempo só começa quando a questão estiver pronta para leitura.
-              </Text>
-            </View>
+            </LinearGradient>
           ) : null}
 
           {session.stage === "question" && session.currentQuestion ? (
             <>
               <View style={adminMetaCardStyle}>
-                <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="bold">
-                  ADMIN (apenas teste interno)
+                <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.25 }} weight="bold">
+                  CAMADA ADMIN • TESTE INTERNO
                 </Text>
-                <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 4 }}>
+                <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
                   Série da rodada: {session.activeGrade} • Série da questão IA: {session.currentQuestion.grade}
                 </Text>
-                <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: 2 }}>
-                  Fonte desta rodada: {session.questionSource === "ai" ? "IA" : "IA com fallback mock"}
+                <Text style={{ color: colors.textMuted, marginTop: 2 }}>
+                  Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "ai" ? "IA" : "IA + fallback mock"}
                 </Text>
               </View>
               <WolfQuestionCard
@@ -515,35 +585,55 @@ export default function AdminWolfGameScreen() {
           ) : null}
 
           {session.stage === "feedback" && session.currentQuestion ? (
-            <View style={feedbackCardStyle}>
+            <LinearGradient colors={["rgba(20,30,70,0.98)", "rgba(11,18,50,0.98)"]} style={feedbackCardStyle}>
               {(() => {
                 const answeredCorrect = session.selectedOptionIndex === session.currentQuestion.correctOptionIndex;
                 const correctAnswer = session.currentQuestion.options[session.currentQuestion.correctOptionIndex];
                 return (
                   <>
-              <Text
-                style={{
-                        color: answeredCorrect ? "#86efac" : "rgba(255,255,255,0.88)",
-                  fontSize: typography.titleMd.fontSize,
-                }}
-                weight="bold"
-              >
-                      {answeredCorrect ? "Acertou! Excelente resposta." : "Resposta registrada"}
-              </Text>
-              <Text style={{ color: "rgba(255,255,255,0.80)", marginTop: spacing.xs, lineHeight: 20 }}>
-                {session.currentQuestion.explanation}
-              </Text>
-                    <CorrectAnswerExplosion answerText={correctAnswer} />
+                    <View style={[feedbackBadgeStyle, answeredCorrect ? feedbackBadgeCorrectStyle : feedbackBadgeNeutralStyle]}>
+                      <Text style={{ color: answeredCorrect ? "#E4FDEB" : colors.textSecondary }} weight="semibold">
+                        {answeredCorrect ? "Resposta validada com excelência" : "Resposta registrada"}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={{
+                        color: answeredCorrect ? colors.statusSuccess : colors.textPrimary,
+                        fontSize: typography.titleMd.fontSize,
+                        marginTop: spacing.sm,
+                      }}
+                      weight="bold"
+                    >
+                      {answeredCorrect ? "Acerto confirmado" : "Boa tentativa, continue evoluindo"}
+                    </Text>
+
+                    <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
+                      {session.currentQuestion.explanation}
+                    </Text>
+
+                    {answeredCorrect ? (
+                      <CorrectAnswerExplosion answerText={correctAnswer} />
+                    ) : (
+                      <View style={correctAnswerBoxStyle}>
+                        <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize }} weight="semibold">
+                          Resposta correta
+                        </Text>
+                        <Text style={{ color: colors.textPrimary, marginTop: 2 }} weight="bold">
+                          {correctAnswer}
+                        </Text>
+                      </View>
+                    )}
                   </>
                 );
               })()}
 
-              <Pressable onPress={session.goNext} style={nextButtonStyle}>
-                <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                  {session.phaseIndex + 1 >= session.questions.length ? "Ver resultado" : "Próxima fase"}
+              <Pressable onPress={session.goNext} style={({ pressed }) => [nextButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}>
+                <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
+                  {session.phaseIndex + 1 >= session.questions.length ? "Ver resultado premium" : "Seguir para próxima fase"}
                 </Text>
               </Pressable>
-            </View>
+            </LinearGradient>
           ) : null}
         </View>
       </ScrollView>
@@ -552,54 +642,122 @@ export default function AdminWolfGameScreen() {
 }
 
 const blockedCardStyle = {
-  borderRadius: radii.lg,
+  borderRadius: radii.xl,
   borderWidth: 1,
-  borderColor: colors.borderSoft,
-  backgroundColor: colors.surfacePanel,
+  borderColor: colors.borderDefault,
+  backgroundColor: colors.surfaceGlass,
   padding: spacing.md,
 };
 
-const countdownCardStyle = {
-  borderRadius: radii.lg,
+const screenContentStyle = {
+  paddingHorizontal: spacing.md,
+  paddingBottom: spacing.xxxl,
+  gap: spacing.sm,
+};
+
+const contentStackStyle = {
+  gap: spacing.sm,
+};
+
+const heroSectionStyle = {
+  borderRadius: radii.xl,
   borderWidth: 1,
-  borderColor: "rgba(255,199,0,0.44)",
-  backgroundColor: colors.surfacePanel,
+  borderColor: colors.borderDefault,
   padding: spacing.md,
-  minHeight: 220,
+  shadowColor: "#020617",
+  shadowOpacity: 0.3,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 7,
+};
+
+const heroMonogramStyle = {
+  width: 52,
+  height: 52,
+  borderRadius: radii.pill,
+  borderWidth: 1,
+  borderColor: colors.borderGoldStrong,
+  backgroundColor: "rgba(255,199,0,0.12)",
   alignItems: "center" as const,
   justifyContent: "center" as const,
 };
 
-const feedbackCardStyle = {
-  borderRadius: radii.lg,
+const heroChipRowStyle = {
+  marginTop: spacing.sm,
+  flexDirection: "row" as const,
+  flexWrap: "wrap" as const,
+  gap: spacing.xs,
+};
+
+const heroMetaChipStyle = {
+  minHeight: 30,
+  borderRadius: radii.pill,
   borderWidth: 1,
-  borderColor: colors.borderSoft,
-  backgroundColor: colors.surfacePanel,
+  borderColor: "rgba(255,255,255,0.18)",
+  backgroundColor: "rgba(255,255,255,0.05)",
+  paddingHorizontal: spacing.sm,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
+
+const heroMetaChipTextStyle = {
+  color: colors.textTechnical,
+  fontSize: typography.small.fontSize,
+};
+
+const countdownCardStyle = {
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderGoldSoft,
+  padding: spacing.lg,
+  minHeight: 280,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
+
+const countdownOrbStyle = {
+  minWidth: 170,
+  minHeight: 170,
+  marginTop: spacing.xs,
+  borderRadius: 999,
+  borderWidth: 1,
+  borderColor: "rgba(255,199,0,0.45)",
+  backgroundColor: "rgba(255,199,0,0.10)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  shadowColor: colors.goldBase,
+  shadowOpacity: 0.25,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 0 },
+};
+
+const feedbackCardStyle = {
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
   padding: spacing.md,
 };
 
 const loadingCardStyle = {
-  borderRadius: radii.lg,
+  borderRadius: radii.xl,
   borderWidth: 1,
-  borderColor: "rgba(255,199,0,0.34)",
-  backgroundColor: "rgba(255,199,0,0.08)",
+  borderColor: colors.borderGoldSoft,
   padding: spacing.md,
   alignItems: "center" as const,
 };
 
 const errorCardStyle = {
-  borderRadius: radii.lg,
+  borderRadius: radii.xl,
   borderWidth: 1,
   borderColor: "rgba(248,113,113,0.46)",
-  backgroundColor: "rgba(127,29,29,0.35)",
+  backgroundColor: colors.statusDangerBg,
   padding: spacing.md,
 };
 
 const seriesPickerCardStyle = {
-  borderRadius: radii.lg,
+  borderRadius: radii.xl,
   borderWidth: 1,
-  borderColor: "rgba(255,199,0,0.34)",
-  backgroundColor: "rgba(255,199,0,0.08)",
+  borderColor: colors.borderDefault,
   padding: spacing.md,
 };
 
@@ -613,47 +771,86 @@ const seriesPickerRowStyle = {
 const seriesChipStyle = {
   borderRadius: 999,
   borderWidth: 1,
-  minHeight: 34,
+  minHeight: 44,
   paddingHorizontal: spacing.sm,
   alignItems: "center" as const,
   justifyContent: "center" as const,
 };
 
 const seriesChipActiveStyle = {
-  borderColor: "rgba(255,199,0,0.85)",
+  borderColor: colors.borderGoldStrong,
   backgroundColor: "rgba(255,199,0,0.20)",
 };
 
 const seriesChipInactiveStyle = {
-  borderColor: "rgba(255,255,255,0.25)",
+  borderColor: "rgba(255,255,255,0.18)",
   backgroundColor: "rgba(255,255,255,0.05)",
 };
 
+const chipPressedStyle = {
+  transform: [{ scale: 0.98 }],
+};
+
 const seriesChipActiveTextStyle = {
-  color: colors.einsteinYellow,
+  color: colors.goldSoft,
   fontSize: typography.small.fontSize,
 };
 
 const seriesChipInactiveTextStyle = {
-  color: "rgba(255,255,255,0.86)",
+  color: colors.textPrimary,
   fontSize: typography.small.fontSize,
 };
 
 const adminMetaCardStyle = {
   borderRadius: radii.md,
   borderWidth: 1,
-  borderColor: "rgba(255,199,0,0.34)",
-  backgroundColor: "rgba(255,199,0,0.08)",
+  borderColor: colors.borderGoldSoft,
+  backgroundColor: "rgba(255,199,0,0.10)",
   paddingHorizontal: spacing.sm,
   paddingVertical: spacing.sm,
 };
 
+const feedbackBadgeStyle = {
+  minHeight: 30,
+  borderRadius: radii.pill,
+  paddingHorizontal: spacing.sm,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  alignSelf: "flex-start" as const,
+  borderWidth: 1,
+};
+
+const feedbackBadgeCorrectStyle = {
+  borderColor: "rgba(139,231,175,0.62)",
+  backgroundColor: "rgba(34,197,94,0.16)",
+};
+
+const feedbackBadgeNeutralStyle = {
+  borderColor: "rgba(255,255,255,0.20)",
+  backgroundColor: "rgba(255,255,255,0.08)",
+};
+
+const correctAnswerBoxStyle = {
+  marginTop: spacing.sm,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderGoldSoft,
+  backgroundColor: "rgba(255,199,0,0.10)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: spacing.xs,
+};
+
 const nextButtonStyle = {
   marginTop: spacing.md,
-  minHeight: 44,
+  minHeight: 48,
   borderRadius: radii.md,
   alignItems: "center" as const,
   justifyContent: "center" as const,
-  backgroundColor: colors.einsteinYellow,
+  backgroundColor: colors.goldBase,
+  shadowColor: colors.goldBase,
+  shadowOpacity: 0.22,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 5,
 };
 

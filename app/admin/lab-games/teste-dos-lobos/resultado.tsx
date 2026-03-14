@@ -1,11 +1,11 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../../components/layout/StitchScreenFrame";
 import WolfResultCard from "../../../../components/sections/games/wolf/WolfResultCard";
-import StitchHeader from "../../../../components/ui/StitchHeader";
 import { Text } from "../../../../components/ui/Text";
 import { buildWolfPercentileSnapshot } from "../../../../services/games/wolfEngine";
-import { colors, radii, spacing } from "../../../../lib/theme/tokens";
+import { colors, radii, spacing, typography } from "../../../../lib/theme/tokens";
 
 export default function AdminWolfResultScreen() {
   const params = useLocalSearchParams<{
@@ -32,12 +32,20 @@ export default function AdminWolfResultScreen() {
 
   return (
     <StitchScreenFrame>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Resultado" subtitle="Teste dos Lobos • modo admin" variant="feed" />
-        </View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xxxl, gap: spacing.sm }} showsVerticalScrollIndicator={false}>
+        <LinearGradient colors={["rgba(18,28,68,0.96)", "rgba(9,16,44,0.94)"]} style={heroStyle}>
+          <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="semibold">
+            ENCERRAMENTO DA MISSÃO
+          </Text>
+          <Text style={{ color: colors.textPrimary, fontSize: typography.headingLg.fontSize, marginTop: spacing.xxs }} weight="bold">
+            Resultado • Teste dos Lobos
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginTop: spacing.xs }}>
+            Série validada nesta rodada: {grade}
+          </Text>
+        </LinearGradient>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+        <View>
           <WolfResultCard
             hits={hits}
             xpAwarded={xpAwarded}
@@ -64,16 +72,8 @@ export default function AdminWolfResultScreen() {
           />
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
-          <View
-            style={{
-              borderRadius: radii.md,
-              borderWidth: 1,
-              borderColor: colors.borderSoft,
-              backgroundColor: "rgba(255,255,255,0.03)",
-              padding: spacing.sm,
-            }}
-          >
+        <View>
+          <View style={footnoteStyle}>
             <Text style={{ color: "rgba(255,255,255,0.78)", lineHeight: 20 }}>
               Competição anônima ativa: não exibimos nomes de adversários, apenas percentil por série.
             </Text>
@@ -83,4 +83,20 @@ export default function AdminWolfResultScreen() {
     </StitchScreenFrame>
   );
 }
+
+const heroStyle = {
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
+  padding: spacing.md,
+  marginTop: spacing.xs,
+};
+
+const footnoteStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  padding: spacing.sm,
+};
 

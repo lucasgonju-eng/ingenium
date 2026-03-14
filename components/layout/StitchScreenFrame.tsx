@@ -19,8 +19,8 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   const contentWidthStyle = Platform.OS === "web" ? { width: "100%" as const, maxWidth, flex: 1 } : { width: "100%" as const, flex: 1 };
   const canGoBack = navigation.canGoBack();
   const pathname = usePathname();
-  const logoSize = 92;
-  const logoBottomSpacing = 4;
+  const logoSize = 82;
+  const logoBottomSpacing = spacing.xs;
   const [menuOpen, setMenuOpen] = useState(false);
   const [fullName, setFullName] = useState("Aluno");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -109,23 +109,31 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
   }
 
   return (
-    <LinearGradient colors={[colors.bgStart, colors.bgMid, colors.bgEnd]} style={{ flex: 1 }}>
+    <LinearGradient
+      colors={[colors.bgCanvas, colors.bgStart, colors.bgMid, colors.bgEnd]}
+      start={{ x: 0.15, y: 0 }}
+      end={{ x: 0.85, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      <View pointerEvents="none" style={depthBackgroundStyle}>
+        <View style={depthOrbTopStyle} />
+        <View style={depthOrbCenterStyle} />
+        <View style={depthOrbBottomStyle} />
+      </View>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, alignItems: "center" }}>
           <View
             style={{
               width: "100%",
               alignItems: "center",
-              height: logoSize + logoBottomSpacing,
-              justifyContent: "center",
+              height: logoSize + spacing.sm + logoBottomSpacing,
+              justifyContent: "flex-end",
               marginBottom: logoBottomSpacing,
             }}
           >
-            <Image
-              source={require("../../assets/ingenium-logo.webp")}
-              style={{ width: logoSize, height: logoSize }}
-              resizeMode="contain"
-            />
+            <View style={logoPlateStyle}>
+              <Image source={require("../../assets/ingenium-logo.webp")} style={{ width: logoSize, height: logoSize }} resizeMode="contain" />
+            </View>
           </View>
           {menuOpen ? <Pressable onPress={() => setMenuOpen(false)} style={StyleSheet.absoluteFillObject} /> : null}
           <View
@@ -151,35 +159,19 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
                   <Pressable
                     onPress={() => router.push("/gestao/login")}
-                    style={{
-                      height: 34,
-                      borderRadius: radii.pill,
-                      paddingHorizontal: spacing.sm,
-                      backgroundColor: "rgba(255,255,255,0.10)",
-                      borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.14)",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                    hitSlop={8}
+                    style={({ pressed }) => [topChipStyle, pressed ? topChipPressedStyle : null]}
                   >
-                    <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                    <Text style={{ color: colors.textPrimary, fontSize: typography.small.fontSize }} weight="semibold">
                       Gestão
                     </Text>
                   </Pressable>
                   <Pressable
                     onPress={() => router.push("/professor/login")}
-                    style={{
-                      height: 34,
-                      borderRadius: radii.pill,
-                      paddingHorizontal: spacing.sm,
-                      backgroundColor: "rgba(255,255,255,0.10)",
-                      borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.14)",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                    hitSlop={8}
+                    style={({ pressed }) => [topChipStyle, pressed ? topChipPressedStyle : null]}
                   >
-                    <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                    <Text style={{ color: colors.textPrimary, fontSize: typography.small.fontSize }} weight="semibold">
                       Professores
                     </Text>
                   </Pressable>
@@ -187,18 +179,10 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
               ) : (
                 <Pressable
                   onPress={handleBack}
-                  style={{
-                    height: 34,
-                    borderRadius: radii.pill,
-                    paddingHorizontal: spacing.sm,
-                    backgroundColor: "rgba(255,255,255,0.10)",
-                    borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.14)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  hitSlop={8}
+                  style={({ pressed }) => [topChipStyle, pressed ? topChipPressedStyle : null]}
                 >
-                  <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                  <Text style={{ color: colors.textPrimary, fontSize: typography.small.fontSize }} weight="semibold">
                     ← Voltar
                   </Text>
                 </Pressable>
@@ -209,30 +193,22 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                   <Pressable
                     onPress={() => router.push("/admin/login")}
                     style={{
-                      height: 20,
+                      height: 18,
                       paddingHorizontal: 2,
-                      marginBottom: 4,
+                      marginBottom: spacing.xxs,
                       alignItems: "flex-end",
                       justifyContent: "center",
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.14)", fontSize: 10 }} weight="semibold">
+                    <Text style={{ color: "rgba(255,255,255,0.22)", fontSize: 10 }} weight="semibold">
                       admin
                     </Text>
                   </Pressable>
                 ) : null}
                 <Pressable
                   onPress={() => setMenuOpen((prev) => !prev)}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: radii.pill,
-                    borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.18)",
-                    backgroundColor: "rgba(255,255,255,0.08)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  hitSlop={8}
+                  style={({ pressed }) => [avatarButtonStyle, pressed ? avatarButtonPressedStyle : null]}
                 >
                   <AvatarWithFallback fullName={fullName} avatarUrl={avatarUrl} size={32} />
                 </Pressable>
@@ -244,8 +220,9 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                       minWidth: 132,
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: colors.surfacePanel,
+                      borderColor: colors.borderDefault,
+                      backgroundColor: colors.surfaceGlass,
+                      ...shallowPanelShadow,
                       overflow: "hidden",
                     }}
                   >
@@ -257,10 +234,10 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                             paddingHorizontal: spacing.sm,
                             paddingVertical: spacing.sm,
                             borderBottomWidth: 1,
-                            borderBottomColor: colors.borderSoft,
+                            borderBottomColor: colors.borderDefault,
                           }}
                         >
-                          <Text style={{ color: colors.white }} weight="semibold">
+                          <Text style={{ color: colors.textPrimary }} weight="semibold">
                             Perfil
                           </Text>
                         </Pressable>
@@ -270,7 +247,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                           }}
                           style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm }}
                         >
-                          <Text style={{ color: "rgba(255,255,255,0.92)" }} weight="semibold">
+                          <Text style={{ color: colors.textSecondary }} weight="semibold">
                             Sair
                           </Text>
                         </Pressable>
@@ -283,7 +260,7 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
                         }}
                         style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm }}
                       >
-                        <Text style={{ color: colors.white }} weight="semibold">
+                        <Text style={{ color: colors.textPrimary }} weight="semibold">
                           Entrar
                         </Text>
                       </Pressable>
@@ -299,3 +276,94 @@ export default function StitchScreenFrame({ children, maxWidth = 430 }: Props) {
     </LinearGradient>
   );
 }
+
+const depthBackgroundStyle = {
+  ...StyleSheet.absoluteFillObject,
+  overflow: "hidden" as const,
+};
+
+const depthOrbTopStyle = {
+  position: "absolute" as const,
+  top: -120,
+  right: -80,
+  width: 300,
+  height: 300,
+  borderRadius: 300,
+  backgroundColor: "rgba(255,199,0,0.10)",
+};
+
+const depthOrbCenterStyle = {
+  position: "absolute" as const,
+  top: 220,
+  left: -120,
+  width: 320,
+  height: 320,
+  borderRadius: 320,
+  backgroundColor: "rgba(59,130,246,0.10)",
+};
+
+const depthOrbBottomStyle = {
+  position: "absolute" as const,
+  bottom: -140,
+  right: -100,
+  width: 330,
+  height: 330,
+  borderRadius: 330,
+  backgroundColor: "rgba(120,111,255,0.09)",
+};
+
+const logoPlateStyle = {
+  width: 102,
+  height: 102,
+  borderRadius: radii.xxl,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.12)",
+  backgroundColor: "rgba(255,255,255,0.03)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  shadowColor: "#020617",
+  shadowOpacity: 0.36,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 8,
+};
+
+const topChipStyle = {
+  minHeight: 36,
+  borderRadius: radii.pill,
+  paddingHorizontal: spacing.sm,
+  backgroundColor: "rgba(255,255,255,0.08)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.18)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
+
+const topChipPressedStyle = {
+  backgroundColor: "rgba(255,255,255,0.16)",
+  transform: [{ scale: 0.98 }],
+};
+
+const avatarButtonStyle = {
+  width: 38,
+  height: 38,
+  borderRadius: radii.pill,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.24)",
+  backgroundColor: "rgba(255,255,255,0.10)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
+
+const avatarButtonPressedStyle = {
+  backgroundColor: "rgba(255,255,255,0.16)",
+  transform: [{ scale: 0.98 }],
+};
+
+const shallowPanelShadow = {
+  shadowColor: "#020617",
+  shadowOpacity: 0.28,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 6,
+};
