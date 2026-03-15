@@ -18,7 +18,7 @@ begin
   select coalesce(lower(role), 'student')
     into v_actor_role
   from public.profiles
-  where id = auth.uid();
+  where profiles.id = auth.uid();
 
   if v_actor_role not in ('teacher', 'coord', 'gestao', 'admin') then
     raise exception 'Apenas professor, coordenação, gestão e admin podem listar e-mails de destinatários.';
