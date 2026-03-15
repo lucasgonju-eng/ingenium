@@ -627,7 +627,7 @@ export async function sendStudentBroadcastEmail(input: {
     bodyA: emailNudgeText,
     bodyB: "",
     bodyC: "Equipe InGenium Einstein",
-    cta: "Acesse o InGenium para acompanhar seus recados.",
+    cta: "Acesse o InGenium: https://ingenium.einsteinhub.co",
   };
 
   async function request(endpoint: string) {

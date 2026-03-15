@@ -202,6 +202,7 @@ $bodyA = trim((string) ($payload["bodyA"] ?? "A partir de agora, a contagem de X
 $bodyB = trim((string) ($payload["bodyB"] ?? "Cada atividade conta: participação, desafios e evolução na plataforma somam pontos e aproximam você do topo."));
 $bodyC = trim((string) ($payload["bodyC"] ?? "Seu progresso começou. Sua premiação também."));
 $cta = trim((string) ($payload["cta"] ?? "Acesse agora: ingenium.einsteinhub.co"));
+$ctaUrl = trim((string) ($payload["ctaUrl"] ?? "https://ingenium.einsteinhub.co"));
 
 $configPath = __DIR__ . "/smtp-config.json";
 if (!is_file($configPath)) {
@@ -276,7 +277,9 @@ foreach ($recipients as $recipient) {
       <p style='margin:0 0 12px 0;'>$bodyA</p>
       <p style='margin:0 0 12px 0;'>$bodyB</p>
       <p style='margin:0 0 12px 0;'><strong>$bodyC</strong></p>
-      <p style='margin:0 0 12px 0;color:#facc15;'>$cta</p>
+      <p style='margin:0 0 12px 0;'>
+        <a href='$ctaUrl' style='color:#facc15;text-decoration:none;font-weight:700;'>$cta</a>
+      </p>
       <p style='margin:0;color:#cbd5e1;'>Equipe InGenium</p>
     </div>
   </div>";

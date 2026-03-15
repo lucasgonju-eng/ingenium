@@ -263,6 +263,11 @@ foreach ($recipients as $recipient) {
       <p style='margin:0 0 10px 0;'>Olá, {$safeName}.</p>
       <p style='margin:0 0 12px 0;'><strong>{$safeTitle}</strong></p>
       <p style='margin:0 0 12px 0;'>{$safeMessage}</p>
+      <p style='margin:0 0 12px 0;'>
+        <a href='https://ingenium.einsteinhub.co' style='color:#facc15;text-decoration:none;font-weight:700;'>
+          Acesse o InGenium: ingenium.einsteinhub.co
+        </a>
+      </p>
       <p style='margin:0;color:#cbd5e1;'>Equipe InGenium</p>
     </div>
   </div>";
