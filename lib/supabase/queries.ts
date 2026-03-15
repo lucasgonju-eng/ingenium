@@ -644,25 +644,38 @@ export async function sendStudentBroadcastEmail(input: {
     return { response, parsed, text };
   }
 
-  let firstAttempt = await request(preferredEndpoint);
-  if (!firstAttempt.response.ok || firstAttempt.parsed.ok === false) {
-    firstAttempt = await request(fallbackEndpoint);
+  function isSuccessfulResponse(payload: {
+    response: Response;
+    parsed: Record<string, unknown>;
+  }) {
+    return (
+      payload.response.ok &&
+      payload.parsed.ok === true &&
+      typeof payload.parsed.sent === "number" &&
+      typeof payload.parsed.failed === "number"
+    );
   }
 
-  if (!firstAttempt.response.ok || firstAttempt.parsed.ok === false) {
+  let finalAttempt = await request(preferredEndpoint);
+  const shouldTryFallback = !isSuccessfulResponse(finalAttempt) && fallbackEndpoint !== preferredEndpoint;
+  if (shouldTryFallback) {
+    finalAttempt = await request(fallbackEndpoint);
+  }
+
+  if (!isSuccessfulResponse(finalAttempt)) {
     const errMessage =
-      String(firstAttempt.parsed.error ?? "").trim() ||
-      firstAttempt.text.slice(0, 180) ||
-      `Falha ao enviar e-mails (${firstAttempt.response.status}).`;
+      String(finalAttempt.parsed.error ?? "").trim() ||
+      finalAttempt.text.slice(0, 180) ||
+      `Falha ao enviar e-mails (${finalAttempt.response.status}).`;
     throw new Error(errMessage);
   }
 
   return {
-    total: Number(firstAttempt.parsed.total ?? cleanedRecipients.length),
-    sent: Number(firstAttempt.parsed.sent ?? cleanedRecipients.length),
-    failed: Number(firstAttempt.parsed.failed ?? 0),
-    errors: Array.isArray(firstAttempt.parsed.errors)
-      ? (firstAttempt.parsed.errors as Array<{ email: string; error: string }>)
+    total: Number(finalAttempt.parsed.total ?? cleanedRecipients.length),
+    sent: Number(finalAttempt.parsed.sent ?? cleanedRecipients.length),
+    failed: Number(finalAttempt.parsed.failed ?? 0),
+    errors: Array.isArray(finalAttempt.parsed.errors)
+      ? (finalAttempt.parsed.errors as Array<{ email: string; error: string }>)
       : [],
   };
 }
