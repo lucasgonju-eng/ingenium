@@ -240,7 +240,7 @@ begin
     'game_teste_dos_lobos',
     auth.uid(),
     now()::date,
-    greatest(1, least(p_attempt_number, 3)),
+    greatest(1, least(p_attempt_number, 8)),
     now(),
     now(),
     'completed',
@@ -259,6 +259,83 @@ $$;
 
 revoke all on function public.upsert_wolf_attempt_result(int, int, int, int, int, jsonb) from public;
 grant execute on function public.upsert_wolf_attempt_result(int, int, int, int, int, jsonb) to authenticated, service_role;
+
+create or replace function public.get_wolf_attempt_gate()
+returns table (
+  is_plan_pro boolean,
+  plan_tier text,
+  attempts_per_day_base int,
+  attempts_per_day_effective int,
+  attempts_used_today int,
+  attempts_remaining int,
+  cooldown_minutes int,
+  latest_attempt_finished_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cfg record;
+  v_profile jsonb;
+  v_is_plan_pro boolean := false;
+  v_plan_tier text := 'free';
+  v_attempts_used int := 0;
+  v_latest_finished_at timestamptz := null;
+  v_base int := 4;
+  v_effective int := 4;
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  select c.attempts_per_day, c.cooldown_minutes
+    into v_cfg
+  from public.game_configs c
+  where c.game_id = 'game_teste_dos_lobos'
+  order by c.created_at desc
+  limit 1;
+
+  if found then
+    v_base := greatest(1, coalesce(v_cfg.attempts_per_day, 4));
+  end if;
+
+  select to_jsonb(p)
+    into v_profile
+  from public.profiles p
+  where p.id = auth.uid();
+
+  v_plan_tier := lower(coalesce(v_profile ->> 'plan_tier', 'free'));
+  v_is_plan_pro := coalesce((v_profile ->> 'plan_pro_active')::boolean, false) or v_plan_tier = 'pro';
+  v_effective := case when v_is_plan_pro then v_base * 2 else v_base end;
+
+  select
+    count(*)::int,
+    max(a.completed_at)
+  into
+    v_attempts_used,
+    v_latest_finished_at
+  from public.game_attempts a
+  where a.game_id = 'game_teste_dos_lobos'
+    and a.user_id = auth.uid()
+    and a.attempt_date = now()::date
+    and a.status = 'completed';
+
+  return query
+  select
+    v_is_plan_pro,
+    case when v_is_plan_pro then 'pro' else 'free' end as plan_tier,
+    v_base as attempts_per_day_base,
+    v_effective as attempts_per_day_effective,
+    v_attempts_used as attempts_used_today,
+    greatest(0, v_effective - v_attempts_used) as attempts_remaining,
+    coalesce(v_cfg.cooldown_minutes, 10)::int as cooldown_minutes,
+    v_latest_finished_at as latest_attempt_finished_at;
+end;
+$$;
+
+revoke all on function public.get_wolf_attempt_gate() from public;
+grant execute on function public.get_wolf_attempt_gate() to authenticated, service_role;
 
 commit;
 

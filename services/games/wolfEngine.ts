@@ -22,6 +22,8 @@ export function getWolfBaseXpByHits(hits: number): number {
 
 export function calculateWolfAttemptXp(input: { hits: number; streakDays: number; xpAlreadyAwardedToday: number }) {
   const xpBase = getWolfBaseXpByHits(input.hits);
+  const xpParticipationBonus = Math.min(xpBase, getWolfBaseXpByHits(0));
+  const xpPerformance = Math.max(0, xpBase - xpParticipationBonus);
   const xpStreakBonus = getWolfStreakBonus(input.streakDays);
   const desiredXp = xpBase + xpStreakBonus;
   const remainingToCap = Math.max(0, WOLF_DAILY_XP_CAP - Math.max(0, input.xpAlreadyAwardedToday));
@@ -29,6 +31,8 @@ export function calculateWolfAttemptXp(input: { hits: number; streakDays: number
 
   return {
     xpBase,
+    xpParticipationBonus,
+    xpPerformance,
     xpStreakBonus,
     xpAwarded,
     capped: xpAwarded < desiredXp,
@@ -112,7 +116,7 @@ export function canStartWolfAttempt(input: {
   if (remaining <= 0) {
     return {
       canStart: false,
-      reason: "Você já utilizou as 3 tentativas de hoje.",
+      reason: `Você já utilizou as ${input.attemptsPerDay} tentativas de hoje.`,
       nextAvailableAt: null,
       attemptsRemaining: 0,
     };

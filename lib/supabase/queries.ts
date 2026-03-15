@@ -171,6 +171,12 @@ export type StudentEmailRecipientRow = {
   email: string | null;
 };
 
+export type MyPlanProStatus = {
+  isPlanPro: boolean;
+  planTier: "free" | "pro";
+  source: "profile" | "metadata" | "fallback";
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -461,6 +467,53 @@ export async function fetchMyProfile(userIdOverride?: string) {
 
   if (error) throw error;
   return (data ?? null) as ProfileRow | null;
+}
+
+export async function fetchMyPlanProStatus(): Promise<MyPlanProStatus> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const profileResult = await supabase
+    .from("profiles")
+    .select("plan_tier,plan_pro_active")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profileResult.error) {
+    const row = (profileResult.data ?? {}) as { plan_tier?: string | null; plan_pro_active?: boolean | null };
+    const planTierRaw = String(row.plan_tier ?? "free").trim().toLowerCase();
+    const isPlanPro = Boolean(row.plan_pro_active) || planTierRaw === "pro";
+    return {
+      isPlanPro,
+      planTier: isPlanPro ? "pro" : "free",
+      source: "profile",
+    };
+  }
+
+  const metadataTier = String(user.user_metadata?.plan_tier ?? "").trim().toLowerCase();
+  const metadataIsPro =
+    metadataTier === "pro" ||
+    metadataTier === "planopro" ||
+    metadataTier === "plano_pro" ||
+    Boolean(user.user_metadata?.plan_pro_active);
+
+  if (metadataIsPro) {
+    return {
+      isPlanPro: true,
+      planTier: "pro",
+      source: "metadata",
+    };
+  }
+
+  return {
+    isPlanPro: false,
+    planTier: "free",
+    source: "fallback",
+  };
 }
 
 export async function fetchMyStudentMessages(limit = 30) {
@@ -1726,6 +1779,35 @@ export async function upsertWolfAttemptResultRpc(input: {
   });
   if (error) throw error;
   return String(data ?? "");
+}
+
+export type WolfAttemptGateSnapshot = {
+  is_plan_pro: boolean;
+  plan_tier: string;
+  attempts_per_day_base: number;
+  attempts_per_day_effective: number;
+  attempts_used_today: number;
+  attempts_remaining: number;
+  cooldown_minutes: number;
+  latest_attempt_finished_at: string | null;
+};
+
+export async function fetchWolfAttemptGateRpc(): Promise<WolfAttemptGateSnapshot | null> {
+  const { data, error } = await supabase.rpc("get_wolf_attempt_gate");
+  if (error) throw error;
+  const first = Array.isArray(data) ? data[0] : null;
+  if (!first || typeof first !== "object") return null;
+  const row = first as Record<string, unknown>;
+  return {
+    is_plan_pro: Boolean(row.is_plan_pro),
+    plan_tier: String(row.plan_tier ?? "free"),
+    attempts_per_day_base: Number(row.attempts_per_day_base ?? 4),
+    attempts_per_day_effective: Number(row.attempts_per_day_effective ?? 4),
+    attempts_used_today: Number(row.attempts_used_today ?? 0),
+    attempts_remaining: Number(row.attempts_remaining ?? 0),
+    cooldown_minutes: Number(row.cooldown_minutes ?? 10),
+    latest_attempt_finished_at: row.latest_attempt_finished_at ? String(row.latest_attempt_finished_at) : null,
+  };
 }
 
 export type WolfBankQuestionRow = {

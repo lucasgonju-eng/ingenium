@@ -43,7 +43,7 @@ export const wolfTimersByBand: WolfTimerConfigByBand = {
 };
 
 export const wolfAttemptsConfig: WolfAttemptsConfig = {
-  attemptsPerDay: 3,
+  attemptsPerDay: 4,
   cooldownMinutes: 10,
 };
 

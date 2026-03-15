@@ -10,8 +10,10 @@ import { supabase } from "../../lib/supabase/client";
 import {
   fetchMessageRecipientsForSender,
   fetchMyAccessRole,
+  fetchMyPlanProStatus,
   fetchMyProfile,
   sendStudentMessage,
+  type MyPlanProStatus,
   type MessageRecipientRow,
   type MyAccessRole,
   upsertMyProfile,
@@ -112,6 +114,11 @@ export default function PerfilScreen() {
   const [className, setClassName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [accessRole, setAccessRole] = useState<MyAccessRole>(null);
+  const [planStatus, setPlanStatus] = useState<MyPlanProStatus>({
+    isPlanPro: false,
+    planTier: "free",
+    source: "fallback",
+  });
   const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
@@ -127,10 +134,11 @@ export default function PerfilScreen() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const [{ data: userData }, profile, accessRole] = await Promise.all([
+      const [{ data: userData }, profile, accessRole, myPlanStatus] = await Promise.all([
         supabase.auth.getUser(),
         fetchMyProfile(),
         fetchMyAccessRole(),
+        fetchMyPlanProStatus().catch(() => ({ isPlanPro: false, planTier: "free" as const, source: "fallback" as const })),
       ]);
       const metadata = userData.user?.user_metadata ?? {};
       setUserId(userData.user?.id ?? null);
@@ -145,6 +153,7 @@ export default function PerfilScreen() {
       setClassName(profile?.class_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
       setAccessRole(accessRole);
+      setPlanStatus(myPlanStatus);
       setIsAdminAccount(accessRole === "admin" || accessRole === "coord");
       if (accessRole === "teacher" || accessRole === "coord" || accessRole === "gestao" || accessRole === "admin") {
         const recipients = await fetchMessageRecipientsForSender().catch(() => []);
@@ -443,10 +452,29 @@ export default function PerfilScreen() {
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Perfil" subtitle="Configurações e conta" variant="feed" />
+          <StitchHeader title={planStatus.isPlanPro ? "Perfil Pro" : "Perfil"} subtitle="Configurações e conta" variant="feed" />
         </View>
 
         <View style={{ paddingHorizontal: spacing.md }}>
+          {planStatus.isPlanPro ? (
+            <View
+              style={{
+                marginTop: spacing.md,
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.55)",
+                backgroundColor: "rgba(255,199,0,0.10)",
+                padding: spacing.md,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.subtitle.fontSize }} weight="bold">
+                Vantagens do Perfil Pro
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.9)", marginTop: spacing.xs, lineHeight: 20 }}>
+                8 rodadas diárias no Teste dos Lobos, benefícios exclusivos e prioridade no acesso a novidades da plataforma.
+              </Text>
+            </View>
+          ) : null}
           <View
             style={{
               marginTop: spacing.md,

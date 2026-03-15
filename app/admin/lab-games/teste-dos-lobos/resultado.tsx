@@ -14,6 +14,13 @@ export default function AdminWolfResultScreen() {
   const params = useLocalSearchParams<{
     hits?: string;
     xpAwarded?: string;
+    xpBase?: string;
+    xpPerformance?: string;
+    xpParticipationBonus?: string;
+    xpStreakBonus?: string;
+    xpTodayTotal?: string;
+    attemptsUsedToday?: string;
+    attemptsPerDay?: string;
     bestAttemptHits?: string;
     streakDays?: string;
     grade?: string;
@@ -22,6 +29,13 @@ export default function AdminWolfResultScreen() {
 
   const hits = Number(params.hits ?? 0);
   const xpAwarded = Number(params.xpAwarded ?? 0);
+  const xpBase = Number(params.xpBase ?? 0);
+  const xpPerformance = Number(params.xpPerformance ?? 0);
+  const xpParticipationBonus = Number(params.xpParticipationBonus ?? 0);
+  const xpStreakBonus = Number(params.xpStreakBonus ?? 0);
+  const xpTodayTotal = Number(params.xpTodayTotal ?? xpAwarded);
+  const attemptsUsedToday = Number(params.attemptsUsedToday ?? 1);
+  const attemptsPerDay = Number(params.attemptsPerDay ?? 4);
   const bestAttemptHits = Number(params.bestAttemptHits ?? hits);
   const streakDays = Number(params.streakDays ?? 0);
   const grade = params.grade ?? "8º Ano";
@@ -57,6 +71,13 @@ export default function AdminWolfResultScreen() {
           <WolfResultCard
             hits={hits}
             xpAwarded={xpAwarded}
+            xpBase={xpBase}
+            xpPerformance={xpPerformance}
+            xpParticipationBonus={xpParticipationBonus}
+            xpStreakBonus={xpStreakBonus}
+            xpTodayTotal={xpTodayTotal}
+            attemptsUsedToday={attemptsUsedToday}
+            attemptsPerDay={attemptsPerDay}
             bestAttemptHits={bestAttemptHits}
             streakDays={streakDays}
             percentileMessage={percentileSnapshot.message}

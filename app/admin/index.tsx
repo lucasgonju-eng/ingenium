@@ -241,7 +241,7 @@ export default function AdminDashboardScreen() {
   const [labGamesLoading, setLabGamesLoading] = useState(false);
   const [labGames, setLabGames] = useState<LabGameListItem[]>([]);
   const [wolfConfigSummary, setWolfConfigSummary] = useState({
-    attemptsPerDay: 3,
+    attemptsPerDay: 4,
     cooldownMinutes: 10,
     dailyXpCap: 25,
   });

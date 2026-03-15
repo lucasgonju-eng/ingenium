@@ -14,7 +14,7 @@ import { useWolfSfx } from "../../../hooks/games/useWolfSfx";
 import { buildWolfQuestionSetFromBankWithFallback } from "../../../services/games/wolfQuestionBankService";
 import { canStartWolfAttempt } from "../../../services/games/wolfEngine";
 import { supabase } from "../../../lib/supabase/client";
-import { fetchMyAccessRole } from "../../../lib/supabase/queries";
+import { fetchMyAccessRole, fetchWolfAttemptGateRpc, upsertWolfAttemptResultRpc } from "../../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
 import type { WolfGrade, WolfPhaseCategory } from "../../../types/games/wolf";
 
@@ -49,6 +49,9 @@ export default function AdminWolfGameScreen() {
   const [guardLoading, setGuardLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [attemptsUsedToday, setAttemptsUsedToday] = useState(0);
+  const [xpAwardedToday, setXpAwardedToday] = useState(0);
+  const [attemptsPerDayEffective, setAttemptsPerDayEffective] = useState(wolfAttemptsConfig.attemptsPerDay);
+  const [latestAttemptFinishedAtIso, setLatestAttemptFinishedAtIso] = useState<string | null>(null);
   const [bestAttemptHits, setBestAttemptHits] = useState(0);
   const [streakDays, setStreakDays] = useState(4);
   const [selectedGradePreference, setSelectedGradePreference] = useState<GradePreference>("random");
@@ -65,7 +68,7 @@ export default function AdminWolfGameScreen() {
   const session = useWolfSession({
     grade,
     streakDays,
-    xpAlreadyAwardedToday: 0,
+    xpAlreadyAwardedToday: xpAwardedToday,
     timeBufferSeconds: ADMIN_TIME_BUFFER_SECONDS,
     buildQuestions: async (targetGrade) => {
       const runSessionKey = `wolf-${Date.now()}-${targetGrade}`;
@@ -78,6 +81,17 @@ export default function AdminWolfGameScreen() {
 
   useEffect(() => {
     let mounted = true;
+    async function loadGateSnapshot() {
+      try {
+        const gate = await fetchWolfAttemptGateRpc();
+        if (!mounted || !gate) return;
+        setAttemptsUsedToday(gate.attempts_used_today);
+        setAttemptsPerDayEffective(gate.attempts_per_day_effective);
+        setLatestAttemptFinishedAtIso(gate.latest_attempt_finished_at);
+      } catch {
+        // fallback local para ambiente sem migração aplicada
+      }
+    }
     async function guard() {
       try {
         const {
@@ -94,6 +108,7 @@ export default function AdminWolfGameScreen() {
           return;
         }
         setAllowed(true);
+        await loadGateSnapshot();
       } catch {
         if (mounted) setAllowed(false);
       } finally {
@@ -203,37 +218,77 @@ export default function AdminWolfGameScreen() {
     () =>
       canStartWolfAttempt({
         attemptsUsedToday,
-        attemptsPerDay: wolfAttemptsConfig.attemptsPerDay,
+        attemptsPerDay: attemptsPerDayEffective,
         cooldownMinutes: wolfAttemptsConfig.cooldownMinutes,
         nowIso: new Date().toISOString(),
-        latestAttemptFinishedAtIso: null,
+        latestAttemptFinishedAtIso,
       }),
-    [attemptsUsedToday],
+    [attemptsUsedToday, attemptsPerDayEffective, latestAttemptFinishedAtIso],
   );
 
   const currentMaxSeconds = session.currentQuestionTimeLimit;
 
   useEffect(() => {
     if (session.stage !== "completed") return;
+    let mounted = true;
+    async function finalizeAttempt() {
     const finalHits = session.hits;
+    const nextAttemptsUsedToday = attemptsUsedToday + 1;
+    const nextXpAwardedToday = xpAwardedToday + session.xpAwarded;
+    const nextStreakDays = streakDays + 1;
     setBestAttemptHits((prev) => Math.max(prev, finalHits));
-    setAttemptsUsedToday((prev) => prev + 1);
-    setStreakDays((prev) => prev + 1);
+    setAttemptsUsedToday(nextAttemptsUsedToday);
+    setXpAwardedToday(nextXpAwardedToday);
+    setStreakDays(nextStreakDays);
+    setLatestAttemptFinishedAtIso(new Date().toISOString());
 
     const message = wolfInspirationalMessages[finalHits % wolfInspirationalMessages.length] ?? wolfInspirationalMessages[0];
+    try {
+      await upsertWolfAttemptResultRpc({
+        attemptNumber: nextAttemptsUsedToday,
+        hits: finalHits,
+        xpBase: session.xpBase,
+        xpStreakBonus: session.xpStreakBonus,
+        xpAwarded: session.xpAwarded,
+        metadata: {
+          grade: session.activeGrade,
+          source: session.questionSource ?? "mock",
+        },
+      });
+      const gate = await fetchWolfAttemptGateRpc();
+      if (mounted && gate) {
+        setAttemptsUsedToday(gate.attempts_used_today);
+        setAttemptsPerDayEffective(gate.attempts_per_day_effective);
+        setLatestAttemptFinishedAtIso(gate.latest_attempt_finished_at);
+      }
+    } catch {
+      // mantém fallback local para ambiente sem RPC/migração.
+    }
 
     router.replace({
       pathname: "/admin/lab-games/teste-dos-lobos/resultado",
       params: {
         hits: String(finalHits),
         xpAwarded: String(session.xpAwarded),
+        xpBase: String(session.xpBase),
+        xpPerformance: String(session.xpPerformance),
+        xpParticipationBonus: String(session.xpParticipationBonus),
+        xpStreakBonus: String(session.xpStreakBonus),
+        xpTodayTotal: String(nextXpAwardedToday),
+        attemptsUsedToday: String(nextAttemptsUsedToday),
+        attemptsPerDay: String(attemptsPerDayEffective),
         bestAttemptHits: String(Math.max(bestAttemptHits, finalHits)),
-        streakDays: String(streakDays + 1),
+        streakDays: String(nextStreakDays),
         grade: session.activeGrade,
         inspiration: message,
       },
     });
-  }, [session.stage]);
+    }
+    void finalizeAttempt();
+    return () => {
+      mounted = false;
+    };
+  }, [session.stage, attemptsUsedToday, xpAwardedToday, streakDays, bestAttemptHits, attemptsPerDayEffective, session.hits, session.xpAwarded, session.xpBase, session.xpPerformance, session.xpParticipationBonus, session.xpStreakBonus, session.activeGrade, session.questionSource]);
 
   function handleGoNext() {
     const isLastQuestion = session.phaseIndex + 1 >= session.questions.length;

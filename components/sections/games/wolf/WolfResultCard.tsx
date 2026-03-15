@@ -6,6 +6,13 @@ import { Text } from "../../../ui/Text";
 type Props = {
   hits: number;
   xpAwarded: number;
+  xpBase: number;
+  xpPerformance: number;
+  xpParticipationBonus: number;
+  xpStreakBonus: number;
+  xpTodayTotal: number;
+  attemptsUsedToday: number;
+  attemptsPerDay: number;
   bestAttemptHits: number;
   streakDays: number;
   percentileMessage: string;
@@ -17,6 +24,13 @@ type Props = {
 export default function WolfResultCard({
   hits,
   xpAwarded,
+  xpBase,
+  xpPerformance,
+  xpParticipationBonus,
+  xpStreakBonus,
+  xpTodayTotal,
+  attemptsUsedToday,
+  attemptsPerDay,
   bestAttemptHits,
   streakDays,
   percentileMessage,
@@ -46,9 +60,25 @@ export default function WolfResultCard({
 
       <View style={metricsGridStyle}>
         <MetricCard label="XP ganho" value={`${xpAwarded}`} />
+        <MetricCard label="XP base" value={`${xpBase}`} />
         <MetricCard label="Melhor do dia" value={`${bestAttemptHits}/4`} />
         <MetricCard label="Streak" value={`${streakDays} dias`} />
         <MetricCard label="Percentil" value={extractPercentile(percentileMessage)} />
+      </View>
+
+      <View style={xpSummaryBoxStyle}>
+        <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.25 }} weight="bold">
+          RESUMO CLARO DE XP
+        </Text>
+        <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
+          Participação: +{xpParticipationBonus} XP · Desempenho: +{xpPerformance} XP · Streak: +{xpStreakBonus} XP
+        </Text>
+        <Text style={{ color: colors.textPrimary, marginTop: spacing.xs }} weight="bold">
+          Total da rodada: +{xpAwarded} XP
+        </Text>
+        <Text style={{ color: colors.textSecondary, marginTop: 2 }}>
+          XP acumulado hoje: {xpTodayTotal} · Rodadas usadas: {attemptsUsedToday}/{attemptsPerDay}
+        </Text>
       </View>
 
       <View style={highlightBoxStyle}>
@@ -140,11 +170,20 @@ const metricCardStyle = {
 };
 
 const highlightBoxStyle = {
-  marginTop: spacing.sm,
+  marginTop: spacing.xs,
   borderRadius: radii.md,
   borderWidth: 1,
   borderColor: "rgba(255,255,255,0.12)",
   backgroundColor: "rgba(255,255,255,0.03)",
+  padding: spacing.sm,
+};
+
+const xpSummaryBoxStyle = {
+  marginTop: spacing.sm,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderGoldSoft,
+  backgroundColor: "rgba(255,199,0,0.08)",
   padding: spacing.sm,
 };
 

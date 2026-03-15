@@ -25,7 +25,7 @@ create table if not exists public.game_configs (
   id uuid primary key default gen_random_uuid(),
   game_id text not null references public.games(id) on delete cascade,
   version text not null default 'v1',
-  attempts_per_day int not null default 3,
+  attempts_per_day int not null default 4,
   cooldown_minutes int not null default 10,
   daily_xp_cap int not null default 25,
   xp_base_by_hits jsonb not null default '{"0":2,"1":5,"2":10,"3":15,"4":20}'::jsonb,
@@ -59,7 +59,7 @@ create table if not exists public.game_attempts (
   game_id text not null references public.games(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   attempt_date date not null default (now()::date),
-  attempt_number int not null check (attempt_number between 1 and 3),
+  attempt_number int not null check (attempt_number between 1 and 8),
   started_at timestamptz not null default now(),
   completed_at timestamptz null,
   status text not null default 'started' check (status in ('started', 'completed', 'abandoned')),
@@ -202,7 +202,7 @@ insert into public.game_configs (game_id, version, attempts_per_day, cooldown_mi
 values (
   'game_teste_dos_lobos',
   'v1',
-  3,
+  4,
   10,
   25,
   jsonb_build_object(

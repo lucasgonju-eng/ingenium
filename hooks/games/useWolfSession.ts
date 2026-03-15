@@ -201,6 +201,8 @@ export function useWolfSession(input: {
     answers,
     hits,
     xpBase: xpCalc.xpBase,
+    xpParticipationBonus: xpCalc.xpParticipationBonus,
+    xpPerformance: xpCalc.xpPerformance,
     xpStreakBonus: xpCalc.xpStreakBonus,
     xpAwarded: xpCalc.xpAwarded,
     resetSession,

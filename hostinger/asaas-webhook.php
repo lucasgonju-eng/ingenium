@@ -373,6 +373,20 @@ function supabase_points_snapshot(string $supabaseUrl, string $serviceRoleKey, s
   ];
 }
 
+function supabase_mark_plan_pro_active(string $supabaseUrl, string $serviceRoleKey, string $userId, string $source): bool {
+  if ($supabaseUrl === "" || $serviceRoleKey === "" || $userId === "") return false;
+  $patchUrl = rtrim($supabaseUrl, "/") . "/rest/v1/profiles?id=eq." . rawurlencode($userId);
+  $payload = [
+    "plan_tier" => "pro",
+    "plan_pro_active" => true,
+    "plan_pro_since" => gmdate("c"),
+    "plan_pro_source" => $source,
+    "updated_at" => gmdate("c"),
+  ];
+  $result = supabase_request("PATCH", $patchUrl, $serviceRoleKey, $payload);
+  return $result["ok"];
+}
+
 function extract_uuid_from_external_reference(string $externalReference): string {
   if ($externalReference === "") return "";
   if (preg_match('/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i', $externalReference, $m) === 1) {
@@ -617,6 +631,15 @@ if ($isPaid && $paymentId !== "") {
               "paymentId" => $paymentId,
               "profileId" => $profileId,
               "step" => "profile_ensure_failed",
+            ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+          }
+          $markedPlanPro = supabase_mark_plan_pro_active($supabaseUrl, $supabaseServiceRoleKey, $profileId, "asaas_webhook_2026");
+          if (!$markedPlanPro) {
+            @file_put_contents($logDir . "/asaas-webhook-errors.log", json_encode([
+              "at" => gmdate("c"),
+              "paymentId" => $paymentId,
+              "profileId" => $profileId,
+              "step" => "plan_pro_profile_update_failed",
             ], JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
           }
 
