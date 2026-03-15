@@ -28,6 +28,8 @@ export default function TabsLayout() {
           let glyph = "•";
           if (route.name === "dashboard") {
             glyph = "⌂";
+          } else if (route.name === "mensagens") {
+            glyph = "✉";
           } else if (route.name === "olimpiadas") {
             glyph = "🏆";
           } else if (route.name === "planos") {
@@ -37,7 +39,7 @@ export default function TabsLayout() {
           } else if (route.name === "ranking") {
             glyph = "◔";
           } else if (route.name === "mural") {
-            glyph = "✉";
+            glyph = "◌";
           } else if (route.name === "perfil") {
             glyph = "◉";
           } else if (route.name === "feed") {
@@ -52,6 +54,7 @@ export default function TabsLayout() {
       })}
     >
       <Tabs.Screen name="dashboard" options={{ title: "Início" }} />
+      <Tabs.Screen name="mensagens" options={{ title: "Mensagens" }} />
       <Tabs.Screen name="olimpiadas" options={{ title: "Olimp." }} />
       <Tabs.Screen name="planos" options={{ title: "Planos" }} />
       <Tabs.Screen name="xps-conquitados" options={{ title: "XPs Conquitados" }} />

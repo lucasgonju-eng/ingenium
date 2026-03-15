@@ -194,15 +194,10 @@ if (!is_array($recipientsRaw) || count($recipientsRaw) === 0) {
   respond_json(400, ["ok" => false, "error" => "Lista de destinatários obrigatória."]);
 }
 
-$title = trim((string) ($payload["title"] ?? "Aviso InGenium Einstein"));
-$message = trim((string) ($payload["message"] ?? ""));
-$subject = trim((string) ($payload["subject"] ?? ("InGenium | " . $title)));
-if ($message === "") {
-  $message = trim((string) ($payload["bodyA"] ?? ""));
-}
-if ($message === "") {
-  respond_json(400, ["ok" => false, "error" => "Mensagem obrigatória para envio."]);
-}
+// O conteúdo do aviso permanece interno no app.
+$title = "Nova notificação no InGenium";
+$message = "Chegou uma notificação na sua Caixa de Mensagens do InGenium";
+$subject = "InGenium | Nova notificação na Caixa de Mensagens";
 
 $configPath = __DIR__ . "/smtp-config.json";
 if (!is_file($configPath)) {

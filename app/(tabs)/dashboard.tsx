@@ -292,7 +292,7 @@ export default function DashboardScreen() {
 
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
           <Pressable
-            onPress={() => router.push("/(tabs)/perfil")}
+            onPress={() => router.push("/(tabs)/mensagens")}
             style={{
               borderRadius: radii.md,
               borderWidth: 1,

@@ -613,16 +613,18 @@ export async function sendStudentBroadcastEmail(input: {
     process.env.EXPO_PUBLIC_STUDENT_BROADCAST_NOTIFY_URL ??
     `${normalizedBaseUrl}/student-message-broadcast-notify.php`;
   const fallbackEndpoint = `${normalizedBaseUrl}/student-xp-kickoff-notify.php`;
+  const emailNudgeText = "Chegou uma notificação na sua Caixa de Mensagens do InGenium";
 
   const payload = {
     recipients: cleanedRecipients,
-    title: input.title.trim(),
-    message: input.body.trim(),
-    subject: `InGenium | ${input.title.trim()}`,
+    // O conteúdo do aviso é interno ao app; e-mail deve sempre ser um nudge fixo.
+    title: "Nova notificação no InGenium",
+    message: emailNudgeText,
+    subject: "InGenium | Nova notificação na Caixa de Mensagens",
     // Compat com endpoint legado de campanha em massa.
     opening: "Olá!",
-    headline: input.title.trim(),
-    bodyA: input.body.trim(),
+    headline: "Nova mensagem para você",
+    bodyA: emailNudgeText,
     bodyB: "",
     bodyC: "Equipe InGenium Einstein",
     cta: "Acesse o InGenium para acompanhar seus recados.",
