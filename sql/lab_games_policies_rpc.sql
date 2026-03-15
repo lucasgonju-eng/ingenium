@@ -219,8 +219,31 @@ security definer
 set search_path = public
 as $$
 declare
+  v_uid uuid := auth.uid();
+  v_attempt_number int := greatest(1, least(p_attempt_number, 8));
+  v_hits int := greatest(0, least(p_hits, 4));
+  v_xp_awarded int := greatest(0, p_xp_awarded);
   v_attempt_id uuid;
+  v_xp_source_ref text;
 begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(format('wolf_attempt:%s:%s:%s', v_uid::text, now()::date::text, v_attempt_number::text)));
+
+  select a.id
+    into v_attempt_id
+  from public.game_attempts a
+  where a.game_id = 'game_teste_dos_lobos'
+    and a.user_id = v_uid
+    and a.attempt_date = now()::date
+    and a.attempt_number = v_attempt_number
+    and a.status = 'completed'
+  order by a.completed_at desc
+  limit 1;
+
+  if v_attempt_id is null then
   insert into public.game_attempts (
     game_id,
     user_id,
@@ -238,20 +261,49 @@ begin
   )
   values (
     'game_teste_dos_lobos',
-    auth.uid(),
+    v_uid,
     now()::date,
-    greatest(1, least(p_attempt_number, 8)),
+    v_attempt_number,
     now(),
     now(),
     'completed',
-    greatest(0, least(p_hits, 4)),
+    v_hits,
     4,
     greatest(0, p_xp_base),
     greatest(0, p_xp_streak_bonus),
-    greatest(0, p_xp_awarded),
+    v_xp_awarded,
     coalesce(p_metadata, '{}'::jsonb)
   )
   returning id into v_attempt_id;
+  end if;
+
+  v_xp_source_ref := format('wolf_attempt_%s', v_attempt_id::text);
+
+  if v_xp_awarded > 0 then
+    insert into public.xp_events (
+      user_id,
+      event_type,
+      xp_amount,
+      occurred_on,
+      source_ref,
+      note,
+      created_by
+    )
+    select
+      v_uid,
+      'wolf_game_attempt',
+      v_xp_awarded,
+      now()::date,
+      v_xp_source_ref,
+      format('Teste dos Lobos rodada %s: %s/4 acertos', v_attempt_number, v_hits),
+      v_uid
+    where not exists (
+      select 1
+      from public.xp_events e
+      where e.user_id = v_uid
+        and e.source_ref = v_xp_source_ref
+    );
+  end if;
 
   return v_attempt_id;
 end;
@@ -427,6 +479,23 @@ $$;
 
 revoke all on function public.get_wolf_weekly_ranking_student(int) from public;
 grant execute on function public.get_wolf_weekly_ranking_student(int) to authenticated, service_role;
+
+alter table public.xp_events
+  drop constraint if exists xp_events_event_type_check;
+
+alter table public.xp_events
+  add constraint xp_events_event_type_check
+  check (
+    event_type in (
+      'top10_school_simulado',
+      'weekly_study_group_75_presence',
+      'volunteer_mentorship_bronze',
+      'perfect_quarter_attendance',
+      'profile_photo_upload',
+      'complete_profile_data',
+      'wolf_game_attempt'
+    )
+  );
 
 commit;
 

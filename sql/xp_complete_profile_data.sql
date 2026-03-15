@@ -33,7 +33,8 @@ alter table public.xp_events
       'volunteer_mentorship_bronze',
       'perfect_quarter_attendance',
       'profile_photo_upload',
-      'complete_profile_data'
+      'complete_profile_data',
+      'wolf_game_attempt'
     )
   );
 

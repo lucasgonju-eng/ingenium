@@ -32,7 +32,8 @@ alter table public.xp_events
       'weekly_study_group_75_presence',
       'volunteer_mentorship_bronze',
       'perfect_quarter_attendance',
-      'profile_photo_upload'
+      'profile_photo_upload',
+      'wolf_game_attempt'
     )
   );
 
