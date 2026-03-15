@@ -27,6 +27,7 @@ export default function AdminMensagensScreen() {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const isWeb = Platform.OS === "web";
+  const frameMaxWidth = isWeb ? 1500 : 430;
 
   const selectedRecipient = recipients.find((item) => item.id === selectedRecipientId) ?? null;
   const filteredRecipients = useMemo(() => {
@@ -139,7 +140,7 @@ export default function AdminMensagensScreen() {
 
   if (loading) {
     return (
-      <StitchScreenFrame>
+      <StitchScreenFrame maxWidth={frameMaxWidth}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={colors.einsteinYellow} />
         </View>
@@ -149,7 +150,7 @@ export default function AdminMensagensScreen() {
 
   if (!authorized) {
     return (
-      <StitchScreenFrame>
+      <StitchScreenFrame maxWidth={frameMaxWidth}>
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.lg }}>
           <View style={blockedCardStyle}>
             <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
@@ -180,9 +181,9 @@ export default function AdminMensagensScreen() {
   }
 
   return (
-    <StitchScreenFrame>
+    <StitchScreenFrame maxWidth={frameMaxWidth}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ width: "100%", maxWidth: isWeb ? 1320 : undefined, alignSelf: "center" }}>
+        <View style={{ width: "100%", maxWidth: isWeb ? 1460 : undefined, alignSelf: "center" }}>
           <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
             <StitchHeader title="Mensagens Admin" subtitle="Caixa organizada por recebidas e enviadas" variant="feed" />
           </View>
@@ -271,8 +272,14 @@ export default function AdminMensagensScreen() {
               </View>
             </View>
 
+            <View style={[sectionCardStyle, { paddingBottom: spacing.sm }]}>
+              <Text style={{ color: "rgba(255,255,255,0.8)" }}>
+                Recebidas: {receivedMessages.length} • Enviadas: {sentMessages.length}
+              </Text>
+            </View>
+
             <View style={{ flexDirection: isWeb ? "row" : "column", gap: spacing.sm, alignItems: "stretch" }}>
-              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 420 } : null]}>
+              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 520 } : null]}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <Text style={{ color: colors.white }} weight="bold">
                     Recebidas {unreadReceivedCount > 0 ? `(${unreadReceivedCount} novas)` : ""}
@@ -283,7 +290,7 @@ export default function AdminMensagensScreen() {
                     </Text>
                   </Pressable>
                 </View>
-                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                <ScrollView style={{ marginTop: spacing.sm, maxHeight: isWeb ? 620 : undefined }} contentContainerStyle={{ gap: spacing.xs, paddingBottom: spacing.xs }}>
                   {receivedMessages.length === 0 ? (
                     <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens recebidas.</Text>
                   ) : (
@@ -327,14 +334,14 @@ export default function AdminMensagensScreen() {
                       </View>
                     ))
                   )}
-                </View>
+                </ScrollView>
               </View>
 
-              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 420 } : null]}>
+              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 520 } : null]}>
                 <Text style={{ color: colors.white }} weight="bold">
                   Enviadas
                 </Text>
-                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                <ScrollView style={{ marginTop: spacing.sm, maxHeight: isWeb ? 620 : undefined }} contentContainerStyle={{ gap: spacing.xs, paddingBottom: spacing.xs }}>
                   {sentMessages.length === 0 ? (
                     <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens enviadas.</Text>
                   ) : (
@@ -352,6 +359,9 @@ export default function AdminMensagensScreen() {
                         <Text style={{ color: colors.white }} weight="bold">
                           {message.title}
                         </Text>
+                        <Text style={{ color: "rgba(147,197,253,0.95)", marginTop: 2 }} weight="semibold">
+                          Você enviou
+                        </Text>
                         <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 4 }}>
                           Destinatário: {message.recipient_name ?? "Usuário"} ({message.recipient_role})
                         </Text>
@@ -362,7 +372,7 @@ export default function AdminMensagensScreen() {
                       </View>
                     ))
                   )}
-                </View>
+                </ScrollView>
               </View>
             </View>
           </View>

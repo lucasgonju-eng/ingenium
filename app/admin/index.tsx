@@ -266,6 +266,7 @@ export default function AdminDashboardScreen() {
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
   const isAdminWeb = Platform.OS === "web";
+  const frameMaxWidth = isAdminWeb ? 1500 : 430;
 
   const categoryCardStyles = {
     uso: {
@@ -1318,7 +1319,7 @@ export default function AdminDashboardScreen() {
   }
 
   return (
-    <StitchScreenFrame>
+    <StitchScreenFrame maxWidth={frameMaxWidth}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={{ width: "100%", maxWidth: isAdminWeb ? 1400 : undefined, alignSelf: "center" }}>
           <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
