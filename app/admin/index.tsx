@@ -1324,6 +1324,26 @@ export default function AdminDashboardScreen() {
         </View>
 
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+          {authorized ? (
+            <View style={{ marginBottom: spacing.xs }}>
+              <Pressable
+                onPress={() => router.push("/admin/mensagens")}
+                style={{
+                  minHeight: 42,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,199,0,0.45)",
+                  backgroundColor: "rgba(255,199,0,0.12)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                  Abrir Caixa de Mensagens do Admin
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
           <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
             {visibleTabs.map((tab) => {
               const active = activeTab === tab.key;
