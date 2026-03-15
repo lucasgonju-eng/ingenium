@@ -15,7 +15,7 @@ import { useWolfSfx } from "../../../hooks/games/useWolfSfx";
 import { buildWolfQuestionSetFromBankWithFallback } from "../../../services/games/wolfQuestionBankService";
 import { canStartWolfAttempt } from "../../../services/games/wolfEngine";
 import { supabase } from "../../../lib/supabase/client";
-import { fetchMyAccessRole, fetchWolfAttemptGateRpc, upsertWolfAttemptResultRpc } from "../../../lib/supabase/queries";
+import { fetchMyAccessRole, fetchWolfAttemptGateRpc, fetchWolfWeeklyRankingStudentRpc, upsertWolfAttemptResultRpc, WolfWeeklyRankingRow } from "../../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
 import type { WolfGrade, WolfPhaseCategory } from "../../../types/games/wolf";
 
@@ -63,6 +63,8 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
   const [rulesLoading, setRulesLoading] = useState(studentMode);
   const [rulesSeen, setRulesSeen] = useState(!studentMode);
   const [rulesStorageKey, setRulesStorageKey] = useState<string | null>(null);
+  const [weeklyRankingRows, setWeeklyRankingRows] = useState<WolfWeeklyRankingRow[]>([]);
+  const [weeklyRankingLoading, setWeeklyRankingLoading] = useState(studentMode);
   const sfx = useWolfSfx();
   const countdownPulse = useRef(new Animated.Value(1)).current;
   const feedbackEnter = useRef(new Animated.Value(0)).current;
@@ -95,6 +97,19 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
         setLatestAttemptFinishedAtIso(gate.latest_attempt_finished_at);
       } catch {
         // fallback local para ambiente sem migração aplicada
+      }
+    }
+    async function loadWeeklyRanking() {
+      if (!studentMode) return;
+      setWeeklyRankingLoading(true);
+      try {
+        const rows = await fetchWolfWeeklyRankingStudentRpc(5);
+        if (!mounted) return;
+        setWeeklyRankingRows(rows);
+      } catch {
+        if (mounted) setWeeklyRankingRows([]);
+      } finally {
+        if (mounted) setWeeklyRankingLoading(false);
       }
     }
     async function guard() {
@@ -133,6 +148,7 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
           setRulesLoading(false);
         }
         await loadGateSnapshot();
+        await loadWeeklyRanking();
       } catch {
         if (mounted) setAllowed(false);
       } finally {
@@ -251,6 +267,11 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
   );
 
   const currentMaxSeconds = session.currentQuestionTimeLimit;
+  const weeklyTopFiveRows = useMemo(() => weeklyRankingRows.filter((row) => row.is_public).slice(0, 5), [weeklyRankingRows]);
+  const myPrivateRankRow = useMemo(
+    () => weeklyRankingRows.find((row) => row.is_current_user && !row.is_public) ?? null,
+    [weeklyRankingRows],
+  );
 
   useEffect(() => {
     if (session.stage !== "completed") return;
@@ -542,18 +563,70 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
           ) : null}
 
           {session.stage === "home" ? (
-            <WolfGameHomeCard
-              attemptsRemaining={attemptGate.attemptsRemaining}
-              streakDays={streakDays}
-              activeEvent="Semana da Lógica Estruturada"
-              estimatedDurationMinutes={3}
-              startDisabled={!attemptGate.canStart || session.questionLoading}
-              disabledReason={attemptGate.reason}
-              onStart={() => {
-                const runGrade = studentMode ? grade : selectedGradePreference === "random" ? pickRandomGrade() : selectedGradePreference;
-                void session.startSession({ grade: runGrade });
-              }}
-            />
+            <>
+              {studentMode ? (
+                <LinearGradient colors={["rgba(17,27,66,0.96)", "rgba(12,19,52,0.95)"]} style={weeklyRankingCardStyle}>
+                  <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="bold">
+                    RANKING DA SEMANA
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
+                    Exibimos apenas os 5 primeiros colocados para proteger os demais alunos.
+                  </Text>
+
+                  {weeklyRankingLoading ? (
+                    <View style={{ marginTop: spacing.sm, alignItems: "center" }}>
+                      <ActivityIndicator color={colors.einsteinYellow} />
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                      {weeklyTopFiveRows.length === 0 ? (
+                        <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                          Ainda sem pontuação registrada nesta semana.
+                        </Text>
+                      ) : (
+                        weeklyTopFiveRows.map((row) => (
+                          <View key={`weekly-rank-${row.rank}-${row.user_id}`} style={weeklyRankingRowStyle}>
+                            <Text style={{ color: colors.goldSoft }} weight="bold">
+                              #{row.rank}
+                            </Text>
+                            <Text style={{ color: colors.textPrimary, flex: 1 }} numberOfLines={1} weight="semibold">
+                              {row.full_name ?? "Aluno"}
+                            </Text>
+                            <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                              {row.weekly_xp.toLocaleString("pt-BR")} XP
+                            </Text>
+                          </View>
+                        ))
+                      )}
+
+                      {myPrivateRankRow ? (
+                        <View style={myPrivateRankBoxStyle}>
+                          <Text style={{ color: colors.textTechnical, fontSize: typography.small.fontSize }} weight="semibold">
+                            Sua posição (visível só para você)
+                          </Text>
+                          <Text style={{ color: colors.textPrimary, marginTop: 2 }} weight="bold">
+                            #{myPrivateRankRow.rank} • {myPrivateRankRow.weekly_xp.toLocaleString("pt-BR")} XP
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
+                </LinearGradient>
+              ) : null}
+
+              <WolfGameHomeCard
+                attemptsRemaining={attemptGate.attemptsRemaining}
+                streakDays={streakDays}
+                activeEvent="Semana da Lógica Estruturada"
+                estimatedDurationMinutes={3}
+                startDisabled={!attemptGate.canStart || session.questionLoading}
+                disabledReason={attemptGate.reason}
+                onStart={() => {
+                  const runGrade = studentMode ? grade : selectedGradePreference === "random" ? pickRandomGrade() : selectedGradePreference;
+                  void session.startSession({ grade: runGrade });
+                }}
+              />
+            </>
           ) : null}
 
           {session.stage === "countdown" ? (
@@ -1032,5 +1105,34 @@ const acceptRulesButtonStyle = {
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 0 },
   elevation: 5,
+};
+
+const weeklyRankingCardStyle = {
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
+  padding: spacing.md,
+};
+
+const weeklyRankingRowStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.04)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: spacing.xs,
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  gap: spacing.xs,
+};
+
+const myPrivateRankBoxStyle = {
+  marginTop: spacing.xs,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderGoldSoft,
+  backgroundColor: "rgba(255,199,0,0.10)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: spacing.xs,
 };
 

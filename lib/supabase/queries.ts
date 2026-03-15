@@ -1822,6 +1822,15 @@ export type WolfAttemptGateSnapshot = {
   latest_attempt_finished_at: string | null;
 };
 
+export type WolfWeeklyRankingRow = {
+  rank: number;
+  user_id: string;
+  full_name: string | null;
+  weekly_xp: number;
+  is_current_user: boolean;
+  is_public: boolean;
+};
+
 export async function fetchWolfAttemptGateRpc(): Promise<WolfAttemptGateSnapshot | null> {
   const { data, error } = await supabase.rpc("get_wolf_attempt_gate");
   if (error) throw error;
@@ -1838,6 +1847,25 @@ export async function fetchWolfAttemptGateRpc(): Promise<WolfAttemptGateSnapshot
     cooldown_minutes: Number(row.cooldown_minutes ?? 10),
     latest_attempt_finished_at: row.latest_attempt_finished_at ? String(row.latest_attempt_finished_at) : null,
   };
+}
+
+export async function fetchWolfWeeklyRankingStudentRpc(limit = 5): Promise<WolfWeeklyRankingRow[]> {
+  const { data, error } = await supabase.rpc("get_wolf_weekly_ranking_student", {
+    p_limit: limit,
+  });
+  if (error) throw error;
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => {
+    const item = row as Record<string, unknown>;
+    return {
+      rank: Number(item.rank ?? 0),
+      user_id: String(item.user_id ?? ""),
+      full_name: item.full_name ? String(item.full_name) : null,
+      weekly_xp: Number(item.weekly_xp ?? 0),
+      is_current_user: Boolean(item.is_current_user),
+      is_public: Boolean(item.is_public),
+    };
+  });
 }
 
 export type WolfBankQuestionRow = {

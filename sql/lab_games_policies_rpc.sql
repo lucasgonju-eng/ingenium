@@ -337,5 +337,96 @@ $$;
 revoke all on function public.get_wolf_attempt_gate() from public;
 grant execute on function public.get_wolf_attempt_gate() to authenticated, service_role;
 
+create or replace function public.get_wolf_weekly_ranking_student(p_limit int default 5)
+returns table (
+  rank int,
+  user_id uuid,
+  full_name text,
+  weekly_xp int,
+  is_current_user boolean,
+  is_public boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_limit int := greatest(1, least(coalesce(p_limit, 5), 10));
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  return query
+  with week_window as (
+    select date_trunc('week', now())::timestamptz as week_start
+  ),
+  students as (
+    select
+      p.id as user_id,
+      p.full_name
+    from public.profiles p
+    where coalesce(lower(p.role), 'student') = 'student'
+      and coalesce(p.is_active, true) = true
+  ),
+  weekly_points as (
+    select
+      s.user_id,
+      s.full_name,
+      coalesce(sum(a.xp_awarded), 0)::int as weekly_xp
+    from students s
+    cross join week_window w
+    left join public.game_attempts a
+      on a.user_id = s.user_id
+     and a.game_id = 'game_teste_dos_lobos'
+     and a.status = 'completed'
+     and a.completed_at >= w.week_start
+     and a.completed_at < (w.week_start + interval '7 days')
+    group by s.user_id, s.full_name
+  ),
+  ranked as (
+    select
+      row_number() over (
+        order by wp.weekly_xp desc, coalesce(wp.full_name, '') asc
+      )::int as rank,
+      wp.user_id,
+      wp.full_name,
+      wp.weekly_xp
+    from weekly_points wp
+  ),
+  top_rows as (
+    select
+      r.rank,
+      r.user_id,
+      r.full_name,
+      r.weekly_xp,
+      (r.user_id = v_uid) as is_current_user,
+      true as is_public
+    from ranked r
+    where r.rank <= v_limit
+  ),
+  my_row as (
+    select
+      r.rank,
+      r.user_id,
+      r.full_name,
+      r.weekly_xp,
+      true as is_current_user,
+      false as is_public
+    from ranked r
+    where r.user_id = v_uid
+      and r.rank > v_limit
+  )
+  select * from top_rows
+  union all
+  select * from my_row
+  order by rank asc;
+end;
+$$;
+
+revoke all on function public.get_wolf_weekly_ranking_student(int) from public;
+grant execute on function public.get_wolf_weekly_ranking_student(int) to authenticated, service_role;
+
 commit;
 
