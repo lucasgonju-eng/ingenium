@@ -16,10 +16,20 @@ language sql
 security definer
 set search_path = public
 as $$
+  -- Regra de negócio: toda compra de PlanoPro gera +8000 XP.
+  -- Mantemos também compatibilidade com formatos legados de source_ref.
   with plan_pro_events as (
     select distinct e.user_id
     from public.xp_events e
-    where e.source_ref like 'asaas_planopro_bonus_2026_%'
+    where (
+      e.xp_amount = 8000
+      and e.event_type = 'volunteer_mentorship_bronze'
+      and (
+        e.source_ref like 'asaas_%'
+        or e.source_ref like 'manual_backfill_%_8000_2026'
+      )
+    )
+       or e.source_ref like 'asaas_planopro_bonus_2026_%'
        or e.source_ref like 'asaas_pro_payment_%'
        or lower(coalesce(e.note, '')) like '%plano pro%'
   )
