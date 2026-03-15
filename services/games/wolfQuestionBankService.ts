@@ -21,10 +21,41 @@ function toCorrectIndex(value: number): 0 | 1 | 2 | 3 {
   throw new Error("Questão inválida no banco: gabarito fora do intervalo 0..3.");
 }
 
+function shuffleQuestionOptions(
+  options: [string, string, string, string],
+  correctOptionIndex: 0 | 1 | 2 | 3,
+): { options: [string, string, string, string]; correctOptionIndex: 0 | 1 | 2 | 3 } {
+  const entries = options.map((text, index) => ({
+    text,
+    isCorrect: index === correctOptionIndex,
+  }));
+
+  for (let i = entries.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = entries[i];
+    entries[i] = entries[j] ?? entries[i];
+    entries[j] = tmp;
+  }
+
+  const nextCorrectIndex = entries.findIndex((entry) => entry.isCorrect);
+  if (nextCorrectIndex < 0 || nextCorrectIndex > 3) {
+    throw new Error("Falha ao embaralhar alternativas da questão.");
+  }
+
+  return {
+    options: [entries[0]?.text ?? "", entries[1]?.text ?? "", entries[2]?.text ?? "", entries[3]?.text ?? ""],
+    correctOptionIndex: nextCorrectIndex as 0 | 1 | 2 | 3,
+  };
+}
+
 function toWolfQuestion(row: WolfBankQuestionRow): WolfQuestion {
   const grade = row.grade as WolfGrade;
   const category = row.phase_category as WolfPhaseCategory;
   const band = (row.band || getWolfBandByGrade(grade)) as WolfQuestion["band"];
+  const shuffled = shuffleQuestionOptions(
+    toOptionsTuple(row.options),
+    toCorrectIndex(row.correct_option_index),
+  );
   return {
     id: row.question_id,
     category,
@@ -36,8 +67,8 @@ function toWolfQuestion(row: WolfBankQuestionRow): WolfQuestion {
     vestibularName: row.vestibular_name,
     vestibularYear: row.vestibular_year,
     vestibularUrl: row.vestibular_url,
-    options: toOptionsTuple(row.options),
-    correctOptionIndex: toCorrectIndex(row.correct_option_index),
+    options: shuffled.options,
+    correctOptionIndex: shuffled.correctOptionIndex,
     explanation: row.explanation,
     tags: row.tags ?? [],
     estimatedReadTime: Math.max(5, Number(row.estimated_read_time ?? 12)),
@@ -80,8 +111,16 @@ export async function buildWolfQuestionSetFromBankWithFallback(input: {
     return { questions: sorted, source: "bank" };
   } catch {
     // Fallback seguro para não quebrar rodada caso o banco/RPC esteja indisponível.
+    const fallbackQuestions = buildMockWolfQuestionsForGrade(input.grade).map((question) => {
+      const shuffled = shuffleQuestionOptions(question.options, question.correctOptionIndex);
+      return {
+        ...question,
+        options: shuffled.options,
+        correctOptionIndex: shuffled.correctOptionIndex,
+      };
+    });
     return {
-      questions: buildMockWolfQuestionsForGrade(input.grade),
+      questions: fallbackQuestions,
       source: "mock",
     };
   }
