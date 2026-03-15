@@ -13,6 +13,7 @@ import {
   ensureTeacherAccessRequestFromCurrentUser,
   fetchMyAccessRole,
   fetchMyLatestAccessRequest,
+  fetchMyPlanProStatus,
   fetchMyStudentMessages,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudents,
@@ -21,6 +22,7 @@ import {
   fetchMyXpHistory,
   fetchMyRankGeralMedia,
   fetchOlympiads,
+  MyPlanProStatus,
   MyXpHistoryRow,
   RegisteredStudentRow,
   RankingStudentRow,
@@ -101,6 +103,11 @@ export default function DashboardScreen() {
   const [xpHistoryRows, setXpHistoryRows] = useState<MyXpHistoryRow[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [latestMessageTitle, setLatestMessageTitle] = useState<string | null>(null);
+  const [planStatus, setPlanStatus] = useState<MyPlanProStatus>({
+    isPlanPro: false,
+    planTier: "free",
+    source: "fallback",
+  });
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
   const [xpTab, setXpTab] = useState<XpTab>("howWorks");
@@ -172,7 +179,7 @@ export default function DashboardScreen() {
         setShowTeacherPendingBanner(false);
       }
 
-      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes, xpHistoryRes, messagesRes] = await Promise.allSettled([
+      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes, xpHistoryRes, messagesRes, planStatusRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
         fetchOlympiads(),
@@ -180,6 +187,7 @@ export default function DashboardScreen() {
         fetchRankingAllRegisteredStudents(500),
         fetchMyXpHistory(200),
         fetchMyStudentMessages(20),
+        fetchMyPlanProStatus(),
       ]);
 
       const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
@@ -189,6 +197,10 @@ export default function DashboardScreen() {
       const rankingData = rankingRes.status === "fulfilled" ? rankingRes.value : [];
       const xpHistoryData = xpHistoryRes.status === "fulfilled" ? xpHistoryRes.value : [];
       const messagesData = messagesRes.status === "fulfilled" ? messagesRes.value : [];
+      const currentPlanStatus =
+        planStatusRes.status === "fulfilled"
+          ? planStatusRes.value
+          : ({ isPlanPro: false, planTier: "free", source: "fallback" } as MyPlanProStatus);
       const unread = messagesData.filter((msg) => !msg.read_at).length;
       const latestMessage = messagesData[0] ?? null;
 
@@ -205,6 +217,7 @@ export default function DashboardScreen() {
       setStudentsByGrade(grouped);
       setRankingRows(rankingData);
       setXpHistoryRows(xpHistoryData);
+      setPlanStatus(currentPlanStatus);
       setUnreadMessages(unread);
       setLatestMessageTitle(latestMessage?.title ?? null);
     } catch (e: unknown) {
@@ -289,6 +302,28 @@ export default function DashboardScreen() {
             Bem-vindo, {name}
           </Text>
         </View>
+
+        {planStatus.isPlanPro ? (
+          <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+            <View
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.55)",
+                backgroundColor: "rgba(255,199,0,0.12)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.sm,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                Plano Pro Ativo
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2 }}>
+                Você já tem todas as vantagens do Plano Pro, incluindo 8 rodadas diárias no Teste dos Lobos.
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
           <Pressable
