@@ -70,6 +70,7 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
   const feedbackEnter = useRef(new Animated.Value(0)).current;
   const comboPulse = useRef(new Animated.Value(1)).current;
   const transitionAnim = useRef(new Animated.Value(0)).current;
+  const completionHandledRef = useRef(false);
 
   const grade = coerceWolfGrade(params.grade, DEFAULT_GRADE);
   const session = useWolfSession({
@@ -274,7 +275,12 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
   );
 
   useEffect(() => {
-    if (session.stage !== "completed") return;
+    if (session.stage !== "completed") {
+      completionHandledRef.current = false;
+      return;
+    }
+    if (completionHandledRef.current) return;
+    completionHandledRef.current = true;
     let mounted = true;
     async function finalizeAttempt() {
     const finalHits = session.hits;
