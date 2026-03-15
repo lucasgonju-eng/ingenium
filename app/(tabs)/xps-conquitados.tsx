@@ -27,6 +27,7 @@ function getXpEventLabel(eventType: string, note?: string | null, sourceRef?: st
   if (normalized === "weekly_study_group_75_presence") return "Grupo de estudo semanal";
   if (normalized === "volunteer_mentorship_bronze") return "Monitoria voluntária (Lobo de Bronze)";
   if (normalized === "perfect_quarter_attendance") return "Frequência perfeita trimestral";
+  if (normalized === "wolf_game_attempt") return "Lab Games - Teste do Lobo";
   return normalized.replaceAll("_", " ");
 }
 
@@ -160,7 +161,7 @@ export default function XpsConquitadosScreen() {
                   </Text>
                 </View>
                 <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4, fontSize: typography.small.fontSize }}>
-                  Data: {new Date(row.occurred_on).toLocaleDateString("pt-BR")}
+                  Data e hora: {new Date(row.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 2, fontSize: typography.small.fontSize }} weight="semibold">
                   Saldo após este evento: {row.runningBalance.toLocaleString("pt-BR")} XP

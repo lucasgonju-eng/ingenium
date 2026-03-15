@@ -64,6 +64,18 @@ export function WolfTrailScreen({ studentMode = false }: { studentMode?: boolean
             </Text>
           </Pressable>
         </View>
+        {studentMode ? (
+          <View>
+            <Pressable
+              onPress={() => router.replace("/dashboard")}
+              style={({ pressed }) => [homeButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}
+            >
+              <Text style={{ color: colors.textPrimary, fontSize: typography.bodyMd.fontSize }} weight="bold">
+                Voltar ao Início do InGenium
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </StitchScreenFrame>
   );
@@ -100,5 +112,15 @@ const backButtonStyle = {
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 0 },
   elevation: 5,
+};
+
+const homeButtonStyle = {
+  minHeight: 48,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.08)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
 };
 

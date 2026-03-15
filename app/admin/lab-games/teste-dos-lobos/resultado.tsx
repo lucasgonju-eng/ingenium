@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import StitchScreenFrame from "../../../../components/layout/StitchScreenFrame";
 import WolfResultCard from "../../../../components/sections/games/wolf/WolfResultCard";
 import { Text } from "../../../../components/ui/Text";
@@ -109,6 +109,18 @@ export function WolfResultScreen({ studentMode = false }: { studentMode?: boolea
             </Text>
           </View>
         </View>
+        {studentMode ? (
+          <View>
+            <Pressable
+              onPress={() => router.replace("/dashboard")}
+              style={({ pressed }) => [homeButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}
+            >
+              <Text style={{ color: colors.textPrimary, fontSize: typography.bodyMd.fontSize }} weight="bold">
+                Voltar ao Início do InGenium
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </StitchScreenFrame>
   );
@@ -132,5 +144,15 @@ const footnoteStyle = {
   borderColor: colors.borderDefault,
   backgroundColor: "rgba(255,255,255,0.03)",
   padding: spacing.sm,
+};
+
+const homeButtonStyle = {
+  minHeight: 48,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.08)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
 };
 
