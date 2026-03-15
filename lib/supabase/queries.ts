@@ -56,6 +56,10 @@ export type FullStudentRow = {
   class_name: string | null;
   avatar_url: string | null;
   role: string | null;
+  plan_tier?: string | null;
+  plan_pro_active?: boolean | null;
+  plan_pro_since?: string | null;
+  plan_pro_source?: string | null;
   is_active?: boolean | null;
   created_at?: string | null;
   updated_at?: string | null;

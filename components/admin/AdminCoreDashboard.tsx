@@ -5,12 +5,13 @@ import type { FullStudentRow, RankingStudentRow, TeacherRow } from "../../lib/su
 
 const GRADE_ORDER = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
-type AdminCoreTab = "dashboard" | "alunos" | "professores" | "perfil";
+type AdminCoreTab = "dashboard" | "alunos" | "planopro" | "professores" | "perfil";
 
 export function getAdminCoreTabs() {
   return [
     { key: "dashboard" as const, label: "Visão geral" },
     { key: "alunos" as const, label: "Alunos" },
+    { key: "planopro" as const, label: "Alunos Pro" },
     { key: "professores" as const, label: "Professores" },
     { key: "perfil" as const, label: "Perfil" },
   ];
@@ -120,6 +121,11 @@ export default function AdminCoreDashboard(props: Props) {
   } = props;
 
   const totalStudents = students.length;
+  const planProStudents = students.filter((row) => {
+    const tier = String(row.plan_tier ?? "").trim().toLowerCase();
+    return Boolean(row.plan_pro_active) || tier === "pro";
+  });
+  const totalPlanProStudents = planProStudents.length;
   const totalXp = rankingRows.reduce((sum, row) => sum + Number(row.total_points || 0), 0);
   const avgXp = totalStudents > 0 ? Math.round(totalXp / totalStudents) : 0;
   const withXp = rankingRows.filter((row) => Number(row.total_points || 0) > 0).length;
@@ -160,6 +166,7 @@ export default function AdminCoreDashboard(props: Props) {
           <View style={{ marginTop: spacing.sm, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
             {[
               { label: "Alunos cadastrados", value: totalStudents.toLocaleString("pt-BR") },
+              { label: "Alunos PlanoPro", value: totalPlanProStudents.toLocaleString("pt-BR") },
               { label: "Alunos com XP", value: withXp.toLocaleString("pt-BR") },
               { label: "XP total", value: totalXp.toLocaleString("pt-BR") },
               { label: "Média XP/aluno", value: avgXp.toLocaleString("pt-BR") },
@@ -291,6 +298,79 @@ export default function AdminCoreDashboard(props: Props) {
                 </View>
               </View>
             ))}
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  if (activeTab === "planopro") {
+    const planProSeriesSummary = [...planProStudents.reduce((acc, row) => {
+      const grade = (row.grade ?? "Sem série").trim() || "Sem série";
+      acc.set(grade, (acc.get(grade) ?? 0) + 1);
+      return acc;
+    }, new Map<string, number>()).entries()]
+      .sort((a, b) => {
+        const ai = GRADE_ORDER.indexOf(a[0] as (typeof GRADE_ORDER)[number]);
+        const bi = GRADE_ORDER.indexOf(b[0] as (typeof GRADE_ORDER)[number]);
+        if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        return a[0].localeCompare(b[0], "pt-BR");
+      });
+
+    return (
+      <>
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">KPI PlanoPro</Text>
+          <View style={{ marginTop: spacing.sm, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+            <View style={metricItemStyle}>
+              <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 12 }}>Total de alunos Pro</Text>
+              <Text style={{ color: colors.einsteinYellow, marginTop: 4, fontSize: typography.subtitle.fontSize }} weight="bold">
+                {totalPlanProStudents.toLocaleString("pt-BR")}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Alunos Pro por série</Text>
+          <View style={{ marginTop: spacing.sm, gap: 8 }}>
+            {planProSeriesSummary.length === 0 ? (
+              <Text style={{ color: "rgba(255,255,255,0.65)" }}>Nenhum aluno PlanoPro encontrado.</Text>
+            ) : (
+              planProSeriesSummary.map(([grade, count]) => (
+                <View key={grade} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ color: "rgba(255,255,255,0.86)" }} weight="semibold">{grade}</Text>
+                  <Text style={{ color: colors.einsteinYellow }} weight="bold">{count}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+
+        <View style={sectionCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">Lista de alunos Pro</Text>
+          <View style={{ marginTop: spacing.sm, gap: 8 }}>
+            {planProStudents.length === 0 ? (
+              <Text style={{ color: "rgba(255,255,255,0.65)" }}>Nenhum aluno PlanoPro cadastrado no momento.</Text>
+            ) : (
+              planProStudents.map((student) => (
+                <View
+                  key={student.id}
+                  style={{
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    padding: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">{student.full_name ?? "Sem nome"}</Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: 12 }}>
+                    Série: {student.grade ?? "Sem série"} • Turma: {student.class_name ?? "Sem turma"}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
       </>

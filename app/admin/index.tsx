@@ -1635,6 +1635,96 @@ export default function AdminDashboardScreen() {
               />
             ) : null}
 
+            {activeTab === "planopro" ? (
+              <AdminCoreDashboard
+                activeTab="planopro"
+                students={students}
+                rankingRows={rankingRows}
+                teachers={teachers}
+                teacherFullName={teacherFullName}
+                teacherDisplayName={teacherDisplayName}
+                teacherEmail={teacherEmail}
+                teacherArea={teacherArea}
+                selectedCreateOlympiadId={selectedCreateOlympiadId}
+                teacherPendingOlympiadName={teacherPendingOlympiadName}
+                teacherCreationFeedback={teacherCreationFeedback}
+                olympiadSelectionByTeacher={olympiadSelectionByTeacher}
+                newPassword={newPassword}
+                confirmPassword={confirmPassword}
+                savingPassword={savingPassword}
+                savingTeacher={savingTeacher}
+                assigningTeacherId={assigningTeacherId}
+                olympiads={olympiads}
+                onTeacherFullNameChange={setTeacherFullName}
+                onTeacherDisplayNameChange={setTeacherDisplayName}
+                onTeacherEmailChange={setTeacherEmail}
+                onTeacherAreaChange={setTeacherArea}
+                onCreateOlympiadChange={(value) => {
+                  setSelectedCreateOlympiadId(value);
+                  if (value !== "pending") setTeacherPendingOlympiadName("");
+                }}
+                onTeacherPendingOlympiadNameChange={setTeacherPendingOlympiadName}
+                onTeacherOlympiadSelectionChange={(teacherId, olympiadId) => {
+                  setOlympiadSelectionByTeacher((prev) => ({ ...prev, [teacherId]: olympiadId }));
+                }}
+                onNewPasswordChange={setNewPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                onSaveTeacher={() => {
+                  void handleCreateTeacher();
+                }}
+                onAssignTeacher={(teacherId, olympiadId) => {
+                  void handleAssignTeacher(teacherId, olympiadId);
+                }}
+                onRemoveAssignment={(assignmentId) => {
+                  void handleRemoveAssignment(assignmentId);
+                }}
+                onUpdatePassword={() => {
+                  void handleChangePasswordNow();
+                }}
+                onOpenProfileSettings={() => {
+                  router.push("/(tabs)/perfil");
+                }}
+                enableBulkDelete
+                selectedStudentIds={selectedStudentIds}
+                selectedTeacherIds={selectedTeacherIds}
+                onToggleStudentSelection={(studentId) => {
+                  setSelectedStudentIds((prev) =>
+                    prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
+                  );
+                }}
+                onToggleTeacherSelection={(teacherId) => {
+                  setSelectedTeacherIds((prev) =>
+                    prev.includes(teacherId) ? prev.filter((id) => id !== teacherId) : [...prev, teacherId],
+                  );
+                }}
+                onSelectAllStudents={() => setSelectedStudentIds(students.map((s) => s.id))}
+                onClearStudentSelection={() => setSelectedStudentIds([])}
+                onSelectAllTeachers={() => setSelectedTeacherIds(teachers.map((t) => t.id))}
+                onClearTeacherSelection={() => setSelectedTeacherIds([])}
+                onDeleteSelectedStudents={() => {
+                  void handleDeleteSelectedStudents();
+                }}
+                onDeleteSelectedTeachers={() => {
+                  void handleDeleteSelectedTeachers();
+                }}
+                onActivateSelectedStudents={() => {
+                  void handleActivateSelectedStudents();
+                }}
+                onActivateSelectedTeachers={() => {
+                  void handleActivateSelectedTeachers();
+                }}
+                onPermanentlyDeleteSelectedTeachers={() => {
+                  void handlePermanentlyDeleteSelectedTeachers();
+                }}
+                onSetStudentActive={(studentId, isActive) => {
+                  void handleSetStudentActive(studentId, isActive);
+                }}
+                onSetTeacherActive={(teacherId, isActive) => {
+                  void handleSetTeacherActive(teacherId, isActive);
+                }}
+              />
+            ) : null}
+
             {activeTab === "professores" ? (
               <AdminCoreDashboard
                 activeTab="professores"
