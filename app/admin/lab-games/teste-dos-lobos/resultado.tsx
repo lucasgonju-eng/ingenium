@@ -9,7 +9,7 @@ import { useWolfSfx } from "../../../../hooks/games/useWolfSfx";
 import { buildWolfPercentileSnapshot } from "../../../../services/games/wolfEngine";
 import { colors, radii, spacing, typography } from "../../../../lib/theme/tokens";
 
-export default function AdminWolfResultScreen() {
+export function WolfResultScreen({ studentMode = false }: { studentMode?: boolean }) {
   const sfx = useWolfSfx();
   const params = useLocalSearchParams<{
     hits?: string;
@@ -84,18 +84,19 @@ export default function AdminWolfResultScreen() {
             inspirationalMessage={inspiration}
             onOpenTrail={() => {
               router.push({
-                pathname: "/admin/lab-games/teste-dos-lobos/trilha",
+                pathname: studentMode ? "/lab-games/teste-dos-lobos/trilha" : "/admin/lab-games/teste-dos-lobos/trilha",
                 params: {
                   xp: String(420),
                   tests: String(18),
                   avg: String(2.9),
+                  mode: studentMode ? "student" : "admin",
                 },
               });
             }}
             onPlayAgain={() => {
               router.replace({
-                pathname: "/admin/lab-games/teste-dos-lobos",
-                params: { grade },
+                pathname: studentMode ? "/lab-games/teste-dos-lobos" : "/admin/lab-games/teste-dos-lobos",
+                params: { grade, mode: studentMode ? "student" : "admin" },
               });
             }}
           />
@@ -111,6 +112,10 @@ export default function AdminWolfResultScreen() {
       </ScrollView>
     </StitchScreenFrame>
   );
+}
+
+export default function AdminWolfResultScreen() {
+  return <WolfResultScreen />;
 }
 
 const heroStyle = {

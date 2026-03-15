@@ -7,7 +7,7 @@ import { computeWolfTrailProgress } from "../../../../services/games/wolfEngine"
 import { colors, radii, spacing, typography } from "../../../../lib/theme/tokens";
 import { Text } from "../../../../components/ui/Text";
 
-export default function AdminWolfTrailScreen() {
+export function WolfTrailScreen({ studentMode = false }: { studentMode?: boolean }) {
   const params = useLocalSearchParams<{ xp?: string; tests?: string; avg?: string }>();
   const xp = Number(params.xp ?? 0);
   const tests = Number(params.tests ?? 0);
@@ -56,7 +56,7 @@ export default function AdminWolfTrailScreen() {
 
         <View>
           <Pressable
-            onPress={() => router.replace("/admin/lab-games/teste-dos-lobos")}
+            onPress={() => router.replace(studentMode ? "/lab-games/teste-dos-lobos" : "/admin/lab-games/teste-dos-lobos")}
             style={({ pressed }) => [backButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}
           >
             <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
@@ -67,6 +67,10 @@ export default function AdminWolfTrailScreen() {
       </ScrollView>
     </StitchScreenFrame>
   );
+}
+
+export default function AdminWolfTrailScreen() {
+  return <WolfTrailScreen />;
 }
 
 const heroStyle = {

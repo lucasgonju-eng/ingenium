@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
+    "@react-native-async-storage/async-storage": "^3.0.1",
     "@supabase/supabase-js": "^2.97.0",
     "buffer": "^6.0.3",
     "expo": "~54.0.33",

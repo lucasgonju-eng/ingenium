@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import StitchScreenFrame from "../../../components/layout/StitchScreenFrame";
 import WolfGameHomeCard from "../../../components/sections/games/wolf/WolfGameHomeCard";
 import WolfCelebration from "../../../components/sections/games/wolf/WolfCelebration";
@@ -22,6 +23,7 @@ const DEFAULT_GRADE: WolfGrade = "8º Ano";
 type GradePreference = "random" | WolfGrade;
 const WOLF_GRADES: WolfGrade[] = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"];
 const ADMIN_TIME_BUFFER_SECONDS = 5;
+const WOLF_RULES_SEEN_KEY_PREFIX = "wolf_rules_seen_v1";
 
 const PHASE_LABEL: Record<WolfPhaseCategory, string> = {
   reflexo: "Reflexo",
@@ -44,7 +46,7 @@ function pickRandomGrade(): WolfGrade {
   return WOLF_GRADES[idx] ?? DEFAULT_GRADE;
 }
 
-export default function AdminWolfGameScreen() {
+export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean }) {
   const params = useLocalSearchParams<{ grade?: string }>();
   const [guardLoading, setGuardLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
@@ -58,6 +60,9 @@ export default function AdminWolfGameScreen() {
   const [comboStreak, setComboStreak] = useState(0);
   const [isPhaseTransitioning, setIsPhaseTransitioning] = useState(false);
   const [nextPhaseLabel, setNextPhaseLabel] = useState<string | null>(null);
+  const [rulesLoading, setRulesLoading] = useState(studentMode);
+  const [rulesSeen, setRulesSeen] = useState(!studentMode);
+  const [rulesStorageKey, setRulesStorageKey] = useState<string | null>(null);
   const sfx = useWolfSfx();
   const countdownPulse = useRef(new Animated.Value(1)).current;
   const feedbackEnter = useRef(new Animated.Value(0)).current;
@@ -101,13 +106,32 @@ export default function AdminWolfGameScreen() {
           router.replace("/admin/login");
           return;
         }
-        const role = await fetchMyAccessRole();
         if (!mounted) return;
-        if (role !== "admin") {
-          setAllowed(false);
-          return;
+        if (!studentMode) {
+          const role = await fetchMyAccessRole();
+          if (role !== "admin") {
+            setAllowed(false);
+            return;
+          }
         }
         setAllowed(true);
+        if (studentMode) {
+          const storageKey = `${WOLF_RULES_SEEN_KEY_PREFIX}:${user.id}`;
+          setRulesStorageKey(storageKey);
+          setRulesLoading(true);
+          try {
+            const seen = await AsyncStorage.getItem(storageKey);
+            if (!mounted) return;
+            setRulesSeen(seen === "1");
+          } catch {
+            if (mounted) setRulesSeen(false);
+          } finally {
+            if (mounted) setRulesLoading(false);
+          }
+        } else if (mounted) {
+          setRulesSeen(true);
+          setRulesLoading(false);
+        }
         await loadGateSnapshot();
       } catch {
         if (mounted) setAllowed(false);
@@ -119,7 +143,7 @@ export default function AdminWolfGameScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [studentMode]);
 
   useEffect(() => {
     void sfx.preload();
@@ -266,7 +290,7 @@ export default function AdminWolfGameScreen() {
     }
 
     router.replace({
-      pathname: "/admin/lab-games/teste-dos-lobos/resultado",
+      pathname: studentMode ? "/lab-games/teste-dos-lobos/resultado" : "/admin/lab-games/teste-dos-lobos/resultado",
       params: {
         hits: String(finalHits),
         xpAwarded: String(session.xpAwarded),
@@ -281,6 +305,7 @@ export default function AdminWolfGameScreen() {
         streakDays: String(nextStreakDays),
         grade: session.activeGrade,
         inspiration: message,
+        mode: studentMode ? "student" : "admin",
       },
     });
     }
@@ -288,7 +313,7 @@ export default function AdminWolfGameScreen() {
     return () => {
       mounted = false;
     };
-  }, [session.stage, attemptsUsedToday, xpAwardedToday, streakDays, bestAttemptHits, attemptsPerDayEffective, session.hits, session.xpAwarded, session.xpBase, session.xpPerformance, session.xpParticipationBonus, session.xpStreakBonus, session.activeGrade, session.questionSource]);
+  }, [session.stage, attemptsUsedToday, xpAwardedToday, streakDays, bestAttemptHits, attemptsPerDayEffective, session.hits, session.xpAwarded, session.xpBase, session.xpPerformance, session.xpParticipationBonus, session.xpStreakBonus, session.activeGrade, session.questionSource, studentMode]);
 
   function handleGoNext() {
     const isLastQuestion = session.phaseIndex + 1 >= session.questions.length;
@@ -335,6 +360,18 @@ export default function AdminWolfGameScreen() {
     });
   }
 
+  async function handleAcceptRules() {
+    try {
+      if (rulesStorageKey) {
+        await AsyncStorage.setItem(rulesStorageKey, "1");
+      }
+    } catch {
+      // Em caso de falha de persistência local, libera o acesso na sessão atual.
+    } finally {
+      setRulesSeen(true);
+    }
+  }
+
   if (guardLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -360,6 +397,52 @@ export default function AdminWolfGameScreen() {
     );
   }
 
+  if (studentMode && (rulesLoading || !rulesSeen)) {
+    return (
+      <StitchScreenFrame>
+        <ScrollView contentContainerStyle={screenContentStyle} showsVerticalScrollIndicator={false}>
+          <LinearGradient colors={["rgba(17,28,67,0.96)", "rgba(8,16,43,0.94)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={heroSectionStyle}>
+            <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.35 }} weight="semibold">
+              LAB GAMES • REGRAS OFICIAIS
+            </Text>
+            <Text style={{ color: colors.textPrimary, fontSize: typography.headingLg.fontSize, marginTop: spacing.xxs }} weight="bold">
+              Teste dos Lobos
+            </Text>
+            <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
+              Leia as regras antes da primeira rodada. Esta tela aparece somente no primeiro acesso.
+            </Text>
+          </LinearGradient>
+
+          <View style={rulesCardStyle}>
+            <Text style={{ color: colors.textPrimary }} weight="bold">
+              Regras rápidas
+            </Text>
+            <Text style={rulesItemStyle}>1) O teste tem 4 fases fixas.</Text>
+            <Text style={rulesItemStyle}>2) Você recebe XP por participação, desempenho e streak.</Text>
+            <Text style={rulesItemStyle}>3) Limite diário: 4 rodadas (Plano Pro: 8 rodadas).</Text>
+            <Text style={rulesItemStyle}>4) Há competição anônima por percentil da sua série.</Text>
+            <Text style={rulesItemStyle}>5) Responda com atenção: cada fase tem tempo limitado.</Text>
+          </View>
+
+          {rulesLoading ? (
+            <View style={rulesLoadingBoxStyle}>
+              <ActivityIndicator color={colors.einsteinYellow} />
+              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs }}>
+                Preparando seu acesso...
+              </Text>
+            </View>
+          ) : (
+            <Pressable onPress={() => void handleAcceptRules()} style={({ pressed }) => [acceptRulesButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}>
+              <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
+                Entendi, começar o teste
+              </Text>
+            </Pressable>
+          )}
+        </ScrollView>
+      </StitchScreenFrame>
+    );
+  }
+
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={screenContentStyle} showsVerticalScrollIndicator={false}>
@@ -367,13 +450,15 @@ export default function AdminWolfGameScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.35 }} weight="semibold">
-                LAB GAMES • ÁREA ESPECIAL
+                {studentMode ? "LAB GAMES • TRILHA DO LOBO" : "LAB GAMES • ÁREA ESPECIAL"}
               </Text>
               <Text style={{ color: colors.textPrimary, fontSize: typography.headingLg.fontSize, marginTop: spacing.xxs }} weight="bold">
                 Teste dos Lobos
               </Text>
               <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
-                Ambiente premium de validação interna com banco de questões, progressão e desafios por série.
+                {studentMode
+                  ? "Desafio diário com 4 fases, progressão intelectual e competição anônima por percentil."
+                  : "Ambiente premium de validação interna com banco de questões, progressão e desafios por série."}
               </Text>
             </View>
             <View style={heroMonogramStyle}>
@@ -386,7 +471,7 @@ export default function AdminWolfGameScreen() {
           <View style={heroChipRowStyle}>
             <View style={heroMetaChipStyle}>
               <Text style={heroMetaChipTextStyle} weight="semibold">
-                Modo admin
+                {studentMode ? "Modo aluno" : "Modo admin"}
               </Text>
             </View>
             <View style={heroMetaChipStyle}>
@@ -416,7 +501,7 @@ export default function AdminWolfGameScreen() {
             </LinearGradient>
           ) : null}
 
-          {session.stage === "home" ? (
+          {session.stage === "home" && !studentMode ? (
             <LinearGradient colors={["rgba(17,27,66,0.96)", "rgba(12,19,52,0.95)"]} style={seriesPickerCardStyle}>
               <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="bold">
                 CONTROLE DE SÉRIE (ADMIN)
@@ -465,7 +550,7 @@ export default function AdminWolfGameScreen() {
               startDisabled={!attemptGate.canStart || session.questionLoading}
               disabledReason={attemptGate.reason}
               onStart={() => {
-                const runGrade = selectedGradePreference === "random" ? pickRandomGrade() : selectedGradePreference;
+                const runGrade = studentMode ? grade : selectedGradePreference === "random" ? pickRandomGrade() : selectedGradePreference;
                 void session.startSession({ grade: runGrade });
               }}
             />
@@ -489,20 +574,22 @@ export default function AdminWolfGameScreen() {
 
           {session.stage === "question" && session.currentQuestion ? (
             <>
-              <View style={adminMetaCardStyle}>
-                <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.25 }} weight="bold">
-                  CAMADA ADMIN • TESTE INTERNO
-                </Text>
-                <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
-                  Série da rodada: {session.activeGrade} • Série da questão do banco: {session.currentQuestion.grade}
-                </Text>
-                <Text style={{ color: colors.textMuted, marginTop: 2 }}>
-                  Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "bank" ? "Banco" : "Fallback mock"}
-                </Text>
-                <Text style={{ color: colors.textMuted, marginTop: 2 }}>
-                  Tempo calibrado: {currentMaxSeconds}s (texto + dificuldade + {ADMIN_TIME_BUFFER_SECONDS}s admin)
-                </Text>
-              </View>
+              {!studentMode ? (
+                <View style={adminMetaCardStyle}>
+                  <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.25 }} weight="bold">
+                    CAMADA ADMIN • TESTE INTERNO
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
+                    Série da rodada: {session.activeGrade} • Série da questão do banco: {session.currentQuestion.grade}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, marginTop: 2 }}>
+                    Fase atual: {PHASE_LABEL[session.currentQuestion.category]} • Fonte: {session.questionSource === "bank" ? "Banco" : "Fallback mock"}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, marginTop: 2 }}>
+                    Tempo calibrado: {currentMaxSeconds}s (texto + dificuldade + {ADMIN_TIME_BUFFER_SECONDS}s admin)
+                  </Text>
+                </View>
+              ) : null}
               <Animated.View
                 style={[
                   comboHudStyle,
@@ -646,6 +733,10 @@ export default function AdminWolfGameScreen() {
       ) : null}
     </StitchScreenFrame>
   );
+}
+
+export default function AdminWolfGameScreen() {
+  return <WolfGameScreen />;
 }
 
 const blockedCardStyle = {
@@ -905,5 +996,41 @@ const phaseTransitionCardStyle = {
   shadowRadius: 18,
   shadowOffset: { width: 0, height: 4 },
   elevation: 8,
+};
+
+const rulesCardStyle = {
+  borderRadius: radii.xl,
+  borderWidth: 1,
+  borderColor: colors.borderDefault,
+  backgroundColor: colors.surfaceCard,
+  padding: spacing.md,
+  gap: spacing.xs,
+};
+
+const rulesItemStyle = {
+  color: colors.textSecondary,
+  lineHeight: typography.bodyMd.lineHeight,
+};
+
+const rulesLoadingBoxStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  padding: spacing.md,
+  alignItems: "center" as const,
+};
+
+const acceptRulesButtonStyle = {
+  minHeight: 48,
+  borderRadius: radii.md,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: colors.goldBase,
+  shadowColor: colors.goldBase,
+  shadowOpacity: 0.22,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 5,
 };
 

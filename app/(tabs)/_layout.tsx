@@ -32,6 +32,8 @@ export default function TabsLayout() {
             glyph = "✉";
           } else if (route.name === "olimpiadas") {
             glyph = "🏆";
+          } else if (route.name === "lab-games") {
+            glyph = "◈";
           } else if (route.name === "planos") {
             glyph = "💳";
           } else if (route.name === "xps-conquitados") {
@@ -56,6 +58,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="dashboard" options={{ title: "Início" }} />
       <Tabs.Screen name="mensagens" options={{ title: "Mensagens" }} />
       <Tabs.Screen name="olimpiadas" options={{ title: "Olimp." }} />
+      <Tabs.Screen name="lab-games" options={{ title: "Lab Games" }} />
       <Tabs.Screen name="planos" options={{ title: "Planos" }} />
       <Tabs.Screen name="xps-conquitados" options={{ title: "XPs Conquitados" }} />
       <Tabs.Screen name="ranking" options={{ title: "Ranking" }} />
