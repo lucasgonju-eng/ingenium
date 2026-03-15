@@ -53,8 +53,11 @@ export default function WolfGameHomeCard({
         <MetricChip label="Duração" value={`${estimatedDurationMinutes} min`} />
         <MetricChip label="Fases" value="4 desafios" />
         <MetricChip label="Tentativas" value={`${attemptsRemaining} hoje`} />
-        <MetricChip label="Streak" value={`${streakDays} dia(s)`} />
+        <MetricChip label="Sequência" value={`${streakDays} dia(s)`} />
       </View>
+      <Text style={{ color: colors.textSecondary, marginTop: 2, lineHeight: typography.bodyMd.lineHeight }}>
+        Sequência (streak) = dias seguidos em que você conclui uma rodada.
+      </Text>
 
       {activeEvent ? (
         <View style={eventBoxStyle}>
