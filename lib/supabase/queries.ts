@@ -65,6 +65,17 @@ export type FullStudentRow = {
   updated_at?: string | null;
 };
 
+export type PlanProStudentRow = {
+  id: string;
+  full_name: string | null;
+  grade: string | null;
+  class_name: string | null;
+  role: string | null;
+  plan_tier: string | null;
+  plan_pro_active: boolean;
+  pro_source: "profile" | "xp_event" | "unknown";
+};
+
 export type TeacherRow = {
   id: string;
   full_name: string | null;
@@ -1043,6 +1054,21 @@ export async function fetchRegisteredStudentsFull() {
   const { data, error } = await supabase.rpc("get_registered_students_full_admin");
   if (error) throw error;
   return (data ?? []) as FullStudentRow[];
+}
+
+export async function fetchPlanProStudentsAdmin() {
+  const { data, error } = await supabase.rpc("list_plan_pro_students_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id ?? ""),
+    full_name: row.full_name ? String(row.full_name) : null,
+    grade: row.grade ? String(row.grade) : null,
+    class_name: row.class_name ? String(row.class_name) : null,
+    role: row.role ? String(row.role) : null,
+    plan_tier: row.plan_tier ? String(row.plan_tier) : null,
+    plan_pro_active: Boolean(row.plan_pro_active),
+    pro_source: (String(row.pro_source ?? "unknown") as "profile" | "xp_event" | "unknown"),
+  })) as PlanProStudentRow[];
 }
 
 export async function fetchTeachersWithOlympiads() {

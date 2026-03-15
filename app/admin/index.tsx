@@ -16,6 +16,7 @@ import {
   fetchSaasAnalyticsOverview,
   fetchStudentEmailRecipientsForSender,
   fetchMyAccessRole,
+  fetchPlanProStudentsAdmin,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudentsFull,
   fetchTeachersWithOlympiads,
@@ -31,6 +32,7 @@ import {
   type MyAccessRole,
   type AccessRequestRow,
   type FullStudentRow,
+  type PlanProStudentRow,
   type RankingStudentRow,
   type SaasAnalyticsOverview,
   type StudentEnrollment2026Row,
@@ -200,6 +202,7 @@ export default function AdminDashboardScreen() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [students, setStudents] = useState<FullStudentRow[]>([]);
+  const [planProStudents, setPlanProStudents] = useState<PlanProStudentRow[]>([]);
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [olympiads, setOlympiads] = useState<Array<{ id: string; title: string }>>([]);
@@ -310,8 +313,9 @@ export default function AdminDashboardScreen() {
         }
         setAccessRole(role);
 
-        const [studentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData, studentEmailRows] = await Promise.all([
+        const [studentsData, planProStudentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData, studentEmailRows] = await Promise.all([
           fetchRegisteredStudentsFull(),
+          fetchPlanProStudentsAdmin().catch(() => []),
           fetchRankingAllRegisteredStudents(500),
           fetchTeachersWithOlympiads(),
           fetchOlympiads(),
@@ -322,6 +326,7 @@ export default function AdminDashboardScreen() {
         if (!mounted) return;
         setAuthorized(true);
         setStudents(studentsData);
+        setPlanProStudents(planProStudentsData);
         setRankingRows(rankingData);
         setTeachers(teachersData);
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
@@ -624,11 +629,13 @@ export default function AdminDashboardScreen() {
   }
 
   async function reloadStudentsAndRanking() {
-    const [studentsData, rankingData] = await Promise.all([
+    const [studentsData, planProStudentsData, rankingData] = await Promise.all([
       fetchRegisteredStudentsFull(),
+      fetchPlanProStudentsAdmin().catch(() => []),
       fetchRankingAllRegisteredStudents(500),
     ]);
     setStudents(studentsData);
+    setPlanProStudents(planProStudentsData);
     setRankingRows(rankingData);
   }
 
@@ -1459,6 +1466,7 @@ export default function AdminDashboardScreen() {
               <AdminCoreDashboard
                 activeTab="dashboard"
                 students={students}
+                planProStudents={planProStudents}
                 rankingRows={rankingRows}
                 teachers={teachers}
                 teacherFullName={teacherFullName}
@@ -1504,6 +1512,7 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                onOpenPlanProTab={() => setActiveTab("planopro")}
                 enableBulkDelete
                 selectedStudentIds={selectedStudentIds}
                 selectedTeacherIds={selectedTeacherIds}
@@ -1549,6 +1558,7 @@ export default function AdminDashboardScreen() {
               <AdminCoreDashboard
                 activeTab="alunos"
                 students={students}
+                planProStudents={planProStudents}
                 rankingRows={rankingRows}
                 teachers={teachers}
                 teacherFullName={teacherFullName}
@@ -1594,6 +1604,7 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                onOpenPlanProTab={() => setActiveTab("planopro")}
                 enableBulkDelete
                 selectedStudentIds={selectedStudentIds}
                 selectedTeacherIds={selectedTeacherIds}
@@ -1639,6 +1650,7 @@ export default function AdminDashboardScreen() {
               <AdminCoreDashboard
                 activeTab="planopro"
                 students={students}
+                planProStudents={planProStudents}
                 rankingRows={rankingRows}
                 teachers={teachers}
                 teacherFullName={teacherFullName}
@@ -1684,6 +1696,7 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                onOpenPlanProTab={() => setActiveTab("planopro")}
                 enableBulkDelete
                 selectedStudentIds={selectedStudentIds}
                 selectedTeacherIds={selectedTeacherIds}
@@ -1729,6 +1742,7 @@ export default function AdminDashboardScreen() {
               <AdminCoreDashboard
                 activeTab="professores"
                 students={students}
+                planProStudents={planProStudents}
                 rankingRows={rankingRows}
                 teachers={teachers}
                 teacherFullName={teacherFullName}
@@ -1774,6 +1788,7 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                onOpenPlanProTab={() => setActiveTab("planopro")}
                 enableBulkDelete
                 selectedStudentIds={selectedStudentIds}
                 selectedTeacherIds={selectedTeacherIds}
@@ -3066,6 +3081,7 @@ export default function AdminDashboardScreen() {
               <AdminCoreDashboard
                 activeTab="perfil"
                 students={students}
+                planProStudents={planProStudents}
                 rankingRows={rankingRows}
                 teachers={teachers}
                 teacherFullName={teacherFullName}
@@ -3111,6 +3127,7 @@ export default function AdminDashboardScreen() {
                 onOpenProfileSettings={() => {
                   router.push("/(tabs)/perfil");
                 }}
+                onOpenPlanProTab={() => setActiveTab("planopro")}
               />
             ) : null}
           </View>

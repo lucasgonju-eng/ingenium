@@ -1,7 +1,7 @@
 import { Pressable, TextInput, View } from "react-native";
 import { Text } from "../ui/Text";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
-import type { FullStudentRow, RankingStudentRow, TeacherRow } from "../../lib/supabase/queries";
+import type { FullStudentRow, PlanProStudentRow, RankingStudentRow, TeacherRow } from "../../lib/supabase/queries";
 
 const GRADE_ORDER = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
@@ -20,6 +20,7 @@ export function getAdminCoreTabs() {
 type Props = {
   activeTab: AdminCoreTab;
   students: FullStudentRow[];
+  planProStudents?: PlanProStudentRow[];
   rankingRows: RankingStudentRow[];
   teachers: TeacherRow[];
   teacherFullName: string;
@@ -50,6 +51,7 @@ type Props = {
   onRemoveAssignment: (assignmentId: string) => void;
   onUpdatePassword: () => void;
   onOpenProfileSettings: () => void;
+  onOpenPlanProTab?: () => void;
   enableBulkDelete?: boolean;
   selectedStudentIds?: string[];
   selectedTeacherIds?: string[];
@@ -72,6 +74,7 @@ export default function AdminCoreDashboard(props: Props) {
   const {
     activeTab,
     students,
+    planProStudents = [],
     rankingRows,
     teachers,
     teacherFullName,
@@ -102,6 +105,7 @@ export default function AdminCoreDashboard(props: Props) {
     onRemoveAssignment,
     onUpdatePassword,
     onOpenProfileSettings,
+    onOpenPlanProTab,
     enableBulkDelete = false,
     selectedStudentIds = [],
     selectedTeacherIds = [],
@@ -121,10 +125,6 @@ export default function AdminCoreDashboard(props: Props) {
   } = props;
 
   const totalStudents = students.length;
-  const planProStudents = students.filter((row) => {
-    const tier = String(row.plan_tier ?? "").trim().toLowerCase();
-    return Boolean(row.plan_pro_active) || tier === "pro";
-  });
   const totalPlanProStudents = planProStudents.length;
   const totalXp = rankingRows.reduce((sum, row) => sum + Number(row.total_points || 0), 0);
   const avgXp = totalStudents > 0 ? Math.round(totalXp / totalStudents) : 0;
@@ -178,6 +178,24 @@ export default function AdminCoreDashboard(props: Props) {
                 </Text>
               </View>
             ))}
+          </View>
+          <View style={{ marginTop: spacing.sm }}>
+            <Pressable
+              onPress={onOpenPlanProTab}
+              disabled={!onOpenPlanProTab}
+              style={{
+                minHeight: 40,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: "rgba(255,199,0,0.12)",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: onOpenPlanProTab ? 1 : 0.65,
+              }}
+            >
+              <Text style={{ color: colors.einsteinYellow }} weight="bold">Abrir Alunos Pro</Text>
+            </Pressable>
           </View>
         </View>
 
