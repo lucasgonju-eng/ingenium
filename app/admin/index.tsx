@@ -51,6 +51,7 @@ import type { WolfAiQuestionPayload } from "../../types/games/wolf";
 
 type AdminTab =
   | ReturnType<typeof getAdminCoreTabs>[number]["key"]
+  | "mensagens-admin"
   | "crm-inscricoes"
   | "importacao-2026"
   | "visao-aluno"
@@ -60,6 +61,7 @@ type AdminTab =
   | "lab-games";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
+  { key: "mensagens-admin", label: "Mensagens Admin" },
   { key: "lab-games", label: "Lab Games" },
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
@@ -1850,6 +1852,40 @@ export default function AdminDashboardScreen() {
                   void handleLabGamesAction(action, item);
                 }}
               />
+            ) : null}
+
+            {activeTab === "mensagens-admin" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">
+                  Caixa de mensagens do Admin
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: spacing.xs, lineHeight: 20 }}>
+                  Acesse a caixa para receber dúvidas/sugestões e enviar respostas para alunos e usuários.
+                </Text>
+                <Pressable
+                  onPress={() => router.push("/admin/mensagens")}
+                  style={{
+                    marginTop: spacing.sm,
+                    minHeight: 42,
+                    borderRadius: radii.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: colors.einsteinYellow,
+                  }}
+                >
+                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                    Abrir caixa de mensagens
+                  </Text>
+                </Pressable>
+              </View>
             ) : null}
 
             {activeTab === "gtm" ? (

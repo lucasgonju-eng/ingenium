@@ -175,6 +175,30 @@ export type StudentMessageRow = {
   read_at: string | null;
 };
 
+export type SupportMessageRow = {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  sender_name: string;
+  sender_role: string;
+  sender_email: string | null;
+  recipient_name: string | null;
+  recipient_role: string;
+  title: string;
+  body: string;
+  channel: string;
+  created_at: string;
+  read_at: string | null;
+  direction: "in" | "out";
+};
+
+export type SupportRecipientRow = {
+  id: string;
+  full_name: string | null;
+  role: string;
+  email: string | null;
+};
+
 export type MessageRecipientRow = {
   id: string;
   full_name: string | null;
@@ -565,6 +589,135 @@ export async function markMyStudentMessagesAsRead() {
     .eq("student_id", user.id)
     .is("read_at", null);
   if (error) throw error;
+}
+
+export async function fetchMySupportMessages(limit = 100) {
+  const { data, error } = await supabase.rpc("list_my_support_messages", {
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id ?? ""),
+    sender_id: String(row.sender_id ?? ""),
+    recipient_id: String(row.recipient_id ?? ""),
+    sender_name: String(row.sender_name ?? "Usuário"),
+    sender_role: String(row.sender_role ?? "student"),
+    sender_email: row.sender_email ? String(row.sender_email) : null,
+    recipient_name: row.recipient_name ? String(row.recipient_name) : null,
+    recipient_role: String(row.recipient_role ?? "student"),
+    title: String(row.title ?? ""),
+    body: String(row.body ?? ""),
+    channel: String(row.channel ?? "duvida_sugestao"),
+    created_at: String(row.created_at ?? ""),
+    read_at: row.read_at ? String(row.read_at) : null,
+    direction: String(row.direction ?? "in") === "out" ? "out" : "in",
+  })) as SupportMessageRow[];
+}
+
+export async function fetchSupportRecipientsForAdmin() {
+  const { data, error } = await supabase.rpc("list_support_recipients_for_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id ?? ""),
+    full_name: row.full_name ? String(row.full_name) : null,
+    role: String(row.role ?? "student"),
+    email: row.email ? String(row.email).trim().toLowerCase() : null,
+  })) as SupportRecipientRow[];
+}
+
+export async function markMySupportMessagesAsRead() {
+  const { data, error } = await supabase.rpc("mark_my_support_messages_as_read");
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function sendSupportMessage(input: {
+  title: string;
+  body: string;
+  recipientId?: string | null;
+  channel?: string;
+}) {
+  const { data, error } = await supabase.rpc("send_support_message", {
+    p_title: input.title.trim(),
+    p_body: input.body.trim(),
+    p_recipient_id: input.recipientId ?? null,
+    p_channel: input.channel?.trim() || "duvida_sugestao",
+  });
+  if (error) throw error;
+  const first = Array.isArray(data) ? data[0] : null;
+  if (!first || typeof first !== "object") {
+    throw new Error("Falha ao enviar mensagem de suporte.");
+  }
+  const row = first as Record<string, unknown>;
+  return {
+    message_id: String(row.message_id ?? ""),
+    recipient_id: String(row.recipient_id ?? ""),
+    recipient_name: row.recipient_name ? String(row.recipient_name) : null,
+    recipient_email: row.recipient_email ? String(row.recipient_email).trim().toLowerCase() : null,
+    recipient_role: String(row.recipient_role ?? "student"),
+    sender_name: String(row.sender_name ?? "Usuário"),
+    sender_role: String(row.sender_role ?? "student"),
+    recipient_is_admin: Boolean(row.recipient_is_admin),
+  };
+}
+
+export async function notifyAdminInboxEmail(input: {
+  recipients: Array<{ email: string; fullName: string }>;
+  title: string;
+  body: string;
+  senderName: string;
+  senderRole: string;
+  channel?: string;
+}) {
+  const cleanedRecipients = Array.from(
+    new Map(
+      (input.recipients ?? [])
+        .map((item) => ({
+          email: String(item.email ?? "").trim().toLowerCase(),
+          fullName: String(item.fullName ?? "").trim() || "Admin",
+        }))
+        .filter((item) => item.email.includes("@"))
+        .map((item) => [item.email, item]),
+    ).values(),
+  );
+
+  if (!cleanedRecipients.length) {
+    return { total: 0, sent: 0, failed: 0 };
+  }
+
+  const baseUrl =
+    process.env.EXPO_PUBLIC_SITE_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+  const endpoint = `${baseUrl.replace(/\/+$/, "")}/admin-inbox-notify.php`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      recipients: cleanedRecipients,
+      title: input.title,
+      message: input.body,
+      senderName: input.senderName,
+      senderRole: input.senderRole,
+      channel: input.channel ?? "duvida_sugestao",
+    }),
+  });
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    parsed = {};
+  }
+  if (!response.ok || parsed.ok !== true) {
+    throw new Error(String(parsed.error ?? "").trim() || `Falha ao enviar e-mail admin (${response.status}).`);
+  }
+  return {
+    total: Number(parsed.total ?? cleanedRecipients.length),
+    sent: Number(parsed.sent ?? cleanedRecipients.length),
+    failed: Number(parsed.failed ?? 0),
+  };
 }
 
 export async function fetchMessageRecipientsForSender() {
