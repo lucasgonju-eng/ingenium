@@ -265,6 +265,7 @@ export default function AdminDashboardScreen() {
   const [broadcastSendEmailToo, setBroadcastSendEmailToo] = useState(false);
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
+  const isAdminWeb = Platform.OS === "web";
 
   const categoryCardStyles = {
     uso: {
@@ -1319,53 +1320,55 @@ export default function AdminDashboardScreen() {
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Admin" subtitle="Painel estratégico de alunos" variant="feed" />
-        </View>
+        <View style={{ width: "100%", maxWidth: isAdminWeb ? 1400 : undefined, alignSelf: "center" }}>
+          <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+            <StitchHeader title="Admin" subtitle="Painel estratégico de alunos" variant="feed" />
+          </View>
 
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
-          {authorized ? (
-            <View style={{ marginBottom: spacing.xs }}>
-              <Pressable
-                onPress={() => router.push("/admin/mensagens")}
-                style={{
-                  minHeight: 42,
-                  borderRadius: radii.md,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,199,0,0.45)",
-                  backgroundColor: "rgba(255,199,0,0.12)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: colors.einsteinYellow }} weight="bold">
-                  Abrir Caixa de Mensagens do Admin
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-          <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
-            {visibleTabs.map((tab) => {
-              const active = activeTab === tab.key;
-              return (
+          <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
+            {authorized ? (
+              <View style={{ marginBottom: spacing.xs }}>
                 <Pressable
-                  key={tab.key}
-                  onPress={() => setActiveTab(tab.key)}
+                  onPress={() => router.push("/admin/mensagens")}
                   style={{
-                    borderRadius: radii.pill,
+                    minHeight: 42,
+                    borderRadius: radii.md,
                     borderWidth: 1,
-                    borderColor: active ? "rgba(255,199,0,0.45)" : colors.borderSoft,
-                    backgroundColor: active ? "rgba(255,199,0,0.16)" : "rgba(255,255,255,0.04)",
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 8,
+                    borderColor: "rgba(255,199,0,0.45)",
+                    backgroundColor: "rgba(255,199,0,0.12)",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
-                    {tab.label}
+                  <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                    Abrir Caixa de Mensagens do Admin
                   </Text>
                 </Pressable>
-              );
-            })}
+              </View>
+            ) : null}
+            <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+              {visibleTabs.map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => setActiveTab(tab.key)}
+                    style={{
+                      borderRadius: radii.pill,
+                      borderWidth: 1,
+                      borderColor: active ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                      backgroundColor: active ? "rgba(255,199,0,0.16)" : "rgba(255,255,255,0.04)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+                      {tab.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </View>
 

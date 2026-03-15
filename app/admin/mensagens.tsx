@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
@@ -26,6 +26,7 @@ export default function AdminMensagensScreen() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const isWeb = Platform.OS === "web";
 
   const selectedRecipient = recipients.find((item) => item.id === selectedRecipientId) ?? null;
   const filteredRecipients = useMemo(() => {
@@ -41,6 +42,18 @@ export default function AdminMensagensScreen() {
       })
       .slice(0, 25);
   }, [recipients, recipientSearch, selectedRecipientId]);
+  const receivedMessages = useMemo(
+    () => messages.filter((message) => message.direction === "in"),
+    [messages],
+  );
+  const sentMessages = useMemo(
+    () => messages.filter((message) => message.direction === "out"),
+    [messages],
+  );
+  const unreadReceivedCount = useMemo(
+    () => receivedMessages.filter((message) => !message.read_at).length,
+    [receivedMessages],
+  );
 
   async function loadAll() {
     const [rows, users] = await Promise.all([fetchMySupportMessages(120), fetchSupportRecipientsForAdmin()]);
@@ -169,121 +182,188 @@ export default function AdminMensagensScreen() {
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Mensagens Admin" subtitle="Enviar e receber mensagens internas" variant="feed" />
-        </View>
-
-        <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm, gap: spacing.sm }}>
-          <View style={sectionCardStyle}>
-            <Text style={{ color: colors.white }} weight="bold">
-              Nova mensagem
-            </Text>
-            <TextInput
-              placeholder="Pesquisar destinatário"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              value={recipientSearch}
-              onChangeText={setRecipientSearch}
-              style={inputStyle}
-            />
-            {selectedRecipient ? (
-              <View style={{ marginTop: spacing.xs, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.06)", padding: spacing.xs }}>
-                <Text style={{ color: colors.white }} weight="semibold">
-                  Destinatário: {selectedRecipient.full_name ?? "Sem nome"} ({selectedRecipient.role})
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={{ marginTop: spacing.xs, gap: 6, maxHeight: 180 }}>
-              {filteredRecipients.map((recipient) => (
-                <Pressable
-                  key={recipient.id}
-                  onPress={() => setSelectedRecipientId(recipient.id)}
-                  style={{ borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.03)", padding: spacing.xs }}
-                >
-                  <Text style={{ color: colors.white }} weight="semibold">
-                    {recipient.full_name ?? "Sem nome"}
-                  </Text>
-                  <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
-                    {recipient.role} {recipient.email ? `• ${recipient.email}` : ""}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <TextInput
-              placeholder="Assunto"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              value={title}
-              onChangeText={setTitle}
-              style={inputStyle}
-            />
-            <TextInput
-              placeholder="Mensagem"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              value={body}
-              onChangeText={setBody}
-              multiline
-              textAlignVertical="top"
-              style={[inputStyle, { minHeight: 110, paddingTop: spacing.sm }]}
-            />
-            <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs }}>
-              <Pressable
-                onPress={() => {
-                  void loadAll();
-                }}
-                style={secondaryButtonStyle}
-              >
-                <Text style={{ color: colors.white }} weight="semibold">
-                  Atualizar
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => void handleSend()} disabled={sending} style={[primaryButtonStyle, { opacity: sending ? 0.7 : 1 }]}>
-                <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                  {sending ? "Enviando..." : "Enviar mensagem"}
-                </Text>
-              </Pressable>
-            </View>
+        <View style={{ width: "100%", maxWidth: isWeb ? 1320 : undefined, alignSelf: "center" }}>
+          <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+            <StitchHeader title="Mensagens Admin" subtitle="Caixa organizada por recebidas e enviadas" variant="feed" />
           </View>
 
-          <View style={sectionCardStyle}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm, gap: spacing.sm }}>
+            <View style={[sectionCardStyle, isWeb ? { padding: spacing.lg } : null]}>
               <Text style={{ color: colors.white }} weight="bold">
-                Caixa de mensagens
+                Nova mensagem
               </Text>
-              <Pressable onPress={() => void handleMarkAsRead()} style={secondaryButtonStyle}>
-                <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
-                  Marcar recebidas como lidas
-                </Text>
-              </Pressable>
-            </View>
-            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-              {messages.length === 0 ? (
-                <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens ainda.</Text>
-              ) : (
-                messages.map((message) => (
-                  <View
-                    key={message.id}
+              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+                Escolha o destinatário e envie a resposta ou comunicado.
+              </Text>
+              <TextInput
+                placeholder="Pesquisar destinatário por nome, e-mail ou perfil"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                value={recipientSearch}
+                onChangeText={setRecipientSearch}
+                style={inputStyle}
+              />
+              {selectedRecipient ? (
+                <View style={{ marginTop: spacing.xs, borderRadius: radii.md, borderWidth: 1, borderColor: "rgba(255,199,0,0.45)", backgroundColor: "rgba(255,199,0,0.10)", padding: spacing.xs }}>
+                  <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                    Destinatário selecionado
+                  </Text>
+                  <Text style={{ color: colors.white, marginTop: 2 }}>
+                    {selectedRecipient.full_name ?? "Sem nome"} ({selectedRecipient.role})
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={{ marginTop: spacing.xs, gap: 6, maxHeight: isWeb ? 220 : 180 }}>
+                {filteredRecipients.map((recipient) => (
+                  <Pressable
+                    key={recipient.id}
+                    onPress={() => setSelectedRecipientId(recipient.id)}
                     style={{
                       borderRadius: radii.md,
                       borderWidth: 1,
-                      borderColor: message.direction === "in" && !message.read_at ? "rgba(255,199,0,0.70)" : colors.borderSoft,
-                      backgroundColor: message.direction === "in" ? "rgba(255,255,255,0.03)" : "rgba(59,130,246,0.08)",
-                      padding: spacing.sm,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      padding: spacing.xs,
                     }}
                   >
-                    <Text style={{ color: colors.white }} weight="bold">
-                      {message.direction === "in" ? "Recebida" : "Enviada"} • {message.title}
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      {recipient.full_name ?? "Sem nome"}
                     </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
-                      {message.direction === "in" ? `De: ${message.sender_name} (${message.sender_role})` : `Para: ${message.recipient_name ?? "Usuário"}`}
+                    <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
+                      {recipient.role} {recipient.email ? `• ${recipient.email}` : ""}
                     </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 6 }}>{message.body}</Text>
-                    <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 6, fontSize: typography.small.fontSize }}>
-                      {new Date(message.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </Pressable>
+                ))}
+              </View>
+
+              <TextInput
+                placeholder="Assunto"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                value={title}
+                onChangeText={setTitle}
+                style={inputStyle}
+              />
+              <TextInput
+                placeholder="Mensagem"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                value={body}
+                onChangeText={setBody}
+                multiline
+                textAlignVertical="top"
+                style={[inputStyle, { minHeight: 110, paddingTop: spacing.sm }]}
+              />
+              <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs }}>
+                <Pressable
+                  onPress={() => {
+                    void loadAll();
+                  }}
+                  style={secondaryButtonStyle}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">
+                    Atualizar
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => void handleSend()} disabled={sending} style={[primaryButtonStyle, { opacity: sending ? 0.7 : 1 }]}>
+                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                    {sending ? "Enviando..." : "Enviar mensagem"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: isWeb ? "row" : "column", gap: spacing.sm, alignItems: "stretch" }}>
+              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 420 } : null]}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ color: colors.white }} weight="bold">
+                    Recebidas {unreadReceivedCount > 0 ? `(${unreadReceivedCount} novas)` : ""}
+                  </Text>
+                  <Pressable onPress={() => void handleMarkAsRead()} style={secondaryButtonStyle}>
+                    <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                      Marcar lidas
                     </Text>
-                  </View>
-                ))
-              )}
+                  </Pressable>
+                </View>
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  {receivedMessages.length === 0 ? (
+                    <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens recebidas.</Text>
+                  ) : (
+                    receivedMessages.map((message) => (
+                      <View
+                        key={message.id}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: !message.read_at ? "rgba(255,199,0,0.70)" : colors.borderSoft,
+                          backgroundColor: !message.read_at ? "rgba(255,199,0,0.10)" : "rgba(255,255,255,0.03)",
+                          padding: spacing.sm,
+                        }}
+                      >
+                        <Text style={{ color: colors.white }} weight="bold">
+                          {message.title}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 4 }}>
+                          Remetente: {message.sender_name} ({message.sender_role})
+                        </Text>
+                        {message.sender_email ? (
+                          <Text style={{ color: "rgba(255,255,255,0.62)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                            E-mail: {message.sender_email}
+                          </Text>
+                        ) : null}
+                        <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 8 }}>{message.body}</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 6, fontSize: typography.small.fontSize }}>
+                          {new Date(message.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            setSelectedRecipientId(message.sender_id);
+                            setTitle(`Re: ${message.title}`);
+                          }}
+                          style={{ marginTop: spacing.xs, alignSelf: "flex-start", paddingHorizontal: spacing.xs, paddingVertical: 6, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.08)" }}
+                        >
+                          <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                            Responder
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
+
+              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 420 } : null]}>
+                <Text style={{ color: colors.white }} weight="bold">
+                  Enviadas
+                </Text>
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  {sentMessages.length === 0 ? (
+                    <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens enviadas.</Text>
+                  ) : (
+                    sentMessages.map((message) => (
+                      <View
+                        key={message.id}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: colors.borderSoft,
+                          backgroundColor: "rgba(59,130,246,0.10)",
+                          padding: spacing.sm,
+                        }}
+                      >
+                        <Text style={{ color: colors.white }} weight="bold">
+                          {message.title}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 4 }}>
+                          Destinatário: {message.recipient_name ?? "Usuário"} ({message.recipient_role})
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 8 }}>{message.body}</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 6, fontSize: typography.small.fontSize }}>
+                          {new Date(message.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
             </View>
           </View>
         </View>
