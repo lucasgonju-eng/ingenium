@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
@@ -14,11 +14,14 @@ import {
   reviewStudentSignupPendingRequestAdmin,
   sendStudentPendingStatusEmail,
   fetchSaasAnalyticsOverview,
+  fetchStudentEmailRecipientsForSender,
   fetchMyAccessRole,
   fetchRankingAllRegisteredStudents,
   fetchRegisteredStudentsFull,
   fetchTeachersWithOlympiads,
   reviewAccessRequestAdmin,
+  sendStudentBroadcastEmail,
+  sendStudentMessageBulk,
   sendAccessRequestReviewEmail,
   sendTeacherMagicLink,
   removeTeacherAssignment,
@@ -49,6 +52,7 @@ type AdminTab =
   | "crm-inscricoes"
   | "importacao-2026"
   | "visao-aluno"
+  | "avisos-gerais"
   | "gtm"
   | "notificacoes"
   | "lab-games";
@@ -58,6 +62,7 @@ const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
   { key: "visao-aluno", label: "Visão do aluno" },
+  { key: "avisos-gerais", label: "Aviso geral alunos" },
   { key: "notificacoes", label: "Notificações" },
   { key: "gtm", label: "GTM" },
 ];
@@ -69,6 +74,8 @@ type GtmObservedEvent = {
   eventHelp: string;
   payloadPreview: string;
 };
+
+type BroadcastCategory = "all" | "bronze" | "silver" | "gold";
 
 function getFriendlyEventInfo(eventName: string) {
   const map: Record<string, { label: string; help: string }> = {
@@ -241,6 +248,18 @@ export default function AdminDashboardScreen() {
   const [wolfQuestionPreview, setWolfQuestionPreview] = useState<WolfAiQuestionPayload | null>(null);
   const [wolfQuestionSource, setWolfQuestionSource] = useState<"bank" | "mock" | null>(null);
   const [wolfQuestionLoading, setWolfQuestionLoading] = useState(false);
+  const [studentEmailsById, setStudentEmailsById] = useState<Record<string, string>>({});
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastSearch, setBroadcastSearch] = useState("");
+  const [broadcastSelectedStudentIds, setBroadcastSelectedStudentIds] = useState<string[]>([]);
+  const [broadcastGradeFilter, setBroadcastGradeFilter] = useState<string>("all");
+  const [broadcastClassFilter, setBroadcastClassFilter] = useState<string>("all");
+  const [broadcastCategoryFilter, setBroadcastCategoryFilter] = useState<BroadcastCategory>("all");
+  const [broadcastSendInApp, setBroadcastSendInApp] = useState(true);
+  const [broadcastSendEmailToo, setBroadcastSendEmailToo] = useState(false);
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
 
   const categoryCardStyles = {
     uso: {
@@ -291,13 +310,14 @@ export default function AdminDashboardScreen() {
         }
         setAccessRole(role);
 
-        const [studentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData] = await Promise.all([
+        const [studentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData, studentEmailRows] = await Promise.all([
           fetchRegisteredStudentsFull(),
           fetchRankingAllRegisteredStudents(500),
           fetchTeachersWithOlympiads(),
           fetchOlympiads(),
           fetchSaasAnalyticsOverview(30),
           fetchPendingAccessRequestsAdmin(),
+          fetchStudentEmailRecipientsForSender().catch(() => []),
         ]);
         if (!mounted) return;
         setAuthorized(true);
@@ -307,6 +327,12 @@ export default function AdminDashboardScreen() {
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
         setSaasAnalytics(analyticsData);
         setPendingRequests(requestsData);
+        setStudentEmailsById(
+          (studentEmailRows ?? []).reduce<Record<string, string>>((acc, row) => {
+            if (row.id && row.email) acc[row.id] = row.email;
+            return acc;
+          }, {}),
+        );
         setLabGamesLoading(true);
         try {
           const [labItems, wolfConfig] = await Promise.all([
@@ -1148,6 +1174,139 @@ export default function AdminDashboardScreen() {
       ? `${window.location.origin.replace(/\/+$/, "")}/dashboard`
       : `${process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/+$/, "") ?? "https://ingenium.einsteinhub.co"}/dashboard`;
 
+  const loboClassByStudentId = useMemo(() => {
+    return rankingRows.reduce<Record<string, "bronze" | "silver" | "gold">>((acc, row) => {
+      acc[row.user_id] = row.lobo_class ?? "bronze";
+      return acc;
+    }, {});
+  }, [rankingRows]);
+
+  const broadcastRecipients = useMemo(() => {
+    return students
+      .filter((student) => student.is_active !== false)
+      .map((student) => ({
+        id: student.id,
+        full_name: student.full_name?.trim() || "Aluno sem nome",
+        grade: student.grade?.trim() || "Sem série",
+        class_name: student.class_name?.trim() || "Sem turma",
+        lobo_class: loboClassByStudentId[student.id] ?? "bronze",
+        email: studentEmailsById[student.id] ?? null,
+      }));
+  }, [students, loboClassByStudentId, studentEmailsById]);
+
+  const broadcastGradeOptions = useMemo(
+    () => Array.from(new Set(broadcastRecipients.map((item) => item.grade))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [broadcastRecipients],
+  );
+
+  const broadcastClassOptions = useMemo(
+    () => Array.from(new Set(broadcastRecipients.map((item) => item.class_name))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [broadcastRecipients],
+  );
+
+  const filteredBroadcastRecipients = useMemo(() => {
+    const query = broadcastSearch.trim().toLowerCase();
+    return broadcastRecipients.filter((recipient) => {
+      const gradePass = broadcastGradeFilter === "all" || recipient.grade === broadcastGradeFilter;
+      const classPass = broadcastClassFilter === "all" || recipient.class_name === broadcastClassFilter;
+      const categoryPass = broadcastCategoryFilter === "all" || recipient.lobo_class === broadcastCategoryFilter;
+      if (!gradePass || !classPass || !categoryPass) return false;
+      if (!query) return true;
+      return (
+        recipient.full_name.toLowerCase().includes(query) ||
+        recipient.grade.toLowerCase().includes(query) ||
+        recipient.class_name.toLowerCase().includes(query)
+      );
+    });
+  }, [broadcastRecipients, broadcastSearch, broadcastGradeFilter, broadcastClassFilter, broadcastCategoryFilter]);
+
+  const broadcastSelectedSet = useMemo(() => new Set(broadcastSelectedStudentIds), [broadcastSelectedStudentIds]);
+
+  async function handleSendBroadcastNotice() {
+    const title = broadcastTitle.trim();
+    const body = broadcastBody.trim();
+    if (!title || !body) {
+      Alert.alert("Campos obrigatórios", "Preencha título e mensagem do aviso geral.");
+      return;
+    }
+    if (!broadcastSendInApp && !broadcastSendEmailToo) {
+      Alert.alert("Canal obrigatório", "Marque pelo menos um canal: caixa InGenium ou e-mail.");
+      return;
+    }
+    if (!broadcastSelectedStudentIds.length) {
+      Alert.alert("Nenhum aluno selecionado", "Selecione pelo menos um aluno (ou marque todos filtrados).");
+      return;
+    }
+
+    const selectedRecipients = broadcastRecipients.filter((recipient) => broadcastSelectedSet.has(recipient.id));
+    if (!selectedRecipients.length) {
+      Alert.alert("Seleção inválida", "Não encontramos destinatários válidos na seleção atual.");
+      return;
+    }
+
+    const confirmed =
+      typeof window !== "undefined"
+        ? window.confirm(
+            `Confirma envio do aviso para ${selectedRecipients.length} aluno(s)?`,
+          )
+        : true;
+    if (!confirmed) return;
+
+    try {
+      setBroadcastSending(true);
+      setBroadcastFeedback(null);
+
+      let inAppSent = 0;
+      let inAppFailed = 0;
+      let emailSent = 0;
+      let emailFailed = 0;
+      let emailSkipped = 0;
+
+      if (broadcastSendInApp) {
+        const inAppResult = await sendStudentMessageBulk({
+          student_ids: selectedRecipients.map((recipient) => recipient.id),
+          title,
+          body,
+        });
+        inAppSent = inAppResult.sent;
+        inAppFailed = inAppResult.failed;
+      }
+
+      if (broadcastSendEmailToo) {
+        const emailRecipients = selectedRecipients.filter((recipient) => Boolean(recipient.email));
+        emailSkipped = selectedRecipients.length - emailRecipients.length;
+        if (emailRecipients.length) {
+          const emailResult = await sendStudentBroadcastEmail({
+            recipients: emailRecipients.map((recipient) => ({
+              email: recipient.email as string,
+              fullName: recipient.full_name,
+            })),
+            title,
+            body,
+          });
+          emailSent = emailResult.sent;
+          emailFailed = emailResult.failed;
+        }
+      }
+
+      const feedbackParts = [
+        broadcastSendInApp ? `Caixa InGenium: ${inAppSent} enviado(s), ${inAppFailed} falha(s)` : null,
+        broadcastSendEmailToo
+          ? `E-mail: ${emailSent} enviado(s), ${emailFailed} falha(s), ${emailSkipped} sem e-mail`
+          : null,
+      ].filter(Boolean);
+
+      const feedbackText = feedbackParts.join(" | ");
+      setBroadcastFeedback(feedbackText);
+      Alert.alert("Aviso geral processado", feedbackText || "Envio concluído.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Falha ao enviar aviso geral.";
+      Alert.alert("Erro", message);
+    } finally {
+      setBroadcastSending(false);
+    }
+  }
+
   return (
     <StitchScreenFrame>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
@@ -1943,7 +2102,372 @@ export default function AdminDashboardScreen() {
               </View>
             ) : null}
 
-            {activeTab === "notificacoes" ? (
+            {activeTab === "avisos-gerais" || activeTab === "notificacoes" ? (
+              <>
+              {activeTab === "avisos-gerais" ? (
+              <View
+                style={{
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,199,0,0.4)",
+                  backgroundColor: colors.surfacePanel,
+                  padding: spacing.md,
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <Text style={{ color: colors.white }} weight="bold">Aviso geral para alunos</Text>
+                <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
+                  Envie recados para todos os alunos cadastrados ou para grupos filtrados por série, turma e categoria (bronze, prata e ouro).
+                </Text>
+
+                <TextInput
+                  placeholder="Título do aviso"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  style={{
+                    marginTop: spacing.sm,
+                    height: 44,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+                <TextInput
+                  placeholder="Escreva a mensagem do aviso geral"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  value={broadcastBody}
+                  onChangeText={setBroadcastBody}
+                  multiline
+                  textAlignVertical="top"
+                  style={{
+                    marginTop: spacing.xs,
+                    minHeight: 96,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: spacing.sm,
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+
+                <TextInput
+                  placeholder="Buscar por nome, série ou turma"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  value={broadcastSearch}
+                  onChangeText={setBroadcastSearch}
+                  style={{
+                    marginTop: spacing.sm,
+                    height: 42,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.02)",
+                    color: colors.white,
+                    paddingHorizontal: spacing.sm,
+                    fontFamily: typography.fontFamily.base,
+                  }}
+                />
+
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.74)" }} weight="semibold">Filtrar por série</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+                    <Pressable
+                      onPress={() => setBroadcastGradeFilter("all")}
+                      style={{
+                        borderRadius: radii.pill,
+                        borderWidth: 1,
+                        borderColor: broadcastGradeFilter === "all" ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                        backgroundColor: broadcastGradeFilter === "all" ? "rgba(255,199,0,0.14)" : "rgba(255,255,255,0.04)",
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ color: broadcastGradeFilter === "all" ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                        Todas as séries
+                      </Text>
+                    </Pressable>
+                    {broadcastGradeOptions.map((gradeOption) => (
+                      <Pressable
+                        key={`broadcast-grade-${gradeOption}`}
+                        onPress={() => setBroadcastGradeFilter(gradeOption)}
+                        style={{
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: broadcastGradeFilter === gradeOption ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                          backgroundColor: broadcastGradeFilter === gradeOption ? "rgba(255,199,0,0.14)" : "rgba(255,255,255,0.04)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        <Text style={{ color: broadcastGradeFilter === gradeOption ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                          {gradeOption}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.74)" }} weight="semibold">Filtrar por turma</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+                    <Pressable
+                      onPress={() => setBroadcastClassFilter("all")}
+                      style={{
+                        borderRadius: radii.pill,
+                        borderWidth: 1,
+                        borderColor: broadcastClassFilter === "all" ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                        backgroundColor: broadcastClassFilter === "all" ? "rgba(255,199,0,0.14)" : "rgba(255,255,255,0.04)",
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ color: broadcastClassFilter === "all" ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                        Todas as turmas
+                      </Text>
+                    </Pressable>
+                    {broadcastClassOptions.map((classOption) => (
+                      <Pressable
+                        key={`broadcast-class-${classOption}`}
+                        onPress={() => setBroadcastClassFilter(classOption)}
+                        style={{
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: broadcastClassFilter === classOption ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                          backgroundColor: broadcastClassFilter === classOption ? "rgba(255,199,0,0.14)" : "rgba(255,255,255,0.04)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        <Text style={{ color: broadcastClassFilter === classOption ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                          {classOption}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                  <Text style={{ color: "rgba(255,255,255,0.74)" }} weight="semibold">Filtrar por categoria</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+                    {[
+                      { key: "all" as const, label: "Todas" },
+                      { key: "bronze" as const, label: "Bronze" },
+                      { key: "silver" as const, label: "Prata" },
+                      { key: "gold" as const, label: "Ouro" },
+                    ].map((item) => (
+                      <Pressable
+                        key={`broadcast-category-${item.key}`}
+                        onPress={() => setBroadcastCategoryFilter(item.key)}
+                        style={{
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: broadcastCategoryFilter === item.key ? "rgba(255,199,0,0.45)" : colors.borderSoft,
+                          backgroundColor: broadcastCategoryFilter === item.key ? "rgba(255,199,0,0.14)" : "rgba(255,255,255,0.04)",
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        <Text style={{ color: broadcastCategoryFilter === item.key ? colors.einsteinYellow : "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                          {item.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={{ marginTop: spacing.sm, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+                  <Pressable
+                    onPress={() => setBroadcastSelectedStudentIds(filteredBroadcastRecipients.map((recipient) => recipient.id))}
+                    style={{
+                      borderRadius: radii.pill,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.06)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 6,
+                    }}
+                  >
+                    <Text style={{ color: colors.white, fontSize: 12 }} weight="semibold">
+                      Marcar todos filtrados ({filteredBroadcastRecipients.length})
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setBroadcastSelectedStudentIds(broadcastRecipients.map((recipient) => recipient.id))}
+                    style={{
+                      borderRadius: radii.pill,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.06)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 6,
+                    }}
+                  >
+                    <Text style={{ color: colors.white, fontSize: 12 }} weight="semibold">
+                      Marcar todos cadastrados ({broadcastRecipients.length})
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setBroadcastSelectedStudentIds([])}
+                    style={{
+                      borderRadius: radii.pill,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.04)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 6,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.82)", fontSize: 12 }} weight="semibold">
+                      Limpar seleção
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ marginTop: spacing.xs, gap: spacing.xs, maxHeight: 260 }}>
+                  <ScrollView nestedScrollEnabled>
+                    <View style={{ gap: spacing.xs }}>
+                      {filteredBroadcastRecipients.map((recipient) => {
+                        const selected = broadcastSelectedSet.has(recipient.id);
+                        return (
+                          <Pressable
+                            key={`broadcast-recipient-${recipient.id}`}
+                            onPress={() => {
+                              setBroadcastSelectedStudentIds((prev) =>
+                                prev.includes(recipient.id)
+                                  ? prev.filter((id) => id !== recipient.id)
+                                  : [...prev, recipient.id],
+                              );
+                            }}
+                            style={{
+                              borderRadius: radii.md,
+                              borderWidth: 1,
+                              borderColor: selected ? "rgba(255,199,0,0.6)" : colors.borderSoft,
+                              backgroundColor: selected ? "rgba(255,199,0,0.12)" : "rgba(255,255,255,0.03)",
+                              paddingHorizontal: spacing.sm,
+                              paddingVertical: 8,
+                            }}
+                          >
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                              <View
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 6,
+                                  borderWidth: 1,
+                                  borderColor: "rgba(255,255,255,0.35)",
+                                  backgroundColor: selected ? "rgba(255,199,0,0.26)" : "transparent",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <Text style={{ color: selected ? colors.einsteinYellow : "rgba(255,255,255,0.55)", fontSize: 11 }} weight="bold">
+                                  {selected ? "✓" : ""}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.white }} weight="semibold">
+                                  {recipient.full_name}
+                                </Text>
+                                <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 12 }}>
+                                  Série: {recipient.grade} • Turma: {recipient.class_name} • Categoria: {recipient.lobo_class === "gold" ? "ouro" : recipient.lobo_class === "silver" ? "prata" : "bronze"}
+                                </Text>
+                                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
+                                  E-mail: {recipient.email ?? "não informado"}
+                                </Text>
+                              </View>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                      {filteredBroadcastRecipients.length === 0 ? (
+                        <View
+                          style={{
+                            borderRadius: radii.md,
+                            borderWidth: 1,
+                            borderColor: colors.borderSoft,
+                            backgroundColor: "rgba(255,255,255,0.03)",
+                            padding: spacing.sm,
+                          }}
+                        >
+                          <Text style={{ color: "rgba(255,255,255,0.75)" }}>
+                            Nenhum aluno encontrado para os filtros aplicados.
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </ScrollView>
+                </View>
+
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                  <Pressable
+                    onPress={() => setBroadcastSendInApp((prev) => !prev)}
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      {broadcastSendInApp ? "☑" : "☐"} Enviar para caixa de mensagens do InGenium
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setBroadcastSendEmailToo((prev) => !prev)}
+                    style={{
+                      borderRadius: radii.md,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      {broadcastSendEmailToo ? "☑" : "☐"} Enviar também por e-mail
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  onPress={() => {
+                    void handleSendBroadcastNotice();
+                  }}
+                  disabled={broadcastSending}
+                  style={{
+                    marginTop: spacing.md,
+                    height: 44,
+                    borderRadius: radii.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: colors.einsteinYellow,
+                    opacity: broadcastSending ? 0.7 : 1,
+                  }}
+                >
+                  <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                    {broadcastSending ? "Enviando aviso..." : `Enviar aviso para ${broadcastSelectedStudentIds.length} aluno(s)`}
+                  </Text>
+                </Pressable>
+
+                {broadcastFeedback ? (
+                  <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: spacing.xs }}>
+                    {broadcastFeedback}
+                  </Text>
+                ) : null}
+              </View>
+              ) : null}
+
+              {activeTab === "notificacoes" ? (
               <View
                 style={{
                   borderRadius: radii.lg,
@@ -2043,6 +2567,8 @@ export default function AdminDashboardScreen() {
                   )}
                 </View>
               </View>
+              ) : null}
+              </>
             ) : null}
 
             {activeTab === "crm-inscricoes" ? (

@@ -166,6 +166,11 @@ export type MessageRecipientRow = {
   grade: string | null;
 };
 
+export type StudentEmailRecipientRow = {
+  id: string;
+  email: string | null;
+};
+
 export async function fetchRankingGeral(limit = 50) {
   const { data, error } = await supabase
     .from("v_ranking_geral")
@@ -516,6 +521,150 @@ export async function sendStudentMessage(input: {
   });
   if (error) throw error;
   return String(data ?? "");
+}
+
+export async function sendStudentMessageBulk(input: {
+  student_ids: string[];
+  title: string;
+  body: string;
+}) {
+  const ids = Array.from(new Set((input.student_ids ?? []).map((id) => String(id).trim()).filter(Boolean)));
+  if (!ids.length) {
+    return { sent: 0, failed: 0, failedIds: [] as string[] };
+  }
+
+  const trimmedTitle = input.title.trim();
+  const trimmedBody = input.body.trim();
+
+  const bulkCall = await supabase.rpc("send_student_message_bulk", {
+    p_student_ids: ids,
+    p_title: trimmedTitle,
+    p_body: trimmedBody,
+  });
+
+  if (bulkCall.error) {
+    const normalizedError = String(bulkCall.error.message ?? "").toLowerCase();
+    const shouldFallbackToSingle =
+      normalizedError.includes("send_student_message_bulk") &&
+      (normalizedError.includes("does not exist") || normalizedError.includes("function"));
+
+    if (!shouldFallbackToSingle) {
+      throw bulkCall.error;
+    }
+
+    const failedIds: string[] = [];
+    let sent = 0;
+    for (const studentId of ids) {
+      try {
+        await sendStudentMessage({ student_id: studentId, title: trimmedTitle, body: trimmedBody });
+        sent += 1;
+      } catch {
+        failedIds.push(studentId);
+      }
+    }
+    return { sent, failed: failedIds.length, failedIds };
+  }
+
+  const rows = (bulkCall.data ?? []) as Array<Record<string, unknown>>;
+  const sentIds = rows.map((row) => String(row.student_id ?? "")).filter(Boolean);
+  const failedIds = ids.filter((id) => !sentIds.includes(id));
+  return {
+    sent: sentIds.length,
+    failed: failedIds.length,
+    failedIds,
+  };
+}
+
+export async function fetchStudentEmailRecipientsForSender() {
+  const { data, error } = await supabase.rpc("list_student_email_recipients_for_sender");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id ?? ""),
+    email: row.email ? String(row.email).trim().toLowerCase() : null,
+  })) as StudentEmailRecipientRow[];
+}
+
+export async function sendStudentBroadcastEmail(input: {
+  recipients: Array<{ email: string; fullName: string }>;
+  title: string;
+  body: string;
+}) {
+  const cleanedRecipients = Array.from(
+    new Map(
+      (input.recipients ?? [])
+        .map((recipient) => ({
+          email: String(recipient.email ?? "").trim().toLowerCase(),
+          fullName: String(recipient.fullName ?? "").trim() || "Aluno(a)",
+        }))
+        .filter((recipient) => recipient.email.includes("@"))
+        .map((recipient) => [recipient.email, recipient]),
+    ).values(),
+  );
+
+  if (!cleanedRecipients.length) {
+    return { total: 0, sent: 0, failed: 0, errors: [] as Array<{ email: string; error: string }> };
+  }
+
+  const baseUrl =
+    process.env.EXPO_PUBLIC_SITE_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "https://ingenium.einsteinhub.co");
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const preferredEndpoint =
+    process.env.EXPO_PUBLIC_STUDENT_BROADCAST_NOTIFY_URL ??
+    `${normalizedBaseUrl}/student-message-broadcast-notify.php`;
+  const fallbackEndpoint = `${normalizedBaseUrl}/student-xp-kickoff-notify.php`;
+
+  const payload = {
+    recipients: cleanedRecipients,
+    title: input.title.trim(),
+    message: input.body.trim(),
+    subject: `InGenium | ${input.title.trim()}`,
+    // Compat com endpoint legado de campanha em massa.
+    opening: "Olá!",
+    headline: input.title.trim(),
+    bodyA: input.body.trim(),
+    bodyB: "",
+    bodyC: "Equipe InGenium Einstein",
+    cta: "Acesse o InGenium para acompanhar seus recados.",
+  };
+
+  async function request(endpoint: string) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      parsed = {};
+    }
+    return { response, parsed, text };
+  }
+
+  let firstAttempt = await request(preferredEndpoint);
+  if (!firstAttempt.response.ok || firstAttempt.parsed.ok === false) {
+    firstAttempt = await request(fallbackEndpoint);
+  }
+
+  if (!firstAttempt.response.ok || firstAttempt.parsed.ok === false) {
+    const errMessage =
+      String(firstAttempt.parsed.error ?? "").trim() ||
+      firstAttempt.text.slice(0, 180) ||
+      `Falha ao enviar e-mails (${firstAttempt.response.status}).`;
+    throw new Error(errMessage);
+  }
+
+  return {
+    total: Number(firstAttempt.parsed.total ?? cleanedRecipients.length),
+    sent: Number(firstAttempt.parsed.sent ?? cleanedRecipients.length),
+    failed: Number(firstAttempt.parsed.failed ?? 0),
+    errors: Array.isArray(firstAttempt.parsed.errors)
+      ? (firstAttempt.parsed.errors as Array<{ email: string; error: string }>)
+      : [],
+  };
 }
 
 export async function fetchMyAccessRole(): Promise<MyAccessRole> {
