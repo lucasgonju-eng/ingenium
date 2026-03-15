@@ -220,9 +220,10 @@ set search_path = public
 as $$
 declare
   v_uid uuid := auth.uid();
-  v_attempt_number int := greatest(1, least(p_attempt_number, 8));
   v_hits int := greatest(0, least(p_hits, 4));
   v_xp_awarded int := greatest(0, p_xp_awarded);
+  v_gate record;
+  v_attempt_number int;
   v_attempt_id uuid;
   v_xp_source_ref text;
 begin
@@ -230,6 +231,22 @@ begin
     raise exception 'not_authenticated';
   end if;
 
+  select *
+    into v_gate
+  from public.get_wolf_attempt_gate()
+  limit 1;
+
+  if coalesce(v_gate.attempts_remaining, 0) <= 0 then
+    raise exception 'attempt_limit_reached';
+  end if;
+
+  if v_gate.latest_attempt_finished_at is not null then
+    if now() < (v_gate.latest_attempt_finished_at + make_interval(mins => coalesce(v_gate.cooldown_minutes, 10))) then
+      raise exception 'cooldown_active';
+    end if;
+  end if;
+
+  v_attempt_number := coalesce(v_gate.attempts_used_today, 0) + 1;
   perform pg_advisory_xact_lock(hashtext(format('wolf_attempt:%s:%s:%s', v_uid::text, now()::date::text, v_attempt_number::text)));
 
   select a.id
@@ -336,6 +353,7 @@ declare
   v_latest_finished_at timestamptz := null;
   v_base int := 4;
   v_effective int := 4;
+  v_cooldown int := 10;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -350,6 +368,7 @@ begin
 
   if found then
     v_base := greatest(1, coalesce(v_cfg.attempts_per_day, 4));
+    v_cooldown := greatest(0, coalesce(v_cfg.cooldown_minutes, 10));
   end if;
 
   select to_jsonb(p)
@@ -361,17 +380,43 @@ begin
   v_is_plan_pro := coalesce((v_profile ->> 'plan_pro_active')::boolean, false) or v_plan_tier = 'pro';
   v_effective := case when v_is_plan_pro then v_base * 2 else v_base end;
 
+  with ordered_attempts as (
+    select
+      row_number() over (order by a.completed_at asc, a.id asc) as rn,
+      a.completed_at
+    from public.game_attempts a
+    where a.game_id = 'game_teste_dos_lobos'
+      and a.user_id = auth.uid()
+      and a.attempt_date = now()::date
+      and a.status = 'completed'
+  ),
+  valid_attempts as (
+    with recursive picked as (
+      select oa.rn, oa.completed_at
+      from ordered_attempts oa
+      where oa.rn = 1
+      union all
+      select nx.rn, nx.completed_at
+      from picked p
+      join lateral (
+        select oa2.rn, oa2.completed_at
+        from ordered_attempts oa2
+        where oa2.rn > p.rn
+          and oa2.completed_at >= (p.completed_at + make_interval(mins => v_cooldown))
+        order by oa2.rn asc
+        limit 1
+      ) nx on true
+    )
+    select *
+    from picked
+  )
   select
     count(*)::int,
-    max(a.completed_at)
+    max(completed_at)
   into
     v_attempts_used,
     v_latest_finished_at
-  from public.game_attempts a
-  where a.game_id = 'game_teste_dos_lobos'
-    and a.user_id = auth.uid()
-    and a.attempt_date = now()::date
-    and a.status = 'completed';
+  from valid_attempts;
 
   return query
   select
@@ -381,7 +426,7 @@ begin
     v_effective as attempts_per_day_effective,
     v_attempts_used as attempts_used_today,
     greatest(0, v_effective - v_attempts_used) as attempts_remaining,
-    coalesce(v_cfg.cooldown_minutes, 10)::int as cooldown_minutes,
+    v_cooldown::int as cooldown_minutes,
     v_latest_finished_at as latest_attempt_finished_at;
 end;
 $$;

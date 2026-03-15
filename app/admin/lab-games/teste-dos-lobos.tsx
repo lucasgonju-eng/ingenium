@@ -284,9 +284,10 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
     let mounted = true;
     async function finalizeAttempt() {
     const finalHits = session.hits;
-    const nextAttemptsUsedToday = attemptsUsedToday + 1;
+    let nextAttemptsUsedToday = attemptsUsedToday + 1;
     const nextXpAwardedToday = xpAwardedToday + session.xpAwarded;
     const nextStreakDays = streakDays + 1;
+    let nextAttemptsPerDay = attemptsPerDayEffective;
     setBestAttemptHits((prev) => Math.max(prev, finalHits));
     setAttemptsUsedToday(nextAttemptsUsedToday);
     setXpAwardedToday(nextXpAwardedToday);
@@ -308,8 +309,10 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
       });
       const gate = await fetchWolfAttemptGateRpc();
       if (mounted && gate) {
-        setAttemptsUsedToday(gate.attempts_used_today);
-        setAttemptsPerDayEffective(gate.attempts_per_day_effective);
+        nextAttemptsUsedToday = gate.attempts_used_today;
+        nextAttemptsPerDay = gate.attempts_per_day_effective;
+        setAttemptsUsedToday(nextAttemptsUsedToday);
+        setAttemptsPerDayEffective(nextAttemptsPerDay);
         setLatestAttemptFinishedAtIso(gate.latest_attempt_finished_at);
       }
     } catch {
@@ -327,7 +330,7 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
         xpStreakBonus: String(session.xpStreakBonus),
         xpTodayTotal: String(nextXpAwardedToday),
         attemptsUsedToday: String(nextAttemptsUsedToday),
-        attemptsPerDay: String(attemptsPerDayEffective),
+        attemptsPerDay: String(nextAttemptsPerDay),
         bestAttemptHits: String(Math.max(bestAttemptHits, finalHits)),
         streakDays: String(nextStreakDays),
         grade: session.activeGrade,
