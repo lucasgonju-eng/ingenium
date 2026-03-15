@@ -62,7 +62,7 @@ export default function WolfResultCard({
         <MetricCard label="XP ganho" value={`${xpAwarded}`} />
         <MetricCard label="XP base" value={`${xpBase}`} />
         <MetricCard label="Melhor do dia" value={`${bestAttemptHits}/4`} />
-        <MetricCard label="Streak" value={`${streakDays} dias`} />
+        <MetricCard label="Sequência (streak)" value={`${streakDays} dias`} />
         <MetricCard label="Percentil" value={extractPercentile(percentileMessage)} />
       </View>
 
@@ -72,6 +72,9 @@ export default function WolfResultCard({
         </Text>
         <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, lineHeight: typography.bodyMd.lineHeight }}>
           Participação: +{xpParticipationBonus} XP · Desempenho: +{xpPerformance} XP · Streak: +{xpStreakBonus} XP
+        </Text>
+        <Text style={{ color: colors.textSecondary, marginTop: 2 }}>
+          Streak = sequência de dias seguidos em que você conclui uma rodada.
         </Text>
         <Text style={{ color: colors.textPrimary, marginTop: spacing.xs }} weight="bold">
           Total da rodada: +{xpAwarded} XP
