@@ -9,9 +9,10 @@ type Props = {
   plan: PlanItem;
   onPress?: (plan: PlanItem) => void;
   ctaLabel?: string;
+  disabled?: boolean;
 };
 
-export default function PlanCard({ plan, onPress, ctaLabel }: Props) {
+export default function PlanCard({ plan, onPress, ctaLabel, disabled = false }: Props) {
   const isPro = plan.highlighted;
 
   return (
@@ -75,6 +76,7 @@ export default function PlanCard({ plan, onPress, ctaLabel }: Props) {
       </View>
 
       <Pressable
+        disabled={disabled}
         onPress={() => onPress?.(plan)}
         style={{
           marginTop: spacing.md,
@@ -85,6 +87,7 @@ export default function PlanCard({ plan, onPress, ctaLabel }: Props) {
           backgroundColor: isPro ? colors.einsteinYellow : "transparent",
           borderWidth: isPro ? 0 : 1,
           borderColor: colors.einsteinYellow,
+          opacity: disabled ? 0.7 : 1,
         }}
       >
         <Text style={{ color: isPro ? colors.einsteinBlue : colors.einsteinYellow }} weight="bold">

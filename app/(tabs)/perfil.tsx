@@ -7,6 +7,7 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import { supabase } from "../../lib/supabase/client";
+import { planosContent } from "../../content/planos";
 import {
   fetchMessageRecipientsForSender,
   fetchMyAccessRole,
@@ -130,6 +131,16 @@ export default function PerfilScreen() {
   const [messageTitle, setMessageTitle] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const planProFeatureList = useMemo(
+    () => [
+      "8 rodadas diárias no Teste dos Lobos",
+      ...planosContent.plans
+        .find((plan) => plan.id === "pro")
+        ?.features.filter((feature) => feature.included)
+        .map((feature) => feature.label) ?? [],
+    ],
+    [],
+  );
 
   const loadProfile = async () => {
     try {
@@ -470,9 +481,13 @@ export default function PerfilScreen() {
               <Text style={{ color: colors.einsteinYellow, fontSize: typography.subtitle.fontSize }} weight="bold">
                 Vantagens do Perfil Pro
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.9)", marginTop: spacing.xs, lineHeight: 20 }}>
-                8 rodadas diárias no Teste dos Lobos, benefícios exclusivos e prioridade no acesso a novidades da plataforma.
-              </Text>
+              <View style={{ marginTop: spacing.xs, gap: 6 }}>
+                {planProFeatureList.map((feature) => (
+                  <Text key={feature} style={{ color: "rgba(255,255,255,0.9)", lineHeight: 20 }}>
+                    • {feature}
+                  </Text>
+                ))}
+              </View>
             </View>
           ) : null}
           <View

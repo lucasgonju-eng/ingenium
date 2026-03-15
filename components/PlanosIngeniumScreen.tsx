@@ -1,8 +1,10 @@
 import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import FAQAccordion from "./FAQAccordion";
 import PlanCard from "./PlanCard";
 import { planosContent } from "../content/planos";
+import { fetchMyPlanProStatus } from "../lib/supabase/queries";
 import StitchScreenFrame from "./layout/StitchScreenFrame";
 import StitchHeader from "./ui/StitchHeader";
 import { Text } from "./ui/Text";
@@ -21,6 +23,34 @@ export default function PlanosIngeniumScreen() {
   const signupUrl = Array.isArray(params.signupUrl) ? params.signupUrl[0] : params.signupUrl;
   const originContext: "olympiad" | "menu" = source === "olympiad" ? "olympiad" : "menu";
   const cameFromOlympiad = originContext === "olympiad";
+  const [isPlanPro, setIsPlanPro] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPlanStatus() {
+      try {
+        const status = await fetchMyPlanProStatus();
+        if (mounted) setIsPlanPro(status.isPlanPro);
+      } catch {
+        if (mounted) setIsPlanPro(false);
+      }
+    }
+    void loadPlanStatus();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const proFeatureList = useMemo(
+    () => [
+      "8 rodadas diárias no Teste dos Lobos",
+      ...planosContent.plans
+        .find((plan) => plan.id === "pro")
+        ?.features.filter((feature) => feature.included)
+        .map((feature) => feature.label) ?? [],
+    ],
+    [],
+  );
 
   function handleProCheckout() {
     router.push({
@@ -62,7 +92,7 @@ export default function PlanosIngeniumScreen() {
     <StitchScreenFrame>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <StitchHeader title="Planos" subtitle="Assinatura InGenium" variant="feed" />
+          <StitchHeader title="Planos" subtitle={isPlanPro ? "Perfil Pro ativo" : "Assinatura InGenium"} variant="feed" />
         </View>
 
         <View style={{ paddingHorizontal: spacing.md }}>
@@ -101,6 +131,23 @@ export default function PlanosIngeniumScreen() {
             <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 22 }}>
               {planosContent.description}
             </Text>
+            {isPlanPro ? (
+              <View
+                style={{
+                  marginTop: spacing.sm,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: "rgba(134,239,172,0.55)",
+                  backgroundColor: "rgba(20,83,45,0.28)",
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.xs,
+                }}
+              >
+                <Text style={{ color: "#86efac", fontSize: typography.small.fontSize }} weight="semibold">
+                  Você já é aluno(a) Plano Pro. Todas as vantagens estão ativas.
+                </Text>
+              </View>
+            ) : null}
             {cameFromOlympiad ? (
               <View
                 style={{
@@ -138,22 +185,45 @@ export default function PlanosIngeniumScreen() {
         </View>
 
         <View style={{ marginTop: spacing.md, gap: spacing.md, paddingHorizontal: spacing.md }}>
-          {planosContent.plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              ctaLabel={
-                plan.id === "free"
-                  ? cameFromOlympiad
-                    ? "Continuar no Plano Free"
-                    : "Continuar com Plano Free"
-                  : "Selecionar Plano PRO"
-              }
-              onPress={(selectedPlan) => {
-                void handleSelectPlan(selectedPlan.id);
+          {isPlanPro ? (
+            <View
+              style={{
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: "rgba(255,199,0,0.10)",
+                padding: spacing.md,
               }}
-            />
-          ))}
+            >
+              <Text style={{ color: colors.einsteinYellow, fontSize: typography.titleMd.fontSize }} weight="bold">
+                Vantagens ativas do Plano Pro
+              </Text>
+              <View style={{ marginTop: spacing.sm, gap: 6 }}>
+                {proFeatureList.map((feature) => (
+                  <Text key={feature} style={{ color: "rgba(255,255,255,0.9)", lineHeight: 20 }}>
+                    • {feature}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ) : (
+            planosContent.plans.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                ctaLabel={
+                  plan.id === "free"
+                    ? cameFromOlympiad
+                      ? "Continuar no Plano Free"
+                      : "Continuar com Plano Free"
+                    : "Selecionar Plano PRO"
+                }
+                onPress={(selectedPlan) => {
+                  void handleSelectPlan(selectedPlan.id);
+                }}
+              />
+            ))
+          )}
         </View>
 
         <View
@@ -231,39 +301,41 @@ export default function PlanosIngeniumScreen() {
           <FAQAccordion items={planosContent.faq} />
         </View>
 
-        <View
-          style={{
-            marginTop: spacing.xl,
-            marginHorizontal: spacing.md,
-            borderRadius: radii.lg,
-            borderWidth: 1,
-            borderColor: colors.borderSoft,
-            backgroundColor: colors.surfacePanel,
-            padding: spacing.md,
-          }}
-        >
-          <Text style={{ color: colors.white, fontSize: 28, lineHeight: 34, textAlign: "center" }} weight="bold">
-            {planosContent.finalTitle}
-          </Text>
-          <Pressable
-            onPress={handleProCheckout}
+        {!isPlanPro ? (
+          <View
             style={{
-              marginTop: spacing.md,
-              height: 54,
-              borderRadius: radii.md,
-              backgroundColor: colors.einsteinYellow,
-              alignItems: "center",
-              justifyContent: "center",
+              marginTop: spacing.xl,
+              marginHorizontal: spacing.md,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: spacing.md,
             }}
           >
-            <Text style={{ color: colors.einsteinBlue, fontSize: 16 }} weight="bold">
-              {planosContent.finalCta}
+            <Text style={{ color: colors.white, fontSize: 28, lineHeight: 34, textAlign: "center" }} weight="bold">
+              {planosContent.finalTitle}
             </Text>
-          </Pressable>
-          <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, textAlign: "center" }}>
-            {planosContent.finalNote}
-          </Text>
-        </View>
+            <Pressable
+              onPress={handleProCheckout}
+              style={{
+                marginTop: spacing.md,
+                height: 54,
+                borderRadius: radii.md,
+                backgroundColor: colors.einsteinYellow,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: colors.einsteinBlue, fontSize: 16 }} weight="bold">
+                {planosContent.finalCta}
+              </Text>
+            </Pressable>
+            <Text style={{ marginTop: spacing.xs, color: "rgba(255,255,255,0.72)", fontSize: 14, textAlign: "center" }}>
+              {planosContent.finalNote}
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
     </StitchScreenFrame>
   );
