@@ -204,7 +204,16 @@ export default function AdminMensagensScreen() {
                 style={inputStyle}
               />
               {selectedRecipient ? (
-                <View style={{ marginTop: spacing.xs, borderRadius: radii.md, borderWidth: 1, borderColor: "rgba(255,199,0,0.45)", backgroundColor: "rgba(255,199,0,0.10)", padding: spacing.xs }}>
+                <View
+                  style={{
+                    marginTop: spacing.xs,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,199,0,0.45)",
+                    backgroundColor: "rgba(255,199,0,0.10)",
+                    padding: spacing.xs,
+                  }}
+                >
                   <Text style={{ color: colors.einsteinYellow }} weight="bold">
                     Destinatário selecionado
                   </Text>
@@ -214,27 +223,46 @@ export default function AdminMensagensScreen() {
                 </View>
               ) : null}
 
-              <View style={{ marginTop: spacing.xs, gap: 6, maxHeight: isWeb ? 220 : 180 }}>
-                {filteredRecipients.map((recipient) => (
-                  <Pressable
-                    key={recipient.id}
-                    onPress={() => setSelectedRecipientId(recipient.id)}
-                    style={{
-                      borderRadius: radii.md,
-                      borderWidth: 1,
-                      borderColor: colors.borderSoft,
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                      padding: spacing.xs,
-                    }}
-                  >
-                    <Text style={{ color: colors.white }} weight="semibold">
-                      {recipient.full_name ?? "Sem nome"}
-                    </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
-                      {recipient.role} {recipient.email ? `• ${recipient.email}` : ""}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View
+                style={{
+                  marginTop: spacing.xs,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.02)",
+                  padding: spacing.xs,
+                }}
+              >
+                <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }} weight="semibold">
+                  Destinatários ({filteredRecipients.length})
+                </Text>
+                <ScrollView
+                  style={{ marginTop: 6, maxHeight: 220 }}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  contentContainerStyle={{ gap: 6, paddingBottom: 2 }}
+                >
+                  {filteredRecipients.map((recipient) => (
+                    <Pressable
+                      key={recipient.id}
+                      onPress={() => setSelectedRecipientId(recipient.id)}
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: colors.borderSoft,
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        padding: spacing.xs,
+                      }}
+                    >
+                      <Text style={{ color: colors.white }} weight="semibold">
+                        {recipient.full_name ?? "Sem nome"}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.small.fontSize }}>
+                        {recipient.role} {recipient.email ? `• ${recipient.email}` : ""}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
               </View>
 
               <TextInput
@@ -278,8 +306,15 @@ export default function AdminMensagensScreen() {
               </Text>
             </View>
 
-            <View style={{ flexDirection: isWeb ? "row" : "column", gap: spacing.sm, alignItems: "stretch" }}>
-              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 520 } : null]}>
+            <View
+              style={{
+                flexDirection: isWeb ? "row" : "column",
+                gap: spacing.sm,
+                alignItems: "stretch",
+                flexWrap: isWeb ? "wrap" : "nowrap",
+              }}
+            >
+              <View style={[sectionCardStyle, { flex: 1, minWidth: isWeb ? 520 : undefined }]}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <Text style={{ color: colors.white }} weight="bold">
                     Recebidas {unreadReceivedCount > 0 ? `(${unreadReceivedCount} novas)` : ""}
@@ -290,7 +325,7 @@ export default function AdminMensagensScreen() {
                     </Text>
                   </Pressable>
                 </View>
-                <ScrollView style={{ marginTop: spacing.sm, maxHeight: isWeb ? 620 : undefined }} contentContainerStyle={{ gap: spacing.xs, paddingBottom: spacing.xs }}>
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
                   {receivedMessages.length === 0 ? (
                     <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens recebidas.</Text>
                   ) : (
@@ -325,7 +360,16 @@ export default function AdminMensagensScreen() {
                             setSelectedRecipientId(message.sender_id);
                             setTitle(`Re: ${message.title}`);
                           }}
-                          style={{ marginTop: spacing.xs, alignSelf: "flex-start", paddingHorizontal: spacing.xs, paddingVertical: 6, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: "rgba(255,255,255,0.08)" }}
+                          style={{
+                            marginTop: spacing.xs,
+                            alignSelf: "flex-start",
+                            paddingHorizontal: spacing.xs,
+                            paddingVertical: 6,
+                            borderRadius: radii.pill,
+                            borderWidth: 1,
+                            borderColor: colors.borderSoft,
+                            backgroundColor: "rgba(255,255,255,0.08)",
+                          }}
                         >
                           <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
                             Responder
@@ -334,14 +378,14 @@ export default function AdminMensagensScreen() {
                       </View>
                     ))
                   )}
-                </ScrollView>
+                </View>
               </View>
 
-              <View style={[sectionCardStyle, { flex: 1 }, isWeb ? { minHeight: 520 } : null]}>
+              <View style={[sectionCardStyle, { flex: 1, minWidth: isWeb ? 520 : undefined }]}>
                 <Text style={{ color: colors.white }} weight="bold">
                   Enviadas
                 </Text>
-                <ScrollView style={{ marginTop: spacing.sm, maxHeight: isWeb ? 620 : undefined }} contentContainerStyle={{ gap: spacing.xs, paddingBottom: spacing.xs }}>
+                <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
                   {sentMessages.length === 0 ? (
                     <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem mensagens enviadas.</Text>
                   ) : (
@@ -372,7 +416,7 @@ export default function AdminMensagensScreen() {
                       </View>
                     ))
                   )}
-                </ScrollView>
+                </View>
               </View>
             </View>
           </View>

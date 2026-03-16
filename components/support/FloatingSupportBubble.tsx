@@ -2,16 +2,22 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Modal, Pressable, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePathname } from "expo-router";
 import { fetchMyAccessRole, notifyAdminInboxEmail, sendSupportMessage } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import { Text } from "../ui/Text";
 
 export default function FloatingSupportBubble() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   async function handleSend() {
     const trimmedTitle = title.trim();
