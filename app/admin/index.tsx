@@ -1577,6 +1577,7 @@ export default function AdminDashboardScreen() {
                 onSetTeacherActive={(teacherId, isActive) => {
                   void handleSetTeacherActive(teacherId, isActive);
                 }}
+                enablePlanProStudentPopup={accessRole === "admin"}
               />
             ) : null}
 

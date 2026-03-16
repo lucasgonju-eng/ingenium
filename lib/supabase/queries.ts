@@ -74,6 +74,21 @@ export type PlanProStudentRow = {
   plan_tier: string | null;
   plan_pro_active: boolean;
   pro_source: "profile" | "xp_event" | "unknown";
+  email: string | null;
+  cpf: string | null;
+  whatsapp: string | null;
+  birth_date: string | null;
+  enrollment_number: string | null;
+  responsible_name: string | null;
+  responsible_phone: string | null;
+  responsible_email: string | null;
+  responsible_cpf: string | null;
+  responsible_relationship: string | null;
+  secondary_responsible_name: string | null;
+  secondary_responsible_phone: string | null;
+  secondary_responsible_email: string | null;
+  secondary_responsible_cpf: string | null;
+  secondary_responsible_relationship: string | null;
 };
 
 export type TeacherRow = {
@@ -1221,6 +1236,21 @@ export async function fetchPlanProStudentsAdmin() {
     plan_tier: row.plan_tier ? String(row.plan_tier) : null,
     plan_pro_active: Boolean(row.plan_pro_active),
     pro_source: (String(row.pro_source ?? "unknown") as "profile" | "xp_event" | "unknown"),
+    email: row.email ? String(row.email).trim().toLowerCase() : null,
+    cpf: row.cpf ? String(row.cpf) : null,
+    whatsapp: row.whatsapp ? String(row.whatsapp) : null,
+    birth_date: row.birth_date ? String(row.birth_date) : null,
+    enrollment_number: row.enrollment_number ? String(row.enrollment_number) : null,
+    responsible_name: row.responsible_name ? String(row.responsible_name) : null,
+    responsible_phone: row.responsible_phone ? String(row.responsible_phone) : null,
+    responsible_email: row.responsible_email ? String(row.responsible_email).trim().toLowerCase() : null,
+    responsible_cpf: row.responsible_cpf ? String(row.responsible_cpf) : null,
+    responsible_relationship: row.responsible_relationship ? String(row.responsible_relationship) : null,
+    secondary_responsible_name: row.secondary_responsible_name ? String(row.secondary_responsible_name) : null,
+    secondary_responsible_phone: row.secondary_responsible_phone ? String(row.secondary_responsible_phone) : null,
+    secondary_responsible_email: row.secondary_responsible_email ? String(row.secondary_responsible_email).trim().toLowerCase() : null,
+    secondary_responsible_cpf: row.secondary_responsible_cpf ? String(row.secondary_responsible_cpf) : null,
+    secondary_responsible_relationship: row.secondary_responsible_relationship ? String(row.secondary_responsible_relationship) : null,
   })) as PlanProStudentRow[];
 }
 

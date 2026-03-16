@@ -1,4 +1,5 @@
-import { Pressable, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Text } from "../ui/Text";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import type { FullStudentRow, PlanProStudentRow, RankingStudentRow, TeacherRow } from "../../lib/supabase/queries";
@@ -68,6 +69,7 @@ type Props = {
   onPermanentlyDeleteSelectedTeachers?: () => void;
   onSetStudentActive?: (studentId: string, isActive: boolean) => void;
   onSetTeacherActive?: (teacherId: string, isActive: boolean) => void;
+  enablePlanProStudentPopup?: boolean;
 };
 
 export default function AdminCoreDashboard(props: Props) {
@@ -122,6 +124,7 @@ export default function AdminCoreDashboard(props: Props) {
     onPermanentlyDeleteSelectedTeachers,
     onSetStudentActive,
     onSetTeacherActive,
+    enablePlanProStudentPopup = false,
   } = props;
 
   const totalStudents = students.length;
@@ -157,6 +160,19 @@ export default function AdminCoreDashboard(props: Props) {
     },
     { gold: 0, silver: 0, bronze: 0 },
   );
+
+  const [selectedPlanProStudentId, setSelectedPlanProStudentId] = useState<string | null>(null);
+
+  const selectedPlanProStudent = useMemo(
+    () => planProStudents.find((student) => student.id === selectedPlanProStudentId) ?? null,
+    [planProStudents, selectedPlanProStudentId],
+  );
+
+  useEffect(() => {
+    if (activeTab !== "planopro" || !enablePlanProStudentPopup) {
+      setSelectedPlanProStudentId(null);
+    }
+  }, [activeTab, enablePlanProStudentPopup]);
 
   if (activeTab === "dashboard") {
     return (
@@ -367,6 +383,11 @@ export default function AdminCoreDashboard(props: Props) {
 
         <View style={sectionCardStyle}>
           <Text style={{ color: colors.white }} weight="bold">Lista de alunos Pro</Text>
+          {enablePlanProStudentPopup ? (
+            <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: spacing.xs, fontSize: 12 }}>
+              Clique no nome do aluno para abrir os dados completos da inscrição.
+            </Text>
+          ) : null}
           <View style={{ marginTop: spacing.sm, gap: 8 }}>
             {planProStudents.length === 0 ? (
               <Text style={{ color: "rgba(255,255,255,0.65)" }}>Nenhum aluno PlanoPro cadastrado no momento.</Text>
@@ -382,7 +403,18 @@ export default function AdminCoreDashboard(props: Props) {
                     padding: spacing.sm,
                   }}
                 >
-                  <Text style={{ color: colors.white }} weight="semibold">{student.full_name ?? "Sem nome"}</Text>
+                  {enablePlanProStudentPopup ? (
+                    <Pressable
+                      onPress={() => setSelectedPlanProStudentId(student.id)}
+                      style={({ pressed }) => ({ alignSelf: "flex-start", opacity: pressed ? 0.85 : 1 })}
+                    >
+                      <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                        {student.full_name ?? "Sem nome"}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={{ color: colors.white }} weight="semibold">{student.full_name ?? "Sem nome"}</Text>
+                  )}
                   <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: 12 }}>
                     Série: {student.grade ?? "Sem série"} • Turma: {student.class_name ?? "Sem turma"}
                   </Text>
@@ -391,6 +423,82 @@ export default function AdminCoreDashboard(props: Props) {
             )}
           </View>
         </View>
+        <Modal
+          visible={Boolean(enablePlanProStudentPopup && selectedPlanProStudent)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPlanProStudentId(null)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(2,6,23,0.66)",
+              justifyContent: "center",
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.md,
+            }}
+          >
+            <View style={planProModalCardStyle}>
+              <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+                Dados completos do aluno
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 4 }}>
+                {selectedPlanProStudent?.full_name ?? "Sem nome"}
+              </Text>
+              <ScrollView style={{ marginTop: spacing.sm, maxHeight: 520 }} showsVerticalScrollIndicator={false}>
+                <View style={{ gap: spacing.xs }}>
+                  {[
+                    { label: "Nome completo", value: selectedPlanProStudent?.full_name },
+                    { label: "E-mail", value: selectedPlanProStudent?.email },
+                    { label: "Série", value: selectedPlanProStudent?.grade },
+                    { label: "Turma", value: selectedPlanProStudent?.class_name },
+                    { label: "CPF", value: selectedPlanProStudent?.cpf },
+                    { label: "WhatsApp", value: selectedPlanProStudent?.whatsapp },
+                    { label: "Data de nascimento", value: selectedPlanProStudent?.birth_date },
+                    { label: "Matrícula", value: selectedPlanProStudent?.enrollment_number },
+                    { label: "Responsável (nome)", value: selectedPlanProStudent?.responsible_name },
+                    { label: "Responsável (parentesco)", value: selectedPlanProStudent?.responsible_relationship },
+                    { label: "Responsável (telefone)", value: selectedPlanProStudent?.responsible_phone },
+                    { label: "Responsável (e-mail)", value: selectedPlanProStudent?.responsible_email },
+                    { label: "Responsável (CPF)", value: selectedPlanProStudent?.responsible_cpf },
+                    { label: "2º responsável (nome)", value: selectedPlanProStudent?.secondary_responsible_name },
+                    { label: "2º responsável (parentesco)", value: selectedPlanProStudent?.secondary_responsible_relationship },
+                    { label: "2º responsável (telefone)", value: selectedPlanProStudent?.secondary_responsible_phone },
+                    { label: "2º responsável (e-mail)", value: selectedPlanProStudent?.secondary_responsible_email },
+                    { label: "2º responsável (CPF)", value: selectedPlanProStudent?.secondary_responsible_cpf },
+                    { label: "Plano Pro ativo", value: selectedPlanProStudent?.plan_pro_active ? "Sim" : "Não" },
+                    { label: "Origem PlanoPro", value: selectedPlanProStudent?.pro_source },
+                  ].map((item) => (
+                    <View key={item.label} style={planProModalRowStyle}>
+                      <Text style={{ color: "rgba(255,255,255,0.66)", fontSize: 12 }}>{item.label}</Text>
+                      <Text style={{ color: colors.white, marginTop: 2 }} weight="semibold">
+                        {item.value ? String(item.value) : "Não informado"}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+              <View style={{ marginTop: spacing.sm, flexDirection: "row", justifyContent: "flex-end" }}>
+                <Pressable
+                  onPress={() => setSelectedPlanProStudentId(null)}
+                  style={{
+                    minHeight: 40,
+                    minWidth: 120,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.06)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">Fechar</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </>
     );
   }
@@ -819,4 +927,21 @@ const miniActionBtnStyle = {
 const miniActionTextStyle = {
   color: "rgba(255,255,255,0.86)",
   fontSize: 12,
+};
+
+const planProModalCardStyle = {
+  borderRadius: radii.lg,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: colors.surfacePanel,
+  padding: spacing.md,
+};
+
+const planProModalRowStyle = {
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: colors.borderSoft,
+  backgroundColor: "rgba(255,255,255,0.03)",
+  paddingHorizontal: spacing.sm,
+  paddingVertical: spacing.xs,
 };
