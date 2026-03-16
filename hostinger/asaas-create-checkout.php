@@ -21,6 +21,44 @@ function respondJson(int $status, array $payload): void {
 }
 
 /**
+ * @return array<string,mixed>|null
+ */
+function loadAsaasConfig(): ?array {
+  $jsonPath = __DIR__ . "/asaas-config.json";
+  if (is_file($jsonPath)) {
+    $decoded = json_decode((string) file_get_contents($jsonPath), true);
+    if (is_array($decoded)) {
+      return $decoded;
+    }
+  }
+
+  $phpPath = __DIR__ . "/asaas-config.php";
+  if (is_file($phpPath)) {
+    /** @var mixed $cfg */
+    $cfg = include $phpPath;
+    if (is_array($cfg)) {
+      return $cfg;
+    }
+  }
+
+  $apiKey = trim((string) (getenv("ASAAS_API_KEY") ?: ""));
+  if ($apiKey !== "") {
+    return [
+      "apiKey" => $apiKey,
+      "baseUrl" => trim((string) (getenv("ASAAS_BASE_URL") ?: "https://api-sandbox.asaas.com/v3")),
+      "checkoutSuccessUrl" => trim((string) (getenv("ASAAS_CHECKOUT_SUCCESS_URL") ?: "")),
+      "enableCheckoutCallback" => in_array(
+        strtolower(trim((string) (getenv("ASAAS_ENABLE_CHECKOUT_CALLBACK") ?: "false"))),
+        ["1", "true", "yes", "on"],
+        true
+      ),
+    ];
+  }
+
+  return null;
+}
+
+/**
  * @param string $baseUrl
  * @param string $apiKey
  * @param array<string,mixed> $payload
@@ -122,12 +160,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
   respondJson(405, ["ok" => false, "error" => "Método não permitido.", "requestId" => $requestId]);
 }
 
-$configPath = __DIR__ . "/asaas-config.json";
-if (!is_file($configPath)) {
-  respondJson(500, ["ok" => false, "error" => "Configuração Asaas ausente no servidor.", "requestId" => $requestId]);
-}
-
-$config = json_decode((string) file_get_contents($configPath), true);
+$config = loadAsaasConfig();
 if (!is_array($config)) {
   respondJson(500, ["ok" => false, "error" => "Configuração Asaas inválida.", "requestId" => $requestId]);
 }

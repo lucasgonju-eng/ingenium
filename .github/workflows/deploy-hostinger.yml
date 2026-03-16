@@ -161,6 +161,7 @@ jobs:
             </FilesMatch>
           </IfModule>
           RewriteRule ^asaas-config\.json$ - [F,L]
+          RewriteRule ^asaas-config\.php$ - [F,L]
           RewriteRule ^supabase-admin-config\.json$ - [F,L]
           RewriteRule ^ai-audit-config\.json$ - [F,L]
           RewriteRule ^logs/ - [F,L]
@@ -192,6 +193,16 @@ jobs:
             "enableCheckoutCallback": ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }},
             "checkoutSuccessUrl": "${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}"
           }
+          EOF
+          cat > dist/asaas-config.php <<'EOF'
+          <?php
+          return [
+            "apiKey" => "${{ secrets.ASAAS_API_KEY }}",
+            "baseUrl" => "${{ secrets.ASAAS_BASE_URL }}",
+            "webhookToken" => "${{ secrets.ASAAS_WEBHOOK_TOKEN }}",
+            "enableCheckoutCallback" => ${{ secrets.ASAAS_ENABLE_CHECKOUT_CALLBACK }},
+            "checkoutSuccessUrl" => "${{ secrets.ASAAS_CHECKOUT_SUCCESS_URL }}",
+          ];
           EOF
           cat > dist/supabase-admin-config.json <<'EOF'
           {

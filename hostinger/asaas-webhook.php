@@ -21,14 +21,47 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
   exit;
 }
 
-$configPath = __DIR__ . "/asaas-config.json";
-if (!is_file($configPath)) {
-  http_response_code(500);
-  echo json_encode(["ok" => false, "error" => "Configuração Asaas ausente no servidor."]);
-  exit;
+/**
+ * @return array<string,mixed>|null
+ */
+function load_asaas_config(): ?array {
+  $jsonPath = __DIR__ . "/asaas-config.json";
+  if (is_file($jsonPath)) {
+    $decoded = json_decode((string) file_get_contents($jsonPath), true);
+    if (is_array($decoded)) {
+      return $decoded;
+    }
+  }
+
+  $phpPath = __DIR__ . "/asaas-config.php";
+  if (is_file($phpPath)) {
+    /** @var mixed $cfg */
+    $cfg = include $phpPath;
+    if (is_array($cfg)) {
+      return $cfg;
+    }
+  }
+
+  $apiKey = trim((string) (getenv("ASAAS_API_KEY") ?: ""));
+  $webhookToken = trim((string) (getenv("ASAAS_WEBHOOK_TOKEN") ?: ""));
+  if ($apiKey !== "" && $webhookToken !== "") {
+    return [
+      "apiKey" => $apiKey,
+      "baseUrl" => trim((string) (getenv("ASAAS_BASE_URL") ?: "https://api-sandbox.asaas.com/v3")),
+      "webhookToken" => $webhookToken,
+      "checkoutSuccessUrl" => trim((string) (getenv("ASAAS_CHECKOUT_SUCCESS_URL") ?: "")),
+      "enableCheckoutCallback" => in_array(
+        strtolower(trim((string) (getenv("ASAAS_ENABLE_CHECKOUT_CALLBACK") ?: "false"))),
+        ["1", "true", "yes", "on"],
+        true
+      ),
+    ];
+  }
+
+  return null;
 }
 
-$config = json_decode((string) file_get_contents($configPath), true);
+$config = load_asaas_config();
 if (!is_array($config)) {
   http_response_code(500);
   echo json_encode(["ok" => false, "error" => "Configuração Asaas inválida."]);
