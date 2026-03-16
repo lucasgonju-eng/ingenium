@@ -465,6 +465,60 @@ export function WolfGameScreen({ studentMode = false }: { studentMode?: boolean 
             <Text style={rulesItemStyle}>5) Responda com atenção: cada fase tem tempo limitado.</Text>
           </View>
 
+          <LinearGradient colors={["rgba(17,27,66,0.96)", "rgba(12,19,52,0.95)"]} style={weeklyRankingCardStyle}>
+            <Text style={{ color: colors.goldSoft, fontSize: typography.small.fontSize, letterSpacing: 0.3 }} weight="bold">
+              TRILHA DO LOBO • RANKING DA SEMANA
+            </Text>
+            <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
+              Mesma regra de privacidade: somente os 5 primeiros com nome; demais posições sem identificação.
+            </Text>
+
+            {weeklyRankingLoading ? (
+              <View style={{ marginTop: spacing.sm, alignItems: "center" }}>
+                <ActivityIndicator color={colors.einsteinYellow} />
+              </View>
+            ) : (
+              <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                {weeklyTopFiveRows.length === 0 ? (
+                  <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                    Ainda sem pontuação registrada nesta semana.
+                  </Text>
+                ) : (
+                  weeklyTopFiveRows.map((row) => (
+                    <View key={`weekly-rank-rules-${row.rank}-${row.user_id}`} style={weeklyRankingRowStyle}>
+                      <Text style={{ color: colors.goldSoft }} weight="bold">
+                        #{row.rank}
+                      </Text>
+                      <Text style={{ color: colors.textPrimary, flex: 1 }} numberOfLines={1} weight="semibold">
+                        {row.full_name ?? "Aluno"}
+                      </Text>
+                      <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                        {row.weekly_xp.toLocaleString("pt-BR")} XP
+                      </Text>
+                    </View>
+                  ))
+                )}
+
+                {myPrivateRankRow ? (
+                  <View style={myPrivateRankBoxStyle}>
+                    <Text style={{ color: colors.textTechnical, fontSize: typography.small.fontSize }} weight="semibold">
+                      Sua posição (visível só para você)
+                    </Text>
+                    <Text style={{ color: colors.textPrimary, marginTop: 2 }} weight="bold">
+                      #{myPrivateRankRow.rank} • {myPrivateRankRow.weekly_xp.toLocaleString("pt-BR")} XP
+                    </Text>
+                  </View>
+                ) : null}
+
+                <Pressable onPress={handleOpenTrail} style={({ pressed }) => [openTrailButtonStyle, pressed ? { transform: [{ scale: 0.988 }] } : null]}>
+                  <Text style={{ color: colors.einsteinBlue, fontSize: typography.bodyMd.fontSize }} weight="bold">
+                    Abrir Trilha do Lobo
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </LinearGradient>
+
           {rulesLoading ? (
             <View style={rulesLoadingBoxStyle}>
               <ActivityIndicator color={colors.einsteinYellow} />
