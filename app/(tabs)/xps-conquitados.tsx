@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-nat
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
+import { copy } from "../../content/copy";
 import { fetchMyPoints, fetchMyXpHistory, MyXpHistoryRow } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
@@ -71,6 +72,14 @@ export default function XpsConquitadosScreen() {
       };
     });
   }, [historyRows]);
+  const xpRulesSortedAsc = useMemo(
+    () =>
+      [...copy.program.xpRules].sort((a, b) => {
+        if (a.xp !== b.xp) return a.xp - b.xp;
+        return a.label.localeCompare(b.label, "pt-BR");
+      }),
+    [],
+  );
 
   if (loading) {
     return (
@@ -87,7 +96,7 @@ export default function XpsConquitadosScreen() {
     <StitchScreenFrame>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <StitchHeader
-          title="XPs Conquitados"
+          title="XPs Conquistados"
           rightSlot={
             <Pressable
               onPress={() => {
@@ -127,6 +136,49 @@ export default function XpsConquitadosScreen() {
               Histórico completo das conquistas de XP, evento por evento.
             </Text>
           </View>
+
+          <View
+            style={{
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+              Modalidades de aquisição de XP
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+              Ordem ascendente de XP (do menor para o maior).
+            </Text>
+
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+              {xpRulesSortedAsc.map((rule) => (
+                <View
+                  key={rule.key}
+                  style={{
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.02)",
+                    padding: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="semibold">
+                    {rule.label} • +{rule.xp.toLocaleString("pt-BR")} XP
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                    {rule.criteria}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+            Minhas conquistas (visão do aluno)
+          </Text>
 
           {historyWithRunningBalance.length === 0 ? (
             <View

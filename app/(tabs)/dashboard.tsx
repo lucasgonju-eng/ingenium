@@ -19,29 +19,17 @@ import {
   fetchRegisteredStudents,
   fetchMyProfile,
   fetchMyPoints,
-  fetchMyXpHistory,
   fetchMyRankGeralMedia,
-  fetchOlympiads,
   MyPlanProStatus,
-  MyXpHistoryRow,
   RegisteredStudentRow,
   RankingStudentRow,
   MyRankGeralMedia,
 } from "../../lib/supabase/queries";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
-import { copy } from "../../content/copy";
 
 type LoboClass = "bronze" | "silver" | "gold";
-type OlympiadRow = {
-  id: string;
-  title: string;
-  category: string | null;
-  start_date: string | null;
-  status: string | null;
-};
 const SERIES_FILTERS = ["Todos", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 type SeriesFilter = (typeof SERIES_FILTERS)[number];
-type XpTab = "howWorks" | "howToEarn" | "history";
 
 function getClassLabel(cls: LoboClass) {
   if (cls === "gold") return "Lobo de Ouro";
@@ -71,37 +59,14 @@ function getFirstName(value: string) {
   return trimmed.split(/\s+/)[0] ?? "Aluno";
 }
 
-function getXpEventLabel(eventType: string, note?: string | null, sourceRef?: string | null) {
-  const normalizedNote = (note ?? "").trim().toLowerCase();
-  const normalizedSourceRef = (sourceRef ?? "").trim().toLowerCase();
-  const isPlanoProBonus =
-    normalizedSourceRef.startsWith("asaas_pro_payment_") ||
-    normalizedSourceRef.startsWith("asaas_planopro_bonus_2026_") ||
-    normalizedNote.includes("plano pro");
-
-  if (isPlanoProBonus) return "Bônus Plano PRO";
-
-  const normalized = eventType.trim().toLowerCase();
-  if (normalized === "complete_profile_data") return "Perfil completo";
-  if (normalized === "profile_photo_upload") return "Inserir foto de perfil";
-  if (normalized === "top10_school_simulado") return "Top 10 no Simulado da Escola";
-  if (normalized === "weekly_study_group_75_presence") return "Grupo de estudo semanal";
-  if (normalized === "volunteer_mentorship_bronze") return "Monitoria voluntária (Lobo de Bronze)";
-  if (normalized === "perfect_quarter_attendance") return "Frequência perfeita trimestral";
-  if (normalized === "wolf_game_attempt") return "Lab Games - Teste do Lobo";
-  return normalized.replaceAll("_", " ");
-}
-
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [points, setPoints] = useState<number>(0);
   const [cls, setCls] = useState<LoboClass>("bronze");
   const [rankInfo, setRankInfo] = useState<MyRankGeralMedia | null>(null);
   const [name, setName] = useState("Aluno");
-  const [olympiads, setOlympiads] = useState<OlympiadRow[]>([]);
   const [studentsByGrade, setStudentsByGrade] = useState<Record<string, RegisteredStudentRow[]>>({});
   const [rankingRows, setRankingRows] = useState<RankingStudentRow[]>([]);
-  const [xpHistoryRows, setXpHistoryRows] = useState<MyXpHistoryRow[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [latestMessageTitle, setLatestMessageTitle] = useState<string | null>(null);
   const [planStatus, setPlanStatus] = useState<MyPlanProStatus>({
@@ -111,7 +76,6 @@ export default function DashboardScreen() {
   });
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
-  const [xpTab, setXpTab] = useState<XpTab>("howWorks");
   const mailPulseAnim = useRef(new Animated.Value(0)).current;
   const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
@@ -180,23 +144,19 @@ export default function DashboardScreen() {
         setShowTeacherPendingBanner(false);
       }
 
-      const [mediaRankRes, pointsRes, olympiadsRes, studentsRes, rankingRes, xpHistoryRes, messagesRes, planStatusRes] = await Promise.allSettled([
+      const [mediaRankRes, pointsRes, studentsRes, rankingRes, messagesRes, planStatusRes] = await Promise.allSettled([
         fetchMyRankGeralMedia(),
         fetchMyPoints(),
-        fetchOlympiads(),
         fetchRegisteredStudents(),
         fetchRankingAllRegisteredStudents(500),
-        fetchMyXpHistory(200),
         fetchMyStudentMessages(20),
         fetchMyPlanProStatus(),
       ]);
 
       const mediaRank = mediaRankRes.status === "fulfilled" ? mediaRankRes.value : null;
       const p = pointsRes.status === "fulfilled" ? pointsRes.value : null;
-      const upcoming = olympiadsRes.status === "fulfilled" ? olympiadsRes.value : [];
       const students = studentsRes.status === "fulfilled" ? studentsRes.value : [];
       const rankingData = rankingRes.status === "fulfilled" ? rankingRes.value : [];
-      const xpHistoryData = xpHistoryRes.status === "fulfilled" ? xpHistoryRes.value : [];
       const messagesData = messagesRes.status === "fulfilled" ? messagesRes.value : [];
       const currentPlanStatus =
         planStatusRes.status === "fulfilled"
@@ -208,16 +168,12 @@ export default function DashboardScreen() {
       setRankInfo(mediaRank);
       setPoints(p?.total_points ?? mediaRank?.total_points_sum ?? 0);
       setCls((p?.lobo_class ?? "bronze") as LoboClass);
-      setOlympiads(
-        upcoming.filter((o) => o.status === "open" || o.status === "upcoming" || o.status === "published").slice(0, 5),
-      );
       const grouped = gradesOrder.reduce<Record<string, RegisteredStudentRow[]>>((acc, grade) => {
         acc[grade] = students.filter((s) => (s.grade ?? "").trim() === grade);
         return acc;
       }, {});
       setStudentsByGrade(grouped);
       setRankingRows(rankingData);
-      setXpHistoryRows(xpHistoryData);
       setPlanStatus(currentPlanStatus);
       setUnreadMessages(unread);
       setLatestMessageTitle(latestMessage?.title ?? null);
@@ -259,9 +215,6 @@ export default function DashboardScreen() {
       bronze: rankingRowsForPanel.filter((row) => row.lobo_class === "bronze"),
     };
   }, [rankingRowsForPanel]);
-  const xpRulesSortedDesc = useMemo(() => {
-    return [...copy.program.xpRules].sort((a, b) => b.xp - a.xp);
-  }, []);
 
   if (loading) {
     return (
@@ -422,231 +375,6 @@ export default function DashboardScreen() {
           eligibilityText={eligibilityText}
         />
 
-        <View style={{ marginTop: spacing.xl }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-              Próximas Olimpíadas
-            </Text>
-            <Pressable onPress={() => router.push("/(tabs)/olimpiadas")}>
-              <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="semibold">
-                Ver todas
-              </Text>
-            </Pressable>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm }}
-          >
-            {olympiads.length === 0 ? (
-              <View
-                style={{
-                  width: 250,
-                  backgroundColor: colors.surfacePanel,
-                  borderRadius: radii.lg,
-                  padding: sizes.compactCardPadding,
-                  borderWidth: 1,
-                  borderColor: colors.borderSoft,
-                }}
-              >
-                <Text style={{ color: "white" }} weight="semibold">
-                  Sem olimpíadas abertas no momento
-                </Text>
-              </View>
-            ) : (
-              olympiads.map((o) => (
-                <View
-                  key={o.id}
-                  style={{
-                    width: 250,
-                    backgroundColor: colors.surfacePanel,
-                    borderRadius: radii.lg,
-                    padding: sizes.compactCardPadding,
-                    borderWidth: 1,
-                    borderColor: colors.borderSoft,
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <View>
-                    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.small.fontSize }}>
-                      {o.category ?? "Categoria geral"}
-                    </Text>
-                    <Text style={{ color: "white", marginTop: spacing.xs, fontSize: typography.titleMd.fontSize }} weight="bold">
-                      {o.title}
-                    </Text>
-                    <Text
-                      style={{
-                        color: "rgba(255,255,255,0.72)",
-                        marginTop: spacing.xs,
-                        fontSize: typography.small.fontSize,
-                      }}
-                    >
-                      {o.start_date
-                        ? new Date(o.start_date).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                          })
-                        : "Data a definir"}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => router.push("/(tabs)/olimpiadas")}
-                    style={{
-                      marginTop: spacing.sm,
-                      backgroundColor: colors.einsteinBlue,
-                      borderRadius: radii.md,
-                      height: sizes.buttonHeight,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={{ color: "white", fontSize: typography.small.fontSize }} weight="bold">
-                      Abrir
-                    </Text>
-                  </Pressable>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
-
-        <View
-          style={{
-            marginTop: spacing.xl,
-            borderRadius: radii.md,
-            padding: sizes.compactCardPadding,
-            backgroundColor: colors.surfaceCard,
-            borderWidth: 1,
-            borderColor: colors.borderSoft,
-          }}
-        >
-          <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
-            <Pressable
-              onPress={() => setXpTab("howWorks")}
-              style={{
-                borderRadius: radii.pill,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 6,
-                backgroundColor: xpTab === "howWorks" ? colors.einsteinBlue : colors.surfacePanel,
-                borderWidth: 1,
-                borderColor: xpTab === "howWorks" ? "rgba(255,255,255,0.22)" : colors.borderSoft,
-              }}
-            >
-              <Text
-                style={{
-                  color: xpTab === "howWorks" ? colors.white : "rgba(255,255,255,0.78)",
-                  fontSize: typography.small.fontSize,
-                }}
-                weight="semibold"
-              >
-                Como funciona o XP oficial
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setXpTab("howToEarn")}
-              style={{
-                borderRadius: radii.pill,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 6,
-                backgroundColor: xpTab === "howToEarn" ? colors.einsteinBlue : colors.surfacePanel,
-                borderWidth: 1,
-                borderColor: xpTab === "howToEarn" ? "rgba(255,255,255,0.22)" : colors.borderSoft,
-              }}
-            >
-              <Text
-                style={{
-                  color: xpTab === "howToEarn" ? colors.white : "rgba(255,255,255,0.78)",
-                  fontSize: typography.small.fontSize,
-                }}
-                weight="semibold"
-              >
-                Como conseguir XP
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setXpTab("history")}
-              style={{
-                borderRadius: radii.pill,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 6,
-                backgroundColor: xpTab === "history" ? colors.einsteinBlue : colors.surfacePanel,
-                borderWidth: 1,
-                borderColor: xpTab === "history" ? "rgba(255,255,255,0.22)" : colors.borderSoft,
-              }}
-            >
-              <Text
-                style={{
-                  color: xpTab === "history" ? colors.white : "rgba(255,255,255,0.78)",
-                  fontSize: typography.small.fontSize,
-                }}
-                weight="semibold"
-              >
-                Histórico de XP
-              </Text>
-            </Pressable>
-          </View>
-
-          <Text style={{ color: "white", fontSize: typography.titleMd.fontSize }} weight="bold">
-            {xpTab === "howWorks"
-              ? "Como funciona o XP oficial"
-              : xpTab === "howToEarn"
-                ? "Como conseguir XP"
-                : "Histórico de XP"}
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: spacing.xs }}>
-            {xpTab === "howWorks"
-              ? "Pontuação baseada em participação, resultado e constância. Perfil completo (com data de nascimento e matrícula) também concede +100 XP."
-              : xpTab === "howToEarn"
-                ? "Veja as ações de ganho de XP em ordem decrescente de pontuação."
-                : "Acompanhe cada conquista: ação, XP, data e informações importantes."}
-          </Text>
-
-          <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-            {xpTab === "history" ? (
-              xpHistoryRows.length === 0 ? (
-                <Text style={{ color: "rgba(255,255,255,0.62)" }}>Você ainda não possui eventos no histórico de XP.</Text>
-              ) : (
-                xpHistoryRows.map((row) => (
-                  <View key={row.id} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
-                    <Text style={{ color: "white" }} weight="semibold">
-                      {getXpEventLabel(row.event_type, row.note, row.source_ref)} • +{row.xp_amount.toLocaleString("pt-BR")} XP
-                    </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
-                      Data e hora: {new Date(row.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </Text>
-                    {row.note ? (
-                      <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
-                        Detalhe: {row.note}
-                      </Text>
-                    ) : null}
-                    {row.source_ref ? (
-                      <Text style={{ color: "rgba(255,255,255,0.65)", marginTop: 2, fontSize: typography.small.fontSize }}>
-                        Referência: {row.source_ref}
-                      </Text>
-                    ) : null}
-                  </View>
-                ))
-              )
-            ) : (
-              (xpTab === "howWorks" ? copy.program.xpRules : xpRulesSortedDesc).map((rule) => (
-                <View key={rule.key} style={{ borderRadius: radii.md, padding: spacing.sm, backgroundColor: "rgba(0,0,0,0.2)" }}>
-                  <Text style={{ color: "white" }}>
-                    {rule.label} • +{rule.xp.toLocaleString("pt-BR")} XP
-                  </Text>
-                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
-                    {rule.criteria}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-        </View>
-
-        <View style={{ marginTop: spacing.xl }}>
-          <DashboardActions />
-        </View>
-
         <View
           style={{
             marginTop: spacing.xl,
@@ -661,7 +389,7 @@ export default function DashboardScreen() {
             Ranking Geral
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
-            Geral por padrão. Use os botões para ranking por série.
+            Principal foco do InGenium. Geral por padrão, com filtro por série.
           </Text>
 
           <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
@@ -742,6 +470,10 @@ export default function DashboardScreen() {
               </>
             )}
           </View>
+        </View>
+
+        <View style={{ marginTop: spacing.xl }}>
+          <DashboardActions />
         </View>
 
         <View
