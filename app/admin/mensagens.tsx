@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
@@ -26,8 +26,10 @@ export default function AdminMensagensScreen() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyToLabel, setReplyToLabel] = useState<string | null>(null);
   const isWeb = Platform.OS === "web";
   const frameMaxWidth = isWeb ? 1500 : 430;
+  const scrollRef = useRef<ScrollView | null>(null);
 
   const selectedRecipient = recipients.find((item) => item.id === selectedRecipientId) ?? null;
   const filteredRecipients = useMemo(() => {
@@ -55,6 +57,18 @@ export default function AdminMensagensScreen() {
     () => receivedMessages.filter((message) => !message.read_at).length,
     [receivedMessages],
   );
+
+  function handleReply(message: SupportMessageRow) {
+    setSelectedRecipientId(message.sender_id);
+    setRecipientSearch(message.sender_name ?? "");
+    setReplyToLabel(`${message.sender_name} (${message.sender_role})`);
+    if (!title.trim().toLowerCase().startsWith("re:")) {
+      setTitle(`Re: ${message.title}`);
+    }
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+  }
 
   async function loadAll() {
     const [rows, users] = await Promise.all([fetchMySupportMessages(120), fetchSupportRecipientsForAdmin()]);
@@ -117,6 +131,8 @@ export default function AdminMensagensScreen() {
       }
       setTitle("");
       setBody("");
+      setReplyToLabel(null);
+      setRecipientSearch("");
       await loadAll();
       Alert.alert("Mensagem enviada", "A mensagem foi registrada na caixa de mensagens.");
     } catch (e: unknown) {
@@ -182,7 +198,7 @@ export default function AdminMensagensScreen() {
 
   return (
     <StitchScreenFrame maxWidth={frameMaxWidth}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={{ width: "100%", maxWidth: isWeb ? 1460 : undefined, alignSelf: "center" }}>
           <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
             <StitchHeader title="Mensagens Admin" subtitle="Caixa organizada por recebidas e enviadas" variant="feed" />
@@ -203,6 +219,36 @@ export default function AdminMensagensScreen() {
                 onChangeText={setRecipientSearch}
                 style={inputStyle}
               />
+              {replyToLabel ? (
+                <View
+                  style={{
+                    marginTop: spacing.xs,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: "rgba(134,239,172,0.55)",
+                    backgroundColor: "rgba(20,83,45,0.30)",
+                    padding: spacing.xs,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: spacing.xs,
+                  }}
+                >
+                  <Text style={{ color: "#86efac", flex: 1 }} weight="bold">
+                    Respondendo para: {replyToLabel}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setReplyToLabel(null);
+                    }}
+                    style={secondaryButtonStyle}
+                  >
+                    <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                      Limpar
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
               {selectedRecipient ? (
                 <View
                   style={{
@@ -245,7 +291,10 @@ export default function AdminMensagensScreen() {
                   {filteredRecipients.map((recipient) => (
                     <Pressable
                       key={recipient.id}
-                      onPress={() => setSelectedRecipientId(recipient.id)}
+                      onPress={() => {
+                        setSelectedRecipientId(recipient.id);
+                        setReplyToLabel(`${recipient.full_name ?? "Sem nome"} (${recipient.role})`);
+                      }}
                       style={{
                         borderRadius: radii.md,
                         borderWidth: 1,
@@ -356,10 +405,8 @@ export default function AdminMensagensScreen() {
                           {new Date(message.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </Text>
                         <Pressable
-                          onPress={() => {
-                            setSelectedRecipientId(message.sender_id);
-                            setTitle(`Re: ${message.title}`);
-                          }}
+                          onPress={() => handleReply(message)}
+                          hitSlop={8}
                           style={{
                             marginTop: spacing.xs,
                             alignSelf: "flex-start",
