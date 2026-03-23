@@ -190,6 +190,17 @@ export type StudentMessageRow = {
   read_at: string | null;
 };
 
+export type AdminStudentMessageHistoryRow = {
+  id: string;
+  student_id: string;
+  recipient_name: string;
+  recipient_is_pro: boolean;
+  title: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+};
+
 export type SupportMessageRow = {
   id: string;
   sender_id: string;
@@ -587,6 +598,41 @@ export async function fetchMyStudentMessages(limit = 30) {
 
   if (error) throw error;
   return (data ?? []) as StudentMessageRow[];
+}
+
+export async function fetchAdminStudentMessageHistory(limit = 1000) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sessão inválida. Faça login novamente.");
+
+  const { data, error } = await supabase
+    .from("student_messages")
+    .select("id,student_id,title,body,created_at,read_at,profiles:student_id(full_name,plan_tier,plan_pro_active)")
+    .eq("sender_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+    const profile = (row.profiles ?? null) as { full_name?: string | null; plan_tier?: string | null; plan_pro_active?: boolean | null } | null;
+    const planTier = String(profile?.plan_tier ?? "").trim().toLowerCase();
+    const recipientIsPro = Boolean(profile?.plan_pro_active) || planTier === "pro";
+
+    return {
+      id: String(row.id ?? ""),
+      student_id: String(row.student_id ?? ""),
+      recipient_name: String(profile?.full_name ?? "Aluno"),
+      recipient_is_pro: recipientIsPro,
+      title: String(row.title ?? ""),
+      body: String(row.body ?? ""),
+      created_at: String(row.created_at ?? ""),
+      read_at: row.read_at ? String(row.read_at) : null,
+    };
+  }) as AdminStudentMessageHistoryRow[];
 }
 
 export async function markMyStudentMessagesAsRead() {

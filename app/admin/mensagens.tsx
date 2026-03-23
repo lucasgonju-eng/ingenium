@@ -5,22 +5,37 @@ import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import {
+  fetchAdminStudentMessageHistory,
   fetchMyAccessRole,
   fetchMySupportMessages,
   fetchSupportRecipientsForAdmin,
   markMySupportMessagesAsRead,
   notifyAdminInboxEmail,
   sendSupportMessage,
+  type AdminStudentMessageHistoryRow,
   type SupportMessageRow,
   type SupportRecipientRow,
 } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
+type StudentHistoryFilter = "all" | "broadcast_all" | "pro";
+
+type GroupedStudentHistoryBatch = {
+  batchKey: string;
+  title: string;
+  body: string;
+  created_at: string;
+  recipientsCount: number;
+  proRecipientsCount: number;
+};
+
 export default function AdminMensagensScreen() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [messages, setMessages] = useState<SupportMessageRow[]>([]);
+  const [studentHistoryRows, setStudentHistoryRows] = useState<AdminStudentMessageHistoryRow[]>([]);
   const [recipients, setRecipients] = useState<SupportRecipientRow[]>([]);
+  const [studentHistoryFilter, setStudentHistoryFilter] = useState<StudentHistoryFilter>("all");
   const [recipientSearch, setRecipientSearch] = useState("");
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -57,6 +72,48 @@ export default function AdminMensagensScreen() {
     () => receivedMessages.filter((message) => !message.read_at).length,
     [receivedMessages],
   );
+  const totalStudentsCount = useMemo(
+    () => recipients.filter((recipient) => recipient.role === "student").length,
+    [recipients],
+  );
+  const groupedStudentHistoryBatches = useMemo<GroupedStudentHistoryBatch[]>(() => {
+    const batchMap = new Map<string, GroupedStudentHistoryBatch>();
+    for (const row of studentHistoryRows) {
+      const createdAtMinute = String(row.created_at ?? "").slice(0, 16);
+      const batchKey = `${createdAtMinute}::${row.title}::${row.body}`;
+      const existing = batchMap.get(batchKey);
+      if (!existing) {
+        batchMap.set(batchKey, {
+          batchKey,
+          title: row.title,
+          body: row.body,
+          created_at: row.created_at,
+          recipientsCount: 1,
+          proRecipientsCount: row.recipient_is_pro ? 1 : 0,
+        });
+        continue;
+      }
+      existing.recipientsCount += 1;
+      if (row.recipient_is_pro) existing.proRecipientsCount += 1;
+    }
+    return Array.from(batchMap.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [studentHistoryRows]);
+  const allAudienceThreshold = useMemo(() => {
+    if (totalStudentsCount <= 0) return 9999;
+    return Math.max(5, Math.ceil(totalStudentsCount * 0.8));
+  }, [totalStudentsCount]);
+  const broadcastsToAll = useMemo(
+    () => groupedStudentHistoryBatches.filter((batch) => batch.recipientsCount >= allAudienceThreshold),
+    [groupedStudentHistoryBatches, allAudienceThreshold],
+  );
+  const proTargetHistoryRows = useMemo(
+    () => studentHistoryRows.filter((row) => row.recipient_is_pro),
+    [studentHistoryRows],
+  );
+  const visibleStudentHistoryRows = useMemo(() => {
+    if (studentHistoryFilter === "pro") return proTargetHistoryRows;
+    return studentHistoryRows;
+  }, [studentHistoryFilter, proTargetHistoryRows, studentHistoryRows]);
 
   function handleReply(message: SupportMessageRow) {
     setSelectedRecipientId(message.sender_id);
@@ -70,10 +127,26 @@ export default function AdminMensagensScreen() {
     });
   }
 
+  function handleReuseMessageTemplate(input: { title: string; body: string }) {
+    const normalizedTitle = input.title.trim();
+    if (normalizedTitle) {
+      setTitle(normalizedTitle);
+    }
+    setBody(input.body.trim());
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+  }
+
   async function loadAll() {
-    const [rows, users] = await Promise.all([fetchMySupportMessages(120), fetchSupportRecipientsForAdmin()]);
+    const [rows, users, studentHistory] = await Promise.all([
+      fetchMySupportMessages(300),
+      fetchSupportRecipientsForAdmin(),
+      fetchAdminStudentMessageHistory(2000),
+    ]);
     setMessages(rows);
     setRecipients(users);
+    setStudentHistoryRows(studentHistory);
   }
 
   useEffect(() => {
@@ -351,8 +424,137 @@ export default function AdminMensagensScreen() {
 
             <View style={[sectionCardStyle, { paddingBottom: spacing.sm }]}>
               <Text style={{ color: "rgba(255,255,255,0.8)" }}>
-                Recebidas: {receivedMessages.length} • Enviadas: {sentMessages.length}
+                Recebidas: {receivedMessages.length} • Enviadas (caixa admin): {sentMessages.length} • Enviadas para alunos:{" "}
+                {studentHistoryRows.length}
               </Text>
+            </View>
+
+            <View style={[sectionCardStyle, { paddingBottom: spacing.sm }]}>
+              <Text style={{ color: colors.white }} weight="bold">
+                Histórico de mensagens para alunos
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.74)", marginTop: 4 }}>
+                Acesse todo o histórico enviado e filtre por "mensagens para todos" ou "alunos Pro".
+              </Text>
+              <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+                {[
+                  { key: "all", label: "Todas para alunos" },
+                  { key: "broadcast_all", label: "Mensagens para todos" },
+                  { key: "pro", label: "Mensagens para alunos Pro" },
+                ].map((item) => {
+                  const selected = studentHistoryFilter === item.key;
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => setStudentHistoryFilter(item.key as StudentHistoryFilter)}
+                      style={{
+                        borderRadius: radii.pill,
+                        borderWidth: 1,
+                        borderColor: selected ? "rgba(255,199,0,0.55)" : colors.borderSoft,
+                        backgroundColor: selected ? "rgba(255,199,0,0.14)" : "rgba(255,255,255,0.04)",
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ color: selected ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                {studentHistoryFilter === "broadcast_all" ? (
+                  broadcastsToAll.length === 0 ? (
+                    <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                      Sem lotes detectados como envio para todos no período carregado.
+                    </Text>
+                  ) : (
+                    broadcastsToAll.map((batch) => (
+                      <View
+                        key={batch.batchKey}
+                        style={{
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: "rgba(255,199,0,0.35)",
+                          backgroundColor: "rgba(255,199,0,0.10)",
+                          padding: spacing.sm,
+                        }}
+                      >
+                        <Text style={{ color: colors.white }} weight="bold">
+                          {batch.title}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 6 }}>{batch.body}</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.70)", marginTop: 6, fontSize: typography.small.fontSize }}>
+                          Destinatários: {batch.recipientsCount} aluno(s) • Pro: {batch.proRecipientsCount}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                          {new Date(batch.created_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Text>
+                        <Pressable
+                          onPress={() => handleReuseMessageTemplate({ title: batch.title, body: batch.body })}
+                          style={[secondaryButtonStyle, { marginTop: spacing.xs, alignSelf: "flex-start" }]}
+                        >
+                          <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                            Reaproveitar no formulário
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ))
+                  )
+                ) : visibleStudentHistoryRows.length === 0 ? (
+                  <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+                    {studentHistoryFilter === "pro"
+                      ? "Sem mensagens enviadas para alunos Pro no período carregado."
+                      : "Sem mensagens para alunos no período carregado."}
+                  </Text>
+                ) : (
+                  visibleStudentHistoryRows.map((row) => (
+                    <View
+                      key={row.id}
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: colors.borderSoft,
+                        backgroundColor: row.recipient_is_pro ? "rgba(34,197,94,0.10)" : "rgba(255,255,255,0.03)",
+                        padding: spacing.sm,
+                      }}
+                    >
+                      <Text style={{ color: colors.white }} weight="bold">
+                        {row.title}
+                      </Text>
+                      <Text style={{ color: row.recipient_is_pro ? "#86efac" : "rgba(255,255,255,0.74)", marginTop: 4 }} weight="semibold">
+                        Destinatário: {row.recipient_name} {row.recipient_is_pro ? "• Aluno Pro" : ""}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 8 }}>{row.body}</Text>
+                      <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 6, fontSize: typography.small.fontSize }}>
+                        {new Date(row.created_at).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                      <Pressable
+                        onPress={() => handleReuseMessageTemplate({ title: row.title, body: row.body })}
+                        style={[secondaryButtonStyle, { marginTop: spacing.xs, alignSelf: "flex-start" }]}
+                      >
+                        <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                          Reaproveitar no formulário
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </View>
             </View>
 
             <View
@@ -460,6 +662,14 @@ export default function AdminMensagensScreen() {
                         <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 6, fontSize: typography.small.fontSize }}>
                           {new Date(message.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </Text>
+                        <Pressable
+                          onPress={() => handleReuseMessageTemplate({ title: message.title, body: message.body })}
+                          style={[secondaryButtonStyle, { marginTop: spacing.xs, alignSelf: "flex-start" }]}
+                        >
+                          <Text style={{ color: colors.white, fontSize: typography.small.fontSize }} weight="semibold">
+                            Reaproveitar no formulário
+                          </Text>
+                        </Pressable>
                       </View>
                     ))
                   )}
