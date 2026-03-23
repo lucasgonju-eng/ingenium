@@ -142,7 +142,7 @@ export default function AdminMensagensScreen() {
     const [rows, users, studentHistory] = await Promise.all([
       fetchMySupportMessages(300),
       fetchSupportRecipientsForAdmin(),
-      fetchAdminStudentMessageHistory(2000),
+      fetchAdminStudentMessageHistory(5000),
     ]);
     setMessages(rows);
     setRecipients(users);
@@ -532,6 +532,9 @@ export default function AdminMensagensScreen() {
                       </Text>
                       <Text style={{ color: row.recipient_is_pro ? "#86efac" : "rgba(255,255,255,0.74)", marginTop: 4 }} weight="semibold">
                         Destinatário: {row.recipient_name} {row.recipient_is_pro ? "• Aluno Pro" : ""}
+                      </Text>
+                      <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                        Enviado por: {row.sender_name} ({row.sender_role})
                       </Text>
                       <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 8 }}>{row.body}</Text>
                       <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 6, fontSize: typography.small.fontSize }}>

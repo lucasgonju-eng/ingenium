@@ -192,6 +192,9 @@ export type StudentMessageRow = {
 
 export type AdminStudentMessageHistoryRow = {
   id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: string;
   student_id: string;
   recipient_name: string;
   recipient_is_pro: boolean;
@@ -610,8 +613,8 @@ export async function fetchAdminStudentMessageHistory(limit = 1000) {
 
   const { data, error } = await supabase
     .from("student_messages")
-    .select("id,student_id,title,body,created_at,read_at,profiles:student_id(full_name,plan_tier,plan_pro_active)")
-    .eq("sender_id", user.id)
+    .select("id,sender_id,sender_name,sender_role,student_id,title,body,created_at,read_at,profiles:student_id(full_name,plan_tier,plan_pro_active)")
+    .in("sender_role", ["teacher", "coord", "gestao", "admin"])
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -624,6 +627,9 @@ export async function fetchAdminStudentMessageHistory(limit = 1000) {
 
     return {
       id: String(row.id ?? ""),
+      sender_id: String(row.sender_id ?? ""),
+      sender_name: String(row.sender_name ?? "Equipe InGenium"),
+      sender_role: String(row.sender_role ?? "admin"),
       student_id: String(row.student_id ?? ""),
       recipient_name: String(profile?.full_name ?? "Aluno"),
       recipient_is_pro: recipientIsPro,
