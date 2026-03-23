@@ -8,6 +8,7 @@ import {
   assignTeacherToOlympiad,
   createTeacher,
   fetchPendingAccessRequestsAdmin,
+  fetchAdminStudentMessageHistory,
   importStudentEnrollments2026Admin,
   listStudentEnrollments2026Admin,
   listStudentSignupPendingRequestsAdmin,
@@ -31,6 +32,7 @@ import {
   setUserActiveAdmin,
   type MyAccessRole,
   type AccessRequestRow,
+  type AdminStudentMessageHistoryRow,
   type FullStudentRow,
   type PlanProStudentRow,
   type RankingStudentRow,
@@ -79,7 +81,7 @@ type GtmObservedEvent = {
   payloadPreview: string;
 };
 
-type BroadcastCategory = "all" | "bronze" | "silver" | "gold";
+type BroadcastCategory = "all" | "bronze" | "silver" | "gold" | "pro";
 
 function getFriendlyEventInfo(eventName: string) {
   const map: Record<string, { label: string; help: string }> = {
@@ -265,6 +267,7 @@ export default function AdminDashboardScreen() {
   const [broadcastSendEmailToo, setBroadcastSendEmailToo] = useState(false);
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
+  const [broadcastHistoryRows, setBroadcastHistoryRows] = useState<AdminStudentMessageHistoryRow[]>([]);
   const isAdminWeb = Platform.OS === "web";
   const frameMaxWidth = isAdminWeb ? 1500 : 430;
 
@@ -317,7 +320,17 @@ export default function AdminDashboardScreen() {
         }
         setAccessRole(role);
 
-        const [studentsData, planProStudentsData, rankingData, teachersData, olympiadsData, analyticsData, requestsData, studentEmailRows] = await Promise.all([
+        const [
+          studentsData,
+          planProStudentsData,
+          rankingData,
+          teachersData,
+          olympiadsData,
+          analyticsData,
+          requestsData,
+          studentEmailRows,
+          broadcastHistoryData,
+        ] = await Promise.all([
           fetchRegisteredStudentsFull(),
           fetchPlanProStudentsAdmin().catch(() => []),
           fetchRankingAllRegisteredStudents(500),
@@ -326,6 +339,7 @@ export default function AdminDashboardScreen() {
           fetchSaasAnalyticsOverview(30),
           fetchPendingAccessRequestsAdmin(),
           fetchStudentEmailRecipientsForSender().catch(() => []),
+          fetchAdminStudentMessageHistory(5000).catch(() => []),
         ]);
         if (!mounted) return;
         setAuthorized(true);
@@ -336,6 +350,7 @@ export default function AdminDashboardScreen() {
         setOlympiads((olympiadsData ?? []).map((item: { id: string; title: string }) => ({ id: item.id, title: item.title })));
         setSaasAnalytics(analyticsData);
         setPendingRequests(requestsData);
+        setBroadcastHistoryRows(broadcastHistoryData);
         setStudentEmailsById(
           (studentEmailRows ?? []).reduce<Record<string, string>>((acc, row) => {
             if (row.id && row.email) acc[row.id] = row.email;
@@ -641,6 +656,11 @@ export default function AdminDashboardScreen() {
     setStudents(studentsData);
     setPlanProStudents(planProStudentsData);
     setRankingRows(rankingData);
+  }
+
+  async function reloadBroadcastHistory() {
+    const historyRows = await fetchAdminStudentMessageHistory(5000).catch(() => []);
+    setBroadcastHistoryRows(historyRows);
   }
 
   async function handleCreateTeacher() {
@@ -1191,6 +1211,7 @@ export default function AdminDashboardScreen() {
       return acc;
     }, {});
   }, [rankingRows]);
+  const planProStudentIds = useMemo(() => new Set(planProStudents.map((row) => row.id)), [planProStudents]);
 
   const broadcastRecipients = useMemo(() => {
     return students
@@ -1201,9 +1222,21 @@ export default function AdminDashboardScreen() {
         grade: student.grade?.trim() || "Sem série",
         class_name: student.class_name?.trim() || "Sem turma",
         lobo_class: loboClassByStudentId[student.id] ?? "bronze",
+        is_plan_pro:
+          Boolean(student.plan_pro_active) ||
+          String(student.plan_tier ?? "")
+            .trim()
+            .toLowerCase() === "pro" ||
+          planProStudentIds.has(student.id),
         email: studentEmailsById[student.id] ?? null,
       }));
-  }, [students, loboClassByStudentId, studentEmailsById]);
+  }, [students, loboClassByStudentId, planProStudentIds, studentEmailsById]);
+  const broadcastRecipientsById = useMemo(() => {
+    return broadcastRecipients.reduce<Record<string, (typeof broadcastRecipients)[number]>>((acc, row) => {
+      acc[row.id] = row;
+      return acc;
+    }, {});
+  }, [broadcastRecipients]);
 
   const broadcastGradeOptions = useMemo(
     () => Array.from(new Set(broadcastRecipients.map((item) => item.grade))).sort((a, b) => a.localeCompare(b, "pt-BR")),
@@ -1220,7 +1253,9 @@ export default function AdminDashboardScreen() {
     return broadcastRecipients.filter((recipient) => {
       const gradePass = broadcastGradeFilter === "all" || recipient.grade === broadcastGradeFilter;
       const classPass = broadcastClassFilter === "all" || recipient.class_name === broadcastClassFilter;
-      const categoryPass = broadcastCategoryFilter === "all" || recipient.lobo_class === broadcastCategoryFilter;
+      const categoryPass =
+        broadcastCategoryFilter === "all" ||
+        (broadcastCategoryFilter === "pro" ? recipient.is_plan_pro : recipient.lobo_class === broadcastCategoryFilter);
       if (!gradePass || !classPass || !categoryPass) return false;
       if (!query) return true;
       return (
@@ -1232,6 +1267,45 @@ export default function AdminDashboardScreen() {
   }, [broadcastRecipients, broadcastSearch, broadcastGradeFilter, broadcastClassFilter, broadcastCategoryFilter]);
 
   const broadcastSelectedSet = useMemo(() => new Set(broadcastSelectedStudentIds), [broadcastSelectedStudentIds]);
+  const selectedBroadcastRecipients = useMemo(
+    () =>
+      broadcastSelectedStudentIds
+        .map((id) => broadcastRecipientsById[id])
+        .filter((row): row is NonNullable<typeof row> => Boolean(row)),
+    [broadcastRecipientsById, broadcastSelectedStudentIds],
+  );
+  const groupedBroadcastHistory = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        key: string;
+        createdAt: string;
+        title: string;
+        body: string;
+        recipientsCount: number;
+        proCount: number;
+      }
+    >();
+    for (const row of broadcastHistoryRows) {
+      const minuteKey = String(row.created_at ?? "").slice(0, 16);
+      const key = `${minuteKey}::${row.title}::${row.body}`;
+      const current = grouped.get(key);
+      if (!current) {
+        grouped.set(key, {
+          key,
+          createdAt: row.created_at,
+          title: row.title,
+          body: row.body,
+          recipientsCount: 1,
+          proCount: row.recipient_is_pro ? 1 : 0,
+        });
+        continue;
+      }
+      current.recipientsCount += 1;
+      if (row.recipient_is_pro) current.proCount += 1;
+    }
+    return Array.from(grouped.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [broadcastHistoryRows]);
 
   async function handleSendBroadcastNotice() {
     const title = broadcastTitle.trim();
@@ -1272,6 +1346,7 @@ export default function AdminDashboardScreen() {
       let emailSent = 0;
       let emailFailed = 0;
       let emailSkipped = 0;
+      let emailErrorText: string | null = null;
 
       if (broadcastSendInApp) {
         const inAppResult = await sendStudentMessageBulk({
@@ -1287,16 +1362,21 @@ export default function AdminDashboardScreen() {
         const emailRecipients = selectedRecipients.filter((recipient) => Boolean(recipient.email));
         emailSkipped = selectedRecipients.length - emailRecipients.length;
         if (emailRecipients.length) {
-          const emailResult = await sendStudentBroadcastEmail({
-            recipients: emailRecipients.map((recipient) => ({
-              email: recipient.email as string,
-              fullName: recipient.full_name,
-            })),
-            title,
-            body,
-          });
-          emailSent = emailResult.sent;
-          emailFailed = emailResult.failed;
+          try {
+            const emailResult = await sendStudentBroadcastEmail({
+              recipients: emailRecipients.map((recipient) => ({
+                email: recipient.email as string,
+                fullName: recipient.full_name,
+              })),
+              title,
+              body,
+            });
+            emailSent = emailResult.sent;
+            emailFailed = emailResult.failed;
+          } catch (e: unknown) {
+            emailErrorText = e instanceof Error ? e.message : "Falha ao enviar e-mails.";
+            emailFailed = emailRecipients.length;
+          }
         }
       }
 
@@ -1305,11 +1385,26 @@ export default function AdminDashboardScreen() {
         broadcastSendEmailToo
           ? `E-mail: ${emailSent} enviado(s), ${emailFailed} falha(s), ${emailSkipped} sem e-mail`
           : null,
+        emailErrorText ? `Detalhe e-mail: ${emailErrorText}` : null,
       ].filter(Boolean);
 
       const feedbackText = feedbackParts.join(" | ");
       setBroadcastFeedback(feedbackText);
-      Alert.alert("Aviso geral processado", feedbackText || "Envio concluído.");
+      await reloadBroadcastHistory();
+
+      const hasFailure =
+        (broadcastSendInApp && inAppFailed > 0) ||
+        (broadcastSendEmailToo && (emailFailed > 0 || Boolean(emailErrorText)));
+
+      if (!hasFailure) {
+        setBroadcastTitle("");
+        setBroadcastBody("");
+      }
+
+      Alert.alert(
+        hasFailure ? "Aviso enviado com ressalvas" : "Aviso geral enviado com sucesso",
+        feedbackText || "Envio concluído.",
+      );
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao enviar aviso geral.";
       Alert.alert("Erro", message);
@@ -2286,7 +2381,7 @@ export default function AdminDashboardScreen() {
               >
                 <Text style={{ color: colors.white }} weight="bold">Aviso geral para alunos</Text>
                 <Text style={{ color: "rgba(255,255,255,0.75)", marginTop: spacing.xs, lineHeight: 20 }}>
-                  Envie recados para todos os alunos cadastrados ou para grupos filtrados por série, turma e categoria (bronze, prata e ouro).
+                  Envie recados para todos os alunos cadastrados ou para grupos filtrados por série, turma, categoria e Plano Pro.
                 </Text>
 
                 <TextInput
@@ -2431,6 +2526,7 @@ export default function AdminDashboardScreen() {
                       { key: "bronze" as const, label: "Bronze" },
                       { key: "silver" as const, label: "Prata" },
                       { key: "gold" as const, label: "Ouro" },
+                      { key: "pro" as const, label: "Alunos Pro" },
                     ].map((item) => (
                       <Pressable
                         key={`broadcast-category-${item.key}`}
@@ -2501,6 +2597,46 @@ export default function AdminDashboardScreen() {
                 </View>
 
                 <View style={{ marginTop: spacing.xs, gap: spacing.xs, maxHeight: 260 }}>
+                  {selectedBroadcastRecipients.length > 0 ? (
+                    <View
+                      style={{
+                        borderRadius: radii.md,
+                        borderWidth: 1,
+                        borderColor: "rgba(255,199,0,0.45)",
+                        backgroundColor: "rgba(255,199,0,0.10)",
+                        padding: spacing.xs,
+                        marginBottom: spacing.xs,
+                      }}
+                    >
+                      <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                        Selecionados ({selectedBroadcastRecipients.length})
+                      </Text>
+                      <ScrollView style={{ marginTop: 6, maxHeight: 120 }} nestedScrollEnabled>
+                        <View style={{ gap: 6 }}>
+                          {selectedBroadcastRecipients.map((recipient) => (
+                            <View
+                              key={`selected-broadcast-${recipient.id}`}
+                              style={{
+                                borderRadius: radii.md,
+                                borderWidth: 1,
+                                borderColor: "rgba(255,199,0,0.45)",
+                                backgroundColor: "rgba(255,255,255,0.05)",
+                                paddingHorizontal: spacing.sm,
+                                paddingVertical: 6,
+                              }}
+                            >
+                              <Text style={{ color: colors.white }} weight="semibold">
+                                {recipient.full_name}
+                              </Text>
+                              <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>
+                                Série: {recipient.grade} • Turma: {recipient.class_name} • {recipient.is_plan_pro ? "Plano Pro" : "Plano Free"}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  ) : null}
                   <ScrollView nestedScrollEnabled>
                     <View style={{ gap: spacing.xs }}>
                       {filteredBroadcastRecipients.map((recipient) => {
@@ -2547,6 +2683,9 @@ export default function AdminDashboardScreen() {
                                 </Text>
                                 <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 12 }}>
                                   Série: {recipient.grade} • Turma: {recipient.class_name} • Categoria: {recipient.lobo_class === "gold" ? "ouro" : recipient.lobo_class === "silver" ? "prata" : "bronze"}
+                                </Text>
+                                <Text style={{ color: recipient.is_plan_pro ? "#86efac" : "rgba(255,255,255,0.62)", fontSize: 12 }}>
+                                  Plano: {recipient.is_plan_pro ? "Pro" : "Free"}
                                 </Text>
                                 <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
                                   E-mail: {recipient.email ?? "não informado"}
@@ -2633,6 +2772,57 @@ export default function AdminDashboardScreen() {
                     {broadcastFeedback}
                   </Text>
                 ) : null}
+
+                <View
+                  style={{
+                    marginTop: spacing.md,
+                    borderRadius: radii.md,
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    padding: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: colors.white }} weight="bold">
+                    Últimos avisos enviados
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+                    Histórico consolidado dos avisos gerais já enviados.
+                  </Text>
+                  <View style={{ marginTop: spacing.xs, gap: spacing.xs }}>
+                    {groupedBroadcastHistory.length === 0 ? (
+                      <Text style={{ color: "rgba(255,255,255,0.72)" }}>Sem avisos registrados até o momento.</Text>
+                    ) : (
+                      groupedBroadcastHistory.slice(0, 12).map((item) => (
+                        <View
+                          key={`broadcast-history-${item.key}`}
+                          style={{
+                            borderRadius: radii.md,
+                            borderWidth: 1,
+                            borderColor: colors.borderSoft,
+                            backgroundColor: "rgba(255,255,255,0.04)",
+                            padding: spacing.xs,
+                          }}
+                        >
+                          <Text style={{ color: colors.white }} weight="semibold">
+                            {item.title}
+                          </Text>
+                          <Text style={{ color: "rgba(255,255,255,0.8)", marginTop: 2 }}>{item.body}</Text>
+                          <Text style={{ color: "rgba(255,255,255,0.66)", marginTop: 4, fontSize: 12 }}>
+                            Destinatários: {item.recipientsCount} • Pro: {item.proCount} •{" "}
+                            {new Date(item.createdAt).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </View>
               </View>
               ) : null}
 

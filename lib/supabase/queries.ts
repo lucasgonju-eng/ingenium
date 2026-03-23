@@ -947,17 +947,21 @@ export async function sendStudentBroadcastEmail(input: {
   }
 
   let finalAttempt = await request(preferredEndpoint);
+  const preferredStatus = finalAttempt.response.status;
   const shouldTryFallback = !isSuccessfulResponse(finalAttempt) && fallbackEndpoint !== preferredEndpoint;
   if (shouldTryFallback) {
     finalAttempt = await request(fallbackEndpoint);
   }
 
   if (!isSuccessfulResponse(finalAttempt)) {
-    const errMessage =
-      String(finalAttempt.parsed.error ?? "").trim() ||
-      finalAttempt.text.slice(0, 180) ||
-      `Falha ao enviar e-mails (${finalAttempt.response.status}).`;
-    throw new Error(errMessage);
+    const rawError = String(finalAttempt.parsed.error ?? "").trim() || finalAttempt.text.slice(0, 180);
+    const errMessage = rawError
+      ? `Falha no envio de e-mail (HTTP ${finalAttempt.response.status}): ${rawError}`
+      : `Falha no envio de e-mail (HTTP ${finalAttempt.response.status}).`;
+    const withFallbackInfo = shouldTryFallback
+      ? `${errMessage} | Tentativa principal retornou HTTP ${preferredStatus}.`
+      : errMessage;
+    throw new Error(withFallbackInfo);
   }
 
   return {
