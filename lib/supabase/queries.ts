@@ -902,23 +902,25 @@ export async function sendStudentBroadcastEmail(input: {
     `${normalizedBaseUrl}/student-message-broadcast-notify.php`;
   const fallbackEndpoint = `${normalizedBaseUrl}/student-xp-kickoff-notify.php`;
   const emailNudgeText = "Chegou uma notificação na sua Caixa de Mensagens do InGenium";
+  const batchSizeRaw = Number(process.env.EXPO_PUBLIC_STUDENT_BROADCAST_BATCH_SIZE ?? 20);
+  const batchSize =
+    Number.isFinite(batchSizeRaw) && batchSizeRaw > 0 ? Math.min(Math.floor(batchSizeRaw), 100) : 20;
 
-  const payload = {
-    recipients: cleanedRecipients,
-    // O conteúdo do aviso é interno ao app; e-mail deve sempre ser um nudge fixo.
-    title: "Nova notificação no InGenium",
-    message: emailNudgeText,
-    subject: "InGenium | Nova notificação na Caixa de Mensagens",
-    // Compat com endpoint legado de campanha em massa.
-    opening: "Olá!",
-    headline: "Nova mensagem para você",
-    bodyA: emailNudgeText,
-    bodyB: "",
-    bodyC: "Equipe InGenium Einstein",
-    cta: "Acesse o InGenium: https://ingenium.einsteinhub.co",
-  };
-
-  async function request(endpoint: string) {
+  async function request(endpoint: string, recipientsBatch: Array<{ email: string; fullName: string }>) {
+    const payload = {
+      recipients: recipientsBatch,
+      // O conteúdo do aviso é interno ao app; e-mail deve sempre ser um nudge fixo.
+      title: "Nova notificação no InGenium",
+      message: emailNudgeText,
+      subject: "InGenium | Nova notificação na Caixa de Mensagens",
+      // Compat com endpoint legado de campanha em massa.
+      opening: "Olá!",
+      headline: "Nova mensagem para você",
+      bodyA: emailNudgeText,
+      bodyB: "",
+      bodyC: "Equipe InGenium Einstein",
+      cta: "Acesse o InGenium: https://ingenium.einsteinhub.co",
+    };
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -934,43 +936,69 @@ export async function sendStudentBroadcastEmail(input: {
     return { response, parsed, text };
   }
 
-  function isSuccessfulResponse(payload: {
+  function isStructuredResponse(payload: {
     response: Response;
     parsed: Record<string, unknown>;
   }) {
     return (
       payload.response.ok &&
-      payload.parsed.ok === true &&
       typeof payload.parsed.sent === "number" &&
       typeof payload.parsed.failed === "number"
     );
   }
 
-  let finalAttempt = await request(preferredEndpoint);
-  const preferredStatus = finalAttempt.response.status;
-  const shouldTryFallback = !isSuccessfulResponse(finalAttempt) && fallbackEndpoint !== preferredEndpoint;
-  if (shouldTryFallback) {
-    finalAttempt = await request(fallbackEndpoint);
+  const batches: Array<Array<{ email: string; fullName: string }>> = [];
+  for (let index = 0; index < cleanedRecipients.length; index += batchSize) {
+    batches.push(cleanedRecipients.slice(index, index + batchSize));
   }
 
-  if (!isSuccessfulResponse(finalAttempt)) {
-    const rawError = String(finalAttempt.parsed.error ?? "").trim() || finalAttempt.text.slice(0, 180);
-    const errMessage = rawError
-      ? `Falha no envio de e-mail (HTTP ${finalAttempt.response.status}): ${rawError}`
-      : `Falha no envio de e-mail (HTTP ${finalAttempt.response.status}).`;
-    const withFallbackInfo = shouldTryFallback
-      ? `${errMessage} | Tentativa principal retornou HTTP ${preferredStatus}.`
-      : errMessage;
-    throw new Error(withFallbackInfo);
+  let sent = 0;
+  let failed = 0;
+  const errors: Array<{ email: string; error: string }> = [];
+  let firstFatalError: string | null = null;
+
+  for (const batch of batches) {
+    let finalAttempt = await request(preferredEndpoint, batch);
+    const preferredStatus = finalAttempt.response.status;
+    const shouldTryFallback = !isStructuredResponse(finalAttempt) && fallbackEndpoint !== preferredEndpoint;
+
+    if (shouldTryFallback) {
+      finalAttempt = await request(fallbackEndpoint, batch);
+    }
+
+    if (!isStructuredResponse(finalAttempt)) {
+      const rawError = String(finalAttempt.parsed.error ?? "").trim() || finalAttempt.text.slice(0, 180);
+      const errMessage = rawError
+        ? `Falha no envio de e-mail (HTTP ${finalAttempt.response.status}): ${rawError}`
+        : `Falha no envio de e-mail (HTTP ${finalAttempt.response.status}).`;
+      const withFallbackInfo = shouldTryFallback
+        ? `${errMessage} | Tentativa principal retornou HTTP ${preferredStatus}.`
+        : errMessage;
+
+      if (!firstFatalError) firstFatalError = withFallbackInfo;
+      failed += batch.length;
+      for (const recipient of batch) {
+        errors.push({ email: recipient.email, error: withFallbackInfo });
+      }
+      continue;
+    }
+
+    sent += Number(finalAttempt.parsed.sent ?? 0);
+    failed += Number(finalAttempt.parsed.failed ?? 0);
+    if (Array.isArray(finalAttempt.parsed.errors)) {
+      errors.push(...(finalAttempt.parsed.errors as Array<{ email: string; error: string }>));
+    }
+  }
+
+  if (sent === 0 && failed > 0 && firstFatalError) {
+    throw new Error(firstFatalError);
   }
 
   return {
-    total: Number(finalAttempt.parsed.total ?? cleanedRecipients.length),
-    sent: Number(finalAttempt.parsed.sent ?? cleanedRecipients.length),
-    failed: Number(finalAttempt.parsed.failed ?? 0),
-    errors: Array.isArray(finalAttempt.parsed.errors)
-      ? (finalAttempt.parsed.errors as Array<{ email: string; error: string }>)
-      : [],
+    total: cleanedRecipients.length,
+    sent,
+    failed,
+    errors,
   };
 }
 
