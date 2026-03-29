@@ -12,9 +12,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="planos" options={{ title: "Planos" }} />
       <Tabs.Screen name="xps-conquitados" options={{ title: "XP" }} />
       <Tabs.Screen name="ranking" options={{ title: "Ranking" }} />
-      <Tabs.Screen name="mural" options={{ title: "Mural" }} />
+      <Tabs.Screen name="mural" options={{ title: "Mural", href: null }} />
       <Tabs.Screen name="perfil" options={{ title: "Perfil" }} />
-      <Tabs.Screen name="feed" options={{ title: "Feed" }} />
+      <Tabs.Screen name="feed" options={{ title: "Feed", href: null }} />
     </Tabs>
   );
 }
