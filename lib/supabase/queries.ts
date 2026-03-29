@@ -1468,11 +1468,13 @@ export async function listXpActivityAwardsAdmin(limit = 50) {
 
 export async function listXpActivityAwardsAdminFiltered(input?: {
   limit?: number;
+  offset?: number;
   grade?: string | null;
   search?: string | null;
 }) {
   const { data, error } = await supabase.rpc("list_xp_activity_awards_admin", {
     p_limit: input?.limit ?? 500,
+    p_offset: input?.offset ?? 0,
     p_grade: input?.grade ?? null,
     p_search: input?.search ?? null,
   });
@@ -1498,6 +1500,52 @@ export async function listXpActivityAwardsAdminFiltered(input?: {
     created_by_name: row.created_by_name ? String(row.created_by_name) : null,
     created_at: String(row.created_at ?? new Date().toISOString()),
   })) as AdminXpActivityAwardRow[];
+}
+
+export async function countXpActivityAwardsAdmin(input?: {
+  grade?: string | null;
+  search?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("count_xp_activity_awards_admin", {
+    p_grade: input?.grade ?? null,
+    p_search: input?.search ?? null,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function listXpActivityAwardsAdminPage(input?: {
+  page?: number;
+  pageSize?: number;
+  grade?: string | null;
+  search?: string | null;
+}) {
+  const pageSize = Math.max(1, input?.pageSize ?? 50);
+  const page = Math.max(1, input?.page ?? 1);
+  const offset = (page - 1) * pageSize;
+  const grade = input?.grade ?? null;
+  const search = input?.search ?? null;
+
+  const [rows, totalCount] = await Promise.all([
+    listXpActivityAwardsAdminFiltered({
+      limit: pageSize,
+      offset,
+      grade,
+      search,
+    }),
+    countXpActivityAwardsAdmin({
+      grade,
+      search,
+    }),
+  ]);
+
+  return {
+    rows,
+    totalCount,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+  };
 }
 
 export async function awardXpActivityAdmin(input: {

@@ -6,7 +6,7 @@ import {
   awardXpActivityAdmin,
   createXpActivityCatalogAdmin,
   deleteXpActivityAwardAdmin,
-  listXpActivityAwardsAdminFiltered,
+  listXpActivityAwardsAdminPage,
   listXpActivityCatalogAdmin,
   updateXpActivityAwardAdmin,
   type AdminXpActivityAwardRow,
@@ -22,6 +22,7 @@ type Props = {
 };
 
 type XpAdminSubTab = "launch" | "history";
+const HISTORY_PAGE_SIZE = 50;
 
 const GROUP_OPTIONS: Array<{ value: XpActivityGroup; label: string }> = [
   { value: "fundamental", label: "Fundamental" },
@@ -112,6 +113,8 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyGradeFilter, setHistoryGradeFilter] = useState("__all__");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalCount, setHistoryTotalCount] = useState(0);
   const [editingAwardId, setEditingAwardId] = useState<string | null>(null);
   const [editingXpAmount, setEditingXpAmount] = useState("");
   const [editingOccurredOn, setEditingOccurredOn] = useState(getTodayIsoDate());
@@ -124,13 +127,18 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     async function loadData() {
       try {
         setLoading(true);
-        const [catalogRows, historyRows] = await Promise.all([
+        const [catalogRows, historyPageResult] = await Promise.all([
           listXpActivityCatalogAdmin(),
-          listXpActivityAwardsAdminFiltered({ limit: 500 }),
+          listXpActivityAwardsAdminPage({
+            page: 1,
+            pageSize: HISTORY_PAGE_SIZE,
+          }),
         ]);
         if (!mounted) return;
         setCatalog(catalogRows);
-        setHistory(historyRows);
+        setHistory(historyPageResult.rows);
+        setHistoryTotalCount(historyPageResult.totalCount);
+        setHistoryPage(1);
       } catch (error) {
         if (!mounted) return;
         Alert.alert("Lançamento de XP", error instanceof Error ? error.message : "Não foi possível carregar os dados da aba.");
@@ -236,13 +244,18 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     let mounted = true;
     async function reloadHistory() {
       try {
-        const historyRows = await listXpActivityAwardsAdminFiltered({
-          limit: 500,
+        const historyPageResult = await listXpActivityAwardsAdminPage({
+          page: historyPage,
+          pageSize: HISTORY_PAGE_SIZE,
           grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
           search: historySearchTerm.trim() || null,
         });
         if (!mounted) return;
-        setHistory(historyRows);
+        setHistory(historyPageResult.rows);
+        setHistoryTotalCount(historyPageResult.totalCount);
+        if (historyPage > historyPageResult.totalPages) {
+          setHistoryPage(historyPageResult.totalPages);
+        }
       } catch (error) {
         if (!mounted) return;
         Alert.alert("Histórico de XP", error instanceof Error ? error.message : "Não foi possível carregar o histórico.");
@@ -252,22 +265,34 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     return () => {
       mounted = false;
     };
-  }, [activeSubTab, canAccess, historyGradeFilter, historySearchTerm]);
+  }, [activeSubTab, canAccess, historyGradeFilter, historySearchTerm, historyPage]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyGradeFilter, historySearchTerm]);
 
   const selectedCount = awardScope === "collective" ? visibleStudents.length : selectedStudentIds.length;
   const totalXpPreview = selectedActivity ? selectedCount * selectedActivity.xp_amount : 0;
+  const historyTotalPages = Math.max(1, Math.ceil(historyTotalCount / HISTORY_PAGE_SIZE));
+  const historyStartIndex = historyTotalCount === 0 ? 0 : (historyPage - 1) * HISTORY_PAGE_SIZE + 1;
+  const historyEndIndex = Math.min(historyPage * HISTORY_PAGE_SIZE, historyTotalCount);
 
   async function refreshAfterChange() {
-    const [catalogRows, historyRows] = await Promise.all([
+    const [catalogRows, historyPageResult] = await Promise.all([
       listXpActivityCatalogAdmin(),
-      listXpActivityAwardsAdminFiltered({
-        limit: 500,
+      listXpActivityAwardsAdminPage({
+        page: historyPage,
+        pageSize: HISTORY_PAGE_SIZE,
         grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
         search: historySearchTerm.trim() || null,
       }),
     ]);
     setCatalog(catalogRows);
-    setHistory(historyRows);
+    setHistory(historyPageResult.rows);
+    setHistoryTotalCount(historyPageResult.totalCount);
+    if (historyPage > historyPageResult.totalPages) {
+      setHistoryPage(historyPageResult.totalPages);
+    }
   }
 
   function toggleStudent(studentId: string) {
@@ -289,12 +314,17 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   }
 
   async function refreshHistoryOnly() {
-    const historyRows = await listXpActivityAwardsAdminFiltered({
-      limit: 500,
+    const historyPageResult = await listXpActivityAwardsAdminPage({
+      page: historyPage,
+      pageSize: HISTORY_PAGE_SIZE,
       grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
       search: historySearchTerm.trim() || null,
     });
-    setHistory(historyRows);
+    setHistory(historyPageResult.rows);
+    setHistoryTotalCount(historyPageResult.totalCount);
+    if (historyPage > historyPageResult.totalPages) {
+      setHistoryPage(historyPageResult.totalPages);
+    }
   }
 
   async function handleSaveAwardEdit(awardId: string) {
@@ -1028,6 +1058,35 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
             ))
           )}
         </View>
+
+        <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
+          <Text style={{ color: "rgba(255,255,255,0.72)" }}>
+            Mostrando {historyStartIndex}-{historyEndIndex} de {historyTotalCount} lançamentos.
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.xs, alignItems: "center", flexWrap: "wrap" }}>
+            <Pressable
+              onPress={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
+              disabled={historyPage <= 1}
+              style={[secondaryButtonStyle, historyPage <= 1 ? disabledButtonStyle : null]}
+            >
+              <Text style={{ color: colors.white }} weight="semibold">
+                Página anterior
+              </Text>
+            </Pressable>
+            <Text style={{ color: colors.white }} weight="semibold">
+              Página {historyPage} de {historyTotalPages}
+            </Text>
+            <Pressable
+              onPress={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
+              disabled={historyPage >= historyTotalPages}
+              style={[secondaryButtonStyle, historyPage >= historyTotalPages ? disabledButtonStyle : null]}
+            >
+              <Text style={{ color: colors.white }} weight="semibold">
+                Próxima página
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
       ) : null}
     </View>
@@ -1166,6 +1225,10 @@ const secondaryButtonStyle = {
   alignItems: "center" as const,
   justifyContent: "center" as const,
   paddingHorizontal: spacing.sm,
+};
+
+const disabledButtonStyle = {
+  opacity: 0.45,
 };
 
 const dangerButtonStyle = {
