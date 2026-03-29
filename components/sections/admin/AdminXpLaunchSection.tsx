@@ -59,6 +59,14 @@ function formatDateTime(value: string) {
   });
 }
 
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+}
+
 export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [catalog, setCatalog] = useState<AdminXpActivityCatalogRow[]>([]);
   const [history, setHistory] = useState<AdminXpActivityAwardRow[]>([]);
@@ -81,6 +89,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [newActivityGrade, setNewActivityGrade] = useState("6º Ano");
   const [newActivityScope, setNewActivityScope] = useState<XpActivityScope>("individual");
   const [newActivityRecurrenceNote, setNewActivityRecurrenceNote] = useState("");
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
 
   useEffect(() => {
     if (!canAccess) return;
@@ -179,6 +188,16 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     if (selectedClassName === "__all__") return gradeStudents;
     return gradeStudents.filter((student) => (student.class_name ?? "").trim() === selectedClassName);
   }, [gradeStudents, selectedClassName]);
+
+  const trimmedStudentSearchTerm = studentSearchTerm.trim();
+  const searchReady = trimmedStudentSearchTerm.length >= 3;
+  const studentAutocompleteOptions = useMemo(() => {
+    if (!searchReady) return [];
+    const normalizedTerm = normalizeSearchValue(trimmedStudentSearchTerm);
+    return visibleStudents
+      .filter((student) => normalizeSearchValue(student.full_name ?? "").includes(normalizedTerm))
+      .slice(0, 12);
+  }, [searchReady, trimmedStudentSearchTerm, visibleStudents]);
 
   useEffect(() => {
     const visibleIds = new Set(visibleStudents.map((student) => student.id));
@@ -617,8 +636,41 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
               </View>
             </View>
 
+            <Text style={fieldLabelStyle}>Série do lançamento</Text>
+            <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+              {GROUP_GRADE_OPTIONS[selectedGroup].map((grade) => {
+                const active = selectedGrade === grade;
+                return (
+                  <Pressable key={`launch-grade-${grade}`} onPress={() => setSelectedGrade(grade)} style={[pillStyle, active ? pillActiveStyle : null]}>
+                    <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+                      {grade}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={fieldLabelStyle}>Buscar aluno (mínimo 3 letras)</Text>
+            <TextInput
+              value={studentSearchTerm}
+              onChangeText={setStudentSearchTerm}
+              placeholder="Digite o nome do aluno..."
+              placeholderTextColor="rgba(255,255,255,0.38)"
+              style={inputStyle}
+            />
+            {!searchReady ? (
+              <Text style={{ color: "rgba(255,255,255,0.62)" }}>
+                Digite pelo menos 3 letras para ativar o autocomplete.
+              </Text>
+            ) : null}
+            {searchReady && studentAutocompleteOptions.length === 0 ? (
+              <Text style={{ color: "rgba(255,255,255,0.62)" }}>
+                Nenhum aluno encontrado com esse filtro na série selecionada.
+              </Text>
+            ) : null}
+
             <View style={{ gap: spacing.xs }}>
-              {visibleStudents.map((student) => {
+              {studentAutocompleteOptions.map((student) => {
                 const active = selectedStudentIds.includes(student.id);
                 return (
                   <Pressable key={student.id} onPress={() => toggleStudent(student.id)} style={[studentRowStyle, active ? studentRowActiveStyle : null]}>
@@ -636,6 +688,33 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                   </Pressable>
                 );
               })}
+            </View>
+
+            <Text style={fieldLabelStyle}>Alunos selecionados</Text>
+            <View style={{ gap: spacing.xs }}>
+              {selectedStudentIds.length === 0 ? (
+                <Text style={{ color: "rgba(255,255,255,0.62)" }}>Nenhum aluno selecionado.</Text>
+              ) : (
+                selectedStudentIds.map((studentId) => {
+                  const student = visibleStudents.find((item) => item.id === studentId);
+                  if (!student) return null;
+                  return (
+                    <Pressable key={`selected-${student.id}`} onPress={() => toggleStudent(student.id)} style={[studentRowStyle, studentRowActiveStyle]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.white }} weight="semibold">
+                          {student.full_name ?? "Aluno sem nome"}
+                        </Text>
+                        <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 4 }}>
+                          {student.grade ?? "Sem série"} {student.class_name ? `• ${student.class_name}` : ""}
+                        </Text>
+                      </View>
+                      <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                        Remover
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              )}
             </View>
           </View>
         )}
