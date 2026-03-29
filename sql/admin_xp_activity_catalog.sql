@@ -576,7 +576,7 @@ values
   ('TOP 10 Produção de texto do Bloco de Redação', 'Premiação pela produção de texto do bloco de redação.', 'fundamental', '6º Ano', 1000, 'individual', null, 'seed:fundamental:6:redacao-top10'),
   ('Einstein Science (Laboratório)', 'Atividade de laboratório com lançamento recorrente.', 'fundamental', '6º Ano', 500, 'individual', 'Planilha: 100 XP por atividade.', 'seed:fundamental:6:einstein-science'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'fundamental', '6º Ano', 1200, 'individual', null, 'seed:fundamental:6:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'fundamental', '6º Ano', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:fundamental:6:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'fundamental', '6º Ano', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:fundamental:6:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'fundamental', '6º Ano', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:fundamental:6:sem-notificacao'),
 
   ('Completar dados do perfil', 'Conceder XP pelo preenchimento completo do perfil.', 'fundamental', '7º Ano', 100, 'individual', null, 'seed:fundamental:7:perfil-completo'),
@@ -585,7 +585,7 @@ values
   ('TOP 10 Produção de texto do Bloco de Redação', 'Premiação pela produção de texto do bloco de redação.', 'fundamental', '7º Ano', 1000, 'individual', null, 'seed:fundamental:7:redacao-top10'),
   ('Einstein Science (Laboratório)', 'Atividade de laboratório com lançamento recorrente.', 'fundamental', '7º Ano', 500, 'individual', 'Planilha: 100 XP por atividade.', 'seed:fundamental:7:einstein-science'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'fundamental', '7º Ano', 1200, 'individual', null, 'seed:fundamental:7:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'fundamental', '7º Ano', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:fundamental:7:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'fundamental', '7º Ano', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:fundamental:7:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'fundamental', '7º Ano', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:fundamental:7:sem-notificacao'),
 
   ('Completar dados do perfil', 'Conceder XP pelo preenchimento completo do perfil.', 'fundamental', '8º Ano', 100, 'individual', null, 'seed:fundamental:8:perfil-completo'),
@@ -594,7 +594,7 @@ values
   ('TOP 10 Produção de texto do Bloco de Redação', 'Premiação pela produção de texto do bloco de redação.', 'fundamental', '8º Ano', 1000, 'individual', null, 'seed:fundamental:8:redacao-top10'),
   ('Einstein Science (Laboratório)', 'Atividade de laboratório com lançamento recorrente.', 'fundamental', '8º Ano', 500, 'individual', 'Planilha: 100 XP por atividade.', 'seed:fundamental:8:einstein-science'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'fundamental', '8º Ano', 1200, 'individual', null, 'seed:fundamental:8:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'fundamental', '8º Ano', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:fundamental:8:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'fundamental', '8º Ano', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:fundamental:8:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'fundamental', '8º Ano', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:fundamental:8:sem-notificacao'),
 
   ('Completar dados do perfil', 'Conceder XP pelo preenchimento completo do perfil.', 'medio', '9º Ano', 100, 'individual', null, 'seed:medio:9:perfil-completo'),
@@ -603,7 +603,7 @@ values
   ('TOP 10 Produção de texto - Semanal', 'Premiação semanal da produção de texto.', 'medio', '9º Ano', 1000, 'individual', null, 'seed:medio:9:redacao-top10'),
   ('Participação Grupo de Estudo + Monitoria', 'Participação em grupo de estudo e monitoria.', 'medio', '9º Ano', 100, 'individual', 'Planilha corrigida: 100 XP por dia.', 'seed:medio:9:grupo-estudo-monitoria'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'medio', '9º Ano', 1200, 'individual', null, 'seed:medio:9:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '9º Ano', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:medio:9:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '9º Ano', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:medio:9:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'medio', '9º Ano', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:medio:9:sem-notificacao'),
 
   ('Completar dados do perfil', 'Conceder XP pelo preenchimento completo do perfil.', 'medio', '1ª Série', 100, 'individual', null, 'seed:medio:1:perfil-completo'),
@@ -612,7 +612,7 @@ values
   ('TOP 10 Produção de texto - Semanal', 'Premiação semanal da produção de texto.', 'medio', '1ª Série', 1000, 'individual', null, 'seed:medio:1:redacao-top10'),
   ('Participação Grupo de Estudo + Monitoria', 'Participação em grupo de estudo e monitoria.', 'medio', '1ª Série', 100, 'individual', 'Planilha corrigida: 100 XP por dia.', 'seed:medio:1:grupo-estudo-monitoria'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'medio', '1ª Série', 1200, 'individual', null, 'seed:medio:1:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '1ª Série', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:medio:1:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '1ª Série', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:medio:1:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'medio', '1ª Série', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:medio:1:sem-notificacao'),
 
   ('Completar dados do perfil', 'Conceder XP pelo preenchimento completo do perfil.', 'medio', '2ª Série', 100, 'individual', null, 'seed:medio:2:perfil-completo'),
@@ -621,7 +621,7 @@ values
   ('TOP 10 Produção de texto - Semanal', 'Premiação semanal da produção de texto.', 'medio', '2ª Série', 1000, 'individual', null, 'seed:medio:2:redacao-top10'),
   ('Participação Grupo de Estudo + Monitoria', 'Participação em grupo de estudo e monitoria.', 'medio', '2ª Série', 100, 'individual', 'Planilha corrigida: 100 XP por dia.', 'seed:medio:2:grupo-estudo-monitoria'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'medio', '2ª Série', 1200, 'individual', null, 'seed:medio:2:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '2ª Série', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:medio:2:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '2ª Série', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:medio:2:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'medio', '2ª Série', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:medio:2:sem-notificacao'),
 
   ('Completar dados do perfil', 'Conceder XP pelo preenchimento completo do perfil.', 'medio', '3ª Série', 100, 'individual', null, 'seed:medio:3:perfil-completo'),
@@ -630,7 +630,7 @@ values
   ('TOP 10 Produção de texto - Semanal', 'Premiação semanal da produção de texto.', 'medio', '3ª Série', 1000, 'individual', null, 'seed:medio:3:redacao-top10'),
   ('Participação Grupo de Estudo + Monitoria', 'Participação em grupo de estudo e monitoria.', 'medio', '3ª Série', 100, 'individual', 'Planilha corrigida: 100 XP por dia.', 'seed:medio:3:grupo-estudo-monitoria'),
   ('Frequência perfeita trimestral', 'Premiação por presença integral no trimestre.', 'medio', '3ª Série', 1200, 'individual', null, 'seed:medio:3:frequencia-trimestral'),
-  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '3ª Série', 250, 'collective', 'Planilha: 50 XP por dia.', 'seed:medio:3:organizacao-sala'),
+  ('Organização da sala de aula!', 'Atividade coletiva de organização da sala.', 'medio', '3ª Série', 50, 'collective', 'Planilha corrigida: 50 XP por dia.', 'seed:medio:3:organizacao-sala'),
   ('Nenhuma notificação de tarefa', 'Atividade coletiva ligada a rotina e entrega de tarefas.', 'medio', '3ª Série', 800, 'collective', 'Planilha: 160 XP por dia.', 'seed:medio:3:sem-notificacao')
 on conflict (seed_key) do update
 set
