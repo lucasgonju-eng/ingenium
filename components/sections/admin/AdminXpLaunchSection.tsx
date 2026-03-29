@@ -63,6 +63,21 @@ function formatDateTime(value: string) {
   });
 }
 
+function formatDateOnly(value: string) {
+  if (!value) return "-";
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function isIsoDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
 function normalizeSearchValue(value: string) {
   return value
     .normalize("NFD")
@@ -85,7 +100,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [awardScope, setAwardScope] = useState<XpActivityScope>("individual");
   const [awardNote, setAwardNote] = useState("");
-  const [occurredOn, setOccurredOn] = useState(getTodayIsoDate());
+  const [occurredOn, setOccurredOn] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDescription, setNewActivityDescription] = useState("");
@@ -373,6 +388,11 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       return;
     }
 
+    if (!isIsoDate(occurredOn)) {
+      Alert.alert("Lançamento de XP", "Informe a data da atividade no formato AAAA-MM-DD.");
+      return;
+    }
+
     const targetIds = awardScope === "collective" ? visibleStudents.map((student) => student.id) : selectedStudentIds;
     if (targetIds.length === 0) {
       Alert.alert("Lançamento de XP", "Selecione ao menos um aluno para o lançamento.");
@@ -385,12 +405,13 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         activityId: selectedActivity.id,
         studentIds: targetIds,
         note: awardNote.trim() || null,
-        occurredOn: occurredOn.trim() || null,
+          occurredOn: occurredOn.trim(),
         awardScope,
       });
       await refreshAfterChange();
       setSelectedStudentIds([]);
       setAwardNote("");
+      setOccurredOn("");
       Alert.alert(
         "Lançamento de XP",
         `${result.length} lançamento(s) registrados com ${selectedActivity.xp_amount} XP por aluno.`,
@@ -715,14 +736,17 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           })}
         </View>
 
-        <Text style={fieldLabelStyle}>Data do lançamento</Text>
+        <Text style={fieldLabelStyle}>Data da atividade (obrigatória)</Text>
         <TextInput
           value={occurredOn}
           onChangeText={setOccurredOn}
-          placeholder="AAAA-MM-DD"
+          placeholder="AAAA-MM-DD (ex.: 2026-03-23)"
           placeholderTextColor="rgba(255,255,255,0.38)"
           style={inputStyle}
         />
+        <Text style={{ color: "rgba(255,255,255,0.62)" }}>
+          Transparência: a atividade fica com esta data; o sistema também registra o momento exato do lançamento.
+        </Text>
 
         <Text style={fieldLabelStyle}>Observação opcional</Text>
         <TextInput
@@ -982,7 +1006,12 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                     <Text style={{ color: colors.einsteinYellow }} weight="bold">
                       {entry.xp_amount} XP
                     </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.60)", marginTop: 4 }}>{formatDateTime(entry.created_at)}</Text>
+                    <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 4 }}>
+                      Atividade: {formatDateOnly(entry.occurred_on)}
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.60)", marginTop: 2 }}>
+                      Lançado em: {formatDateTime(entry.created_at)}
+                    </Text>
                     <Pressable onPress={() => startEditingAward(entry)} style={[secondaryButtonStyle, { marginTop: spacing.xs }]}>
                       <Text style={{ color: colors.white }} weight="semibold">
                         Editar

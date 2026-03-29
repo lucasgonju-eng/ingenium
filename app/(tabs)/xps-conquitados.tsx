@@ -213,7 +213,10 @@ export default function XpsConquitadosScreen() {
                   </Text>
                 </View>
                 <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4, fontSize: typography.small.fontSize }}>
-                  Data e hora: {new Date(row.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  Data da atividade: {new Date(`${row.occurred_on}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 2, fontSize: typography.small.fontSize }}>
+                  Lançado em: {new Date(row.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 2, fontSize: typography.small.fontSize }} weight="semibold">
                   Saldo após este evento: {row.runningBalance.toLocaleString("pt-BR")} XP
