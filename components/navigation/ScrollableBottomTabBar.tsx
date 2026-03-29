@@ -25,6 +25,7 @@ const TAB_META: Record<string, TabMeta> = {
 export default function ScrollableBottomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(8, insets.bottom);
+  const visibleRoutes = state.routes.filter((route) => descriptors[route.key]?.options?.href !== null);
 
   return (
     <View
@@ -37,9 +38,9 @@ export default function ScrollableBottomTabBar({ state, descriptors, navigation 
       }}
     >
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.sm, gap: spacing.xs }}>
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+          const isFocused = state.routes[state.index]?.key === route.key;
           const meta = TAB_META[route.name] ?? { label: route.name, icon: "•" };
 
           const onPress = () => {
