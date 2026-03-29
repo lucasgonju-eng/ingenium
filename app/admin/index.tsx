@@ -66,7 +66,7 @@ type AdminTab =
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
   { key: "mensagens-admin", label: "Mensagens Admin" },
-  { key: "lancamento-xp", label: "Lançamento de XP" },
+  { key: "lancamento-xp", label: "Lançamento de XP (Admin)" },
   { key: "lab-games", label: "Lab Games" },
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
@@ -293,7 +293,7 @@ export default function AdminDashboardScreen() {
   } as const;
 
   const isAdminStrict = accessRole === "admin";
-  const visibleTabs = isAdminStrict ? ADMIN_TABS : ADMIN_TABS.filter((tab) => tab.key !== "lancamento-xp");
+  const visibleTabs = ADMIN_TABS;
 
   useEffect(() => {
     let mounted = true;
