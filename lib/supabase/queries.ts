@@ -2368,6 +2368,20 @@ export type WolfWeeklyRankingRow = {
   is_public: boolean;
 };
 
+export type LabGamesRankingScope = "total" | "weekly" | "fundamental" | "medio";
+
+export type LabGamesRankingRow = {
+  rank: number;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  grade: string | null;
+  segment: "fundamental" | "medio";
+  lab_points: number;
+  lobo_class: "bronze" | "silver" | "gold";
+  is_current_user: boolean;
+};
+
 export async function fetchWolfAttemptGateRpc(): Promise<WolfAttemptGateSnapshot | null> {
   const { data, error } = await supabase.rpc("get_wolf_attempt_gate");
   if (error) throw error;
@@ -2401,6 +2415,39 @@ export async function fetchWolfWeeklyRankingStudentRpc(limit = 5): Promise<WolfW
       weekly_xp: Number(item.weekly_xp ?? 0),
       is_current_user: Boolean(item.is_current_user),
       is_public: Boolean(item.is_public),
+    };
+  });
+}
+
+export async function fetchLabGamesRankingStudentRpc(
+  scope: LabGamesRankingScope,
+  limit = 500,
+): Promise<LabGamesRankingRow[]> {
+  const { data, error } = await supabase.rpc("get_lab_games_ranking_student", {
+    p_scope: scope,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => {
+    const item = row as Record<string, unknown>;
+    const normalizedLoboClass = String(item.lobo_class ?? "bronze").toLowerCase();
+    const loboClass: "bronze" | "silver" | "gold" =
+      normalizedLoboClass === "gold" || normalizedLoboClass === "silver" || normalizedLoboClass === "bronze"
+        ? normalizedLoboClass
+        : "bronze";
+    const normalizedSegment = String(item.segment ?? "fundamental").toLowerCase();
+    const segment: "fundamental" | "medio" = normalizedSegment === "medio" ? "medio" : "fundamental";
+    return {
+      rank: Number(item.rank ?? 0),
+      user_id: String(item.user_id ?? ""),
+      full_name: item.full_name ? String(item.full_name) : null,
+      avatar_url: item.avatar_url ? String(item.avatar_url) : null,
+      grade: item.grade ? String(item.grade) : null,
+      segment,
+      lab_points: Number(item.lab_points ?? 0),
+      lobo_class: loboClass,
+      is_current_user: Boolean(item.is_current_user),
     };
   });
 }

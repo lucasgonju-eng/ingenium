@@ -7,10 +7,17 @@ import RankingEligibilityCard from "../../components/sections/RankingEligibility
 import RankingTopPodium from "../../components/sections/RankingTopPodium";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
-import { supabase } from "../../lib/supabase/client";
-import { fetchMyRankGeralMedia, fetchRankingAllRegisteredStudents, MyRankGeralMedia } from "../../lib/supabase/queries";
-import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
 import { copy } from "../../content/copy";
+import { supabase } from "../../lib/supabase/client";
+import {
+  fetchLabGamesRankingStudentRpc,
+  fetchMyRankGeralMedia,
+  fetchRankingAllRegisteredStudents,
+  LabGamesRankingScope,
+  LabGamesRankingRow,
+  MyRankGeralMedia,
+} from "../../lib/supabase/queries";
+import { colors, radii, shadows, sizes, spacing, typography } from "../../lib/theme/tokens";
 
 const SERIES_FILTERS = ["Todos", "6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 type SeriesFilter = (typeof SERIES_FILTERS)[number];
@@ -25,23 +32,73 @@ type RankingRow = {
   lobo_class: "bronze" | "silver" | "gold";
 };
 
+type RankingViewId = "official" | "lab_total" | "lab_weekly" | "lab_fundamental" | "lab_medio";
+
+const RANKING_VIEWS: Array<{ id: RankingViewId; label: string; title: string }> = [
+  { id: "official", label: "Oficial", title: "Ranking Geral Oficial" },
+  { id: "lab_total", label: "Lab Total", title: "Ranking Lab Games Total" },
+  { id: "lab_weekly", label: "Lab Semanal", title: "Ranking Lab Games Semanal" },
+  { id: "lab_fundamental", label: "Lab Fundamental", title: "Ranking Lab Games Fundamental" },
+  { id: "lab_medio", label: "Lab Médio", title: "Ranking Lab Games Médio" },
+];
+
+const EMPTY_LAB_RANKINGS: Record<LabGamesRankingScope, RankingRow[]> = {
+  total: [],
+  weekly: [],
+  fundamental: [],
+  medio: [],
+};
+
+function mapLabRowsToRankingRows(rows: LabGamesRankingRow[]): RankingRow[] {
+  return rows.map((row) => ({
+    position: row.rank,
+    user_id: row.user_id,
+    full_name: row.full_name,
+    avatar_url: row.avatar_url,
+    grade: row.grade,
+    total_points: row.lab_points,
+    lobo_class: row.lobo_class,
+  }));
+}
+
+function getLabScopeByView(view: RankingViewId): LabGamesRankingScope | null {
+  if (view === "lab_total") return "total";
+  if (view === "lab_weekly") return "weekly";
+  if (view === "lab_fundamental") return "fundamental";
+  if (view === "lab_medio") return "medio";
+  return null;
+}
+
 export default function RankingScreen() {
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<RankingRow[]>([]);
+  const [officialRows, setOfficialRows] = useState<RankingRow[]>([]);
+  const [labRowsByScope, setLabRowsByScope] = useState<Record<LabGamesRankingScope, RankingRow[]>>(EMPTY_LAB_RANKINGS);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myRankInfo, setMyRankInfo] = useState<MyRankGeralMedia | null>(null);
   const [search, setSearch] = useState("");
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
-  const rankedRows = useMemo(() => {
-    if (seriesFilter === "Todos") return rows;
+  const [rankingView, setRankingView] = useState<RankingViewId>("official");
 
-    const filtered = rows.filter((row) => (row.grade ?? "").trim() === seriesFilter);
+  const activeView = useMemo(
+    () => RANKING_VIEWS.find((view) => view.id === rankingView) ?? RANKING_VIEWS[0],
+    [rankingView],
+  );
+  const labScope = getLabScopeByView(rankingView);
+  const sourceRows = labScope ? labRowsByScope[labScope] : officialRows;
+  const isOfficialView = rankingView === "official";
+
+  const rankedRows = useMemo(() => {
+    if (!isOfficialView) return sourceRows;
+    if (seriesFilter === "Todos") return sourceRows;
+
+    const filtered = sourceRows.filter((row) => (row.grade ?? "").trim() === seriesFilter);
     const sorted = [...filtered].sort((a, b) => {
       if (b.total_points !== a.total_points) return b.total_points - a.total_points;
       return (a.full_name ?? "").localeCompare(b.full_name ?? "", "pt-BR");
     });
     return sorted.map((row, idx) => ({ ...row, position: idx + 1 }));
-  }, [rows, seriesFilter]);
+  }, [isOfficialView, sourceRows, seriesFilter]);
+
   const top3Series = useMemo(() => rankedRows.slice(0, 3), [rankedRows]);
   const restRows = useMemo(() => rankedRows.slice(3), [rankedRows]);
   const adjustedRestRows = useMemo(() => {
@@ -62,14 +119,32 @@ export default function RankingScreen() {
   async function load() {
     try {
       setLoading(true);
-      const [{ data: sessionData }, data] = await Promise.all([
+      const [
+        { data: sessionData },
+        officialData,
+        mine,
+        labTotal,
+        labWeekly,
+        labFundamental,
+        labMedio,
+      ] = await Promise.all([
         supabase.auth.getSession(),
         fetchRankingAllRegisteredStudents(500),
+        fetchMyRankGeralMedia(),
+        fetchLabGamesRankingStudentRpc("total", 500),
+        fetchLabGamesRankingStudentRpc("weekly", 500),
+        fetchLabGamesRankingStudentRpc("fundamental", 500),
+        fetchLabGamesRankingStudentRpc("medio", 500),
       ]);
       setMyUserId(sessionData.session?.user?.id ?? null);
-      setRows(data as RankingRow[]);
-      const mine = await fetchMyRankGeralMedia();
+      setOfficialRows(officialData as RankingRow[]);
       setMyRankInfo(mine);
+      setLabRowsByScope({
+        total: mapLabRowsToRankingRows(labTotal),
+        weekly: mapLabRowsToRankingRows(labWeekly),
+        fundamental: mapLabRowsToRankingRows(labFundamental),
+        medio: mapLabRowsToRankingRows(labMedio),
+      });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao carregar ranking";
       Alert.alert("Erro", message);
@@ -91,7 +166,7 @@ export default function RankingScreen() {
   const headerComponent = (
     <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
       <StitchHeader
-        title="Ranking Geral"
+        title={activeView.title}
         rightSlot={
           <Pressable
             onPress={() => {
@@ -106,10 +181,40 @@ export default function RankingScreen() {
               backgroundColor: "rgba(255,255,255,0.08)",
             }}
           >
-            <Text style={{ color: colors.white, fontSize: 18 }}>⋮</Text>
+            <Text style={{ color: colors.white, fontSize: 18 }}>↻</Text>
           </Pressable>
         }
       />
+
+      <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+        {RANKING_VIEWS.map((view) => {
+          const selected = rankingView === view.id;
+          return (
+            <Pressable
+              key={view.id}
+              onPress={() => setRankingView(view.id)}
+              style={{
+                borderRadius: radii.pill,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 6,
+                backgroundColor: selected ? colors.einsteinBlue : colors.surfacePanel,
+                borderWidth: 1,
+                borderColor: selected ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+              }}
+            >
+              <Text
+                style={{
+                  color: selected ? colors.white : "rgba(255,255,255,0.78)",
+                  fontSize: typography.small.fontSize,
+                }}
+                weight="semibold"
+              >
+                {view.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <View style={{ marginTop: spacing.sm }}>
         <View
@@ -140,119 +245,145 @@ export default function RankingScreen() {
         </View>
       </View>
 
-      <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
-        {SERIES_FILTERS.map((filter) => {
-          const selected = seriesFilter === filter;
-          return (
-            <Pressable
-              key={filter}
-              onPress={() => setSeriesFilter(filter)}
+      {isOfficialView ? (
+        <>
+          <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+            {SERIES_FILTERS.map((filter) => {
+              const selected = seriesFilter === filter;
+              return (
+                <Pressable
+                  key={filter}
+                  onPress={() => setSeriesFilter(filter)}
+                  style={{
+                    borderRadius: radii.pill,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                    backgroundColor: selected ? colors.einsteinBlue : colors.surfacePanel,
+                    borderWidth: 1,
+                    borderColor: selected ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? colors.white : "rgba(255,255,255,0.78)",
+                      fontSize: typography.small.fontSize,
+                    }}
+                    weight="semibold"
+                  >
+                    {filter}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View
+            style={{
+              marginTop: spacing.sm,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: "rgba(255,199,0,0.35)",
+              backgroundColor: "rgba(255,199,0,0.08)",
+              padding: spacing.md,
+              gap: spacing.sm,
+            }}
+          >
+            <Text style={{ color: colors.einsteinYellow, fontSize: typography.subtitle.fontSize }} weight="bold">
+              Categorias oficiais do Ranking
+            </Text>
+            <View
               style={{
-                borderRadius: radii.pill,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 6,
-                backgroundColor: selected ? colors.einsteinBlue : colors.surfacePanel,
+                borderRadius: radii.md,
                 borderWidth: 1,
-                borderColor: selected ? "rgba(255,255,255,0.22)" : colors.borderSoft,
+                borderColor: "rgba(255,199,0,0.45)",
+                backgroundColor: "rgba(255,199,0,0.16)",
+                padding: spacing.sm,
               }}
             >
-              <Text
-                style={{
-                  color: selected ? colors.white : "rgba(255,255,255,0.78)",
-                  fontSize: typography.small.fontSize,
-                }}
-                weight="semibold"
-              >
-                {filter}
+              <Text style={{ color: colors.einsteinYellow }} weight="bold">
+                Lobo de Ouro
               </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+              <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2 }}>20.000 XP ou mais</Text>
+            </View>
+            <View
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(183,198,214,0.5)",
+                backgroundColor: "rgba(183,198,214,0.14)",
+                padding: spacing.sm,
+              }}
+            >
+              <Text style={{ color: "#D9E2EC" }} weight="bold">
+                Lobo de Prata
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 2 }}>8.000 a 19.999 XP</Text>
+            </View>
+            <View
+              style={{
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(190,122,62,0.5)",
+                backgroundColor: "rgba(190,122,62,0.14)",
+                padding: spacing.sm,
+              }}
+            >
+              <Text style={{ color: "#D7A273" }} weight="bold">
+                Lobo de Bronze
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 2 }}>0 a 7.999 XP</Text>
+            </View>
+            <Text style={{ color: "rgba(255,255,255,0.82)" }} weight="semibold">
+              Ao ultrapassar 7.999 XP, o aluno sobe para Lobo de Prata. Ao ultrapassar 19.999 XP, sobe para Lobo de Ouro.
+            </Text>
+          </View>
 
-      <View
-        style={{
-          marginTop: spacing.sm,
-          borderRadius: radii.lg,
-          borderWidth: 1,
-          borderColor: "rgba(255,199,0,0.35)",
-          backgroundColor: "rgba(255,199,0,0.08)",
-          padding: spacing.md,
-          gap: spacing.sm,
-        }}
-      >
-        <Text style={{ color: colors.einsteinYellow, fontSize: typography.subtitle.fontSize }} weight="bold">
-          Categorias oficiais do Ranking
-        </Text>
+          <View
+            style={{
+              marginTop: spacing.sm,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: spacing.md,
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+              Regras oficiais de XP
+            </Text>
+            {copy.program.xpRules.map((rule) => (
+              <Text key={rule.key} style={{ color: "rgba(255,255,255,0.8)" }}>
+                - {rule.label}: +{rule.xp.toLocaleString("pt-BR")} XP
+              </Text>
+            ))}
+          </View>
+
+          <RankingEligibilityCard rankInfo={myRankInfo} />
+        </>
+      ) : (
         <View
           style={{
-            borderRadius: radii.md,
+            marginTop: spacing.sm,
+            borderRadius: radii.lg,
             borderWidth: 1,
-            borderColor: "rgba(255,199,0,0.45)",
-            backgroundColor: "rgba(255,199,0,0.16)",
-            padding: spacing.sm,
+            borderColor: "rgba(95,197,255,0.4)",
+            backgroundColor: "rgba(95,197,255,0.10)",
+            padding: spacing.md,
+            gap: spacing.xs,
           }}
         >
-          <Text style={{ color: colors.einsteinYellow }} weight="bold">
-            Lobo de Ouro
+          <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+            Ranking exclusivo do Lab Games
           </Text>
-          <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2 }}>20.000 XP ou mais</Text>
+          <Text style={{ color: "rgba(255,255,255,0.86)" }}>
+            Este ranking não se mistura com o ranking oficial. A pontuação do Lab Games continua somando no ranking geral.
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.78)" }}>
+            Visualizações: total acumulado, semanal e recortes por segmento (Fundamental e Médio).
+          </Text>
         </View>
-        <View
-          style={{
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: "rgba(183,198,214,0.5)",
-            backgroundColor: "rgba(183,198,214,0.14)",
-            padding: spacing.sm,
-          }}
-        >
-          <Text style={{ color: "#D9E2EC" }} weight="bold">
-            Lobo de Prata
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.86)", marginTop: 2 }}>8.000 a 19.999 XP</Text>
-        </View>
-        <View
-          style={{
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: "rgba(190,122,62,0.5)",
-            backgroundColor: "rgba(190,122,62,0.14)",
-            padding: spacing.sm,
-          }}
-        >
-          <Text style={{ color: "#D7A273" }} weight="bold">
-            Lobo de Bronze
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.84)", marginTop: 2 }}>0 a 7.999 XP</Text>
-        </View>
-        <Text style={{ color: "rgba(255,255,255,0.82)" }} weight="semibold">
-          Ao ultrapassar 7.999 XP, o aluno sobe para Lobo de Prata. Ao ultrapassar 19.999 XP, sobe para Lobo de Ouro.
-        </Text>
-      </View>
-
-      <View
-        style={{
-          marginTop: spacing.sm,
-          borderRadius: radii.lg,
-          borderWidth: 1,
-          borderColor: colors.borderSoft,
-          backgroundColor: colors.surfacePanel,
-          padding: spacing.md,
-          gap: spacing.xs,
-        }}
-      >
-        <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
-          Regras oficiais de XP
-        </Text>
-        {copy.program.xpRules.map((rule) => (
-          <Text key={rule.key} style={{ color: "rgba(255,255,255,0.8)" }}>
-            - {rule.label}: +{rule.xp.toLocaleString("pt-BR")} XP
-          </Text>
-        ))}
-      </View>
-
-      <RankingEligibilityCard rankInfo={myRankInfo} />
+      )}
 
       <View style={{ marginTop: spacing.sm }}>
         <RankingTopPodium
@@ -283,11 +414,7 @@ export default function RankingScreen() {
 
   return (
     <StitchScreenFrame>
-      <RankingList
-        rows={filteredRestRows}
-        myUserId={myUserId}
-        headerComponent={headerComponent}
-      />
+      <RankingList rows={filteredRestRows} myUserId={myUserId} headerComponent={headerComponent} />
 
       {myRow ? (
         <View
