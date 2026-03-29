@@ -5,8 +5,10 @@ import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
 import {
   awardXpActivityAdmin,
   createXpActivityCatalogAdmin,
-  listXpActivityAwardsAdmin,
+  deleteXpActivityAwardAdmin,
+  listXpActivityAwardsAdminFiltered,
   listXpActivityCatalogAdmin,
+  updateXpActivityAwardAdmin,
   type AdminXpActivityAwardRow,
   type AdminXpActivityCatalogRow,
   type FullStudentRow,
@@ -18,6 +20,8 @@ type Props = {
   canAccess: boolean;
   students: FullStudentRow[];
 };
+
+type XpAdminSubTab = "launch" | "history";
 
 const GROUP_OPTIONS: Array<{ value: XpActivityGroup; label: string }> = [
   { value: "fundamental", label: "Fundamental" },
@@ -68,6 +72,7 @@ function normalizeSearchValue(value: string) {
 }
 
 export default function AdminXpLaunchSection({ canAccess, students }: Props) {
+  const [activeSubTab, setActiveSubTab] = useState<XpAdminSubTab>("launch");
   const [catalog, setCatalog] = useState<AdminXpActivityCatalogRow[]>([]);
   const [history, setHistory] = useState<AdminXpActivityAwardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +95,12 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [newActivityScope, setNewActivityScope] = useState<XpActivityScope>("individual");
   const [newActivityRecurrenceNote, setNewActivityRecurrenceNote] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [historySearchTerm, setHistorySearchTerm] = useState("");
+  const [historyGradeFilter, setHistoryGradeFilter] = useState("__all__");
+  const [editingAwardId, setEditingAwardId] = useState<string | null>(null);
+  const [editingXpAmount, setEditingXpAmount] = useState("");
+  const [editingOccurredOn, setEditingOccurredOn] = useState(getTodayIsoDate());
+  const [editingNote, setEditingNote] = useState("");
 
   useEffect(() => {
     if (!canAccess) return;
@@ -100,7 +111,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         setLoading(true);
         const [catalogRows, historyRows] = await Promise.all([
           listXpActivityCatalogAdmin(),
-          listXpActivityAwardsAdmin(24),
+          listXpActivityAwardsAdminFiltered({ limit: 500 }),
         ]);
         if (!mounted) return;
         setCatalog(catalogRows);
@@ -204,13 +215,41 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     setSelectedStudentIds((prev) => prev.filter((id) => visibleIds.has(id)));
   }, [visibleStudents]);
 
+  useEffect(() => {
+    if (!canAccess) return;
+    if (activeSubTab !== "history") return;
+    let mounted = true;
+    async function reloadHistory() {
+      try {
+        const historyRows = await listXpActivityAwardsAdminFiltered({
+          limit: 500,
+          grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
+          search: historySearchTerm.trim() || null,
+        });
+        if (!mounted) return;
+        setHistory(historyRows);
+      } catch (error) {
+        if (!mounted) return;
+        Alert.alert("Histórico de XP", error instanceof Error ? error.message : "Não foi possível carregar o histórico.");
+      }
+    }
+    void reloadHistory();
+    return () => {
+      mounted = false;
+    };
+  }, [activeSubTab, canAccess, historyGradeFilter, historySearchTerm]);
+
   const selectedCount = awardScope === "collective" ? visibleStudents.length : selectedStudentIds.length;
   const totalXpPreview = selectedActivity ? selectedCount * selectedActivity.xp_amount : 0;
 
   async function refreshAfterChange() {
     const [catalogRows, historyRows] = await Promise.all([
       listXpActivityCatalogAdmin(),
-      listXpActivityAwardsAdmin(24),
+      listXpActivityAwardsAdminFiltered({
+        limit: 500,
+        grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
+        search: historySearchTerm.trim() || null,
+      }),
     ]);
     setCatalog(catalogRows);
     setHistory(historyRows);
@@ -218,6 +257,72 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
 
   function toggleStudent(studentId: string) {
     setSelectedStudentIds((prev) => (prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]));
+  }
+
+  function startEditingAward(entry: AdminXpActivityAwardRow) {
+    setEditingAwardId(entry.award_id);
+    setEditingXpAmount(String(entry.xp_amount));
+    setEditingOccurredOn(entry.occurred_on);
+    setEditingNote(entry.note ?? "");
+  }
+
+  function cancelEditingAward() {
+    setEditingAwardId(null);
+    setEditingXpAmount("");
+    setEditingOccurredOn(getTodayIsoDate());
+    setEditingNote("");
+  }
+
+  async function refreshHistoryOnly() {
+    const historyRows = await listXpActivityAwardsAdminFiltered({
+      limit: 500,
+      grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
+      search: historySearchTerm.trim() || null,
+    });
+    setHistory(historyRows);
+  }
+
+  async function handleSaveAwardEdit(awardId: string) {
+    const xpAmount = Number(editingXpAmount);
+    if (!Number.isFinite(xpAmount) || xpAmount <= 0) {
+      Alert.alert("Histórico de XP", "Informe um valor de XP válido para salvar.");
+      return;
+    }
+    try {
+      await updateXpActivityAwardAdmin({
+        awardId,
+        xpAmount: Math.round(xpAmount),
+        occurredOn: editingOccurredOn.trim() || null,
+        note: editingNote.trim() || null,
+      });
+      await refreshHistoryOnly();
+      cancelEditingAward();
+      Alert.alert("Histórico de XP", "Lançamento atualizado com sucesso.");
+    } catch (error) {
+      Alert.alert("Histórico de XP", error instanceof Error ? error.message : "Não foi possível editar o lançamento.");
+    }
+  }
+
+  async function handleDeleteAward(awardId: string) {
+    Alert.alert("Excluir lançamento", "Deseja realmente excluir este lançamento de XP?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteXpActivityAwardAdmin(awardId);
+              await refreshHistoryOnly();
+              if (editingAwardId === awardId) cancelEditingAward();
+              Alert.alert("Histórico de XP", "Lançamento excluído com sucesso.");
+            } catch (error) {
+              Alert.alert("Histórico de XP", error instanceof Error ? error.message : "Não foi possível excluir o lançamento.");
+            }
+          })();
+        },
+      },
+    ]);
   }
 
   async function handleCreateActivity() {
@@ -405,6 +510,29 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         </View>
       </View>
 
+      <View style={cardStyle}>
+        <Text style={{ color: colors.white }} weight="bold">
+          Área de XP Admin
+        </Text>
+        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+          Escolha entre lançar novos XP ou revisar o histórico completo dos alunos.
+        </Text>
+        <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+          <Pressable onPress={() => setActiveSubTab("launch")} style={[pillStyle, activeSubTab === "launch" ? pillActiveStyle : null]}>
+            <Text style={{ color: activeSubTab === "launch" ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+              Lançar XP
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => setActiveSubTab("history")} style={[pillStyle, activeSubTab === "history" ? pillActiveStyle : null]}>
+            <Text style={{ color: activeSubTab === "history" ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+              Histórico de XP
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {activeSubTab === "launch" ? (
+      <>
       <View style={cardStyle}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm }}>
           <View style={{ flex: 1 }}>
@@ -746,18 +874,52 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           </Text>
         </Pressable>
       </View>
+      </>
+      ) : null}
 
+      {activeSubTab === "history" ? (
       <View style={cardStyle}>
         <Text style={{ color: colors.white }} weight="bold">
-          Histórico recente
+          Histórico de XP (admin)
         </Text>
         <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
-          Últimos lançamentos registrados na trilha administrativa de XP.
+          Histórico completo visível para o admin, com opção de editar ou excluir lançamentos.
         </Text>
+
+        <Text style={fieldLabelStyle}>Filtrar série</Text>
+        <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+          <Pressable
+            onPress={() => setHistoryGradeFilter("__all__")}
+            style={[pillStyle, historyGradeFilter === "__all__" ? pillActiveStyle : null]}
+          >
+            <Text style={{ color: historyGradeFilter === "__all__" ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+              Todas as séries
+            </Text>
+          </Pressable>
+          {[...GROUP_GRADE_OPTIONS.fundamental, ...GROUP_GRADE_OPTIONS.medio].map((grade) => {
+            const active = historyGradeFilter === grade;
+            return (
+              <Pressable key={`history-grade-${grade}`} onPress={() => setHistoryGradeFilter(grade)} style={[pillStyle, active ? pillActiveStyle : null]}>
+                <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+                  {grade}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={fieldLabelStyle}>Buscar por aluno ou atividade</Text>
+        <TextInput
+          value={historySearchTerm}
+          onChangeText={setHistorySearchTerm}
+          placeholder="Digite nome do aluno ou atividade..."
+          placeholderTextColor="rgba(255,255,255,0.38)"
+          style={inputStyle}
+        />
 
         <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
           {history.length === 0 ? (
-            <Text style={{ color: "rgba(255,255,255,0.68)" }}>Ainda não há lançamentos registrados.</Text>
+            <Text style={{ color: "rgba(255,255,255,0.68)" }}>Nenhum lançamento encontrado com os filtros atuais.</Text>
           ) : (
             history.map((entry) => (
               <View key={entry.award_id} style={historyCardStyle}>
@@ -773,12 +935,64 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                     <Text style={{ color: "rgba(255,255,255,0.60)", marginTop: 4 }}>
                       {entry.note ?? "Sem observação"} • {entry.award_scope === "collective" ? "Coletivo" : "Individual"}
                     </Text>
+                    {editingAwardId === entry.award_id ? (
+                      <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                        <Text style={fieldLabelStyle}>XP</Text>
+                        <TextInput
+                          value={editingXpAmount}
+                          onChangeText={setEditingXpAmount}
+                          keyboardType="numeric"
+                          placeholder="XP"
+                          placeholderTextColor="rgba(255,255,255,0.38)"
+                          style={inputStyle}
+                        />
+                        <Text style={fieldLabelStyle}>Data</Text>
+                        <TextInput
+                          value={editingOccurredOn}
+                          onChangeText={setEditingOccurredOn}
+                          placeholder="AAAA-MM-DD"
+                          placeholderTextColor="rgba(255,255,255,0.38)"
+                          style={inputStyle}
+                        />
+                        <Text style={fieldLabelStyle}>Observação</Text>
+                        <TextInput
+                          value={editingNote}
+                          onChangeText={setEditingNote}
+                          placeholder="Observação do lançamento"
+                          placeholderTextColor="rgba(255,255,255,0.38)"
+                          style={[inputStyle, multilineInputStyle]}
+                          multiline
+                        />
+                        <View style={{ flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs }}>
+                          <Pressable onPress={() => void handleSaveAwardEdit(entry.award_id)} style={primaryButtonStyleCompact}>
+                            <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                              Salvar
+                            </Text>
+                          </Pressable>
+                          <Pressable onPress={cancelEditingAward} style={secondaryButtonStyle}>
+                            <Text style={{ color: colors.white }} weight="semibold">
+                              Cancelar
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={{ color: colors.einsteinYellow }} weight="bold">
                       {entry.xp_amount} XP
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.60)", marginTop: 4 }}>{formatDateTime(entry.created_at)}</Text>
+                    <Pressable onPress={() => startEditingAward(entry)} style={[secondaryButtonStyle, { marginTop: spacing.xs }]}>
+                      <Text style={{ color: colors.white }} weight="semibold">
+                        Editar
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => void handleDeleteAward(entry.award_id)} style={[dangerButtonStyle, { marginTop: spacing.xs }]}>
+                      <Text style={{ color: colors.white }} weight="semibold">
+                        Excluir
+                      </Text>
+                    </Pressable>
                   </View>
                 </View>
               </View>
@@ -786,6 +1000,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           )}
         </View>
       </View>
+      ) : null}
     </View>
   );
 }
@@ -904,12 +1119,32 @@ const primaryButtonStyle = {
   marginTop: spacing.md,
 };
 
+const primaryButtonStyleCompact = {
+  minHeight: 40,
+  borderRadius: radii.md,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: colors.einsteinYellow,
+  paddingHorizontal: spacing.sm,
+};
+
 const secondaryButtonStyle = {
   minHeight: 40,
   borderRadius: radii.md,
   borderWidth: 1,
   borderColor: colors.borderSoft,
   backgroundColor: "rgba(255,255,255,0.04)",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  paddingHorizontal: spacing.sm,
+};
+
+const dangerButtonStyle = {
+  minHeight: 40,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: "rgba(246,166,166,0.55)",
+  backgroundColor: "rgba(127,29,29,0.35)",
   alignItems: "center" as const,
   justifyContent: "center" as const,
   paddingHorizontal: spacing.sm,

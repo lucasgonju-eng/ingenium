@@ -1439,6 +1439,42 @@ export async function createXpActivityCatalogAdmin(input: {
 export async function listXpActivityAwardsAdmin(limit = 50) {
   const { data, error } = await supabase.rpc("list_xp_activity_awards_admin", {
     p_limit: limit,
+    p_grade: null,
+    p_search: null,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    award_id: String(row.award_id ?? ""),
+    award_batch_id: String(row.award_batch_id ?? ""),
+    activity_id: String(row.activity_id ?? ""),
+    activity_title: String(row.activity_title ?? ""),
+    target_group: (String(row.target_group ?? "fundamental") as XpActivityGroup),
+    target_grade: String(row.target_grade ?? ""),
+    student_id: String(row.student_id ?? ""),
+    student_full_name: row.student_full_name ? String(row.student_full_name) : null,
+    student_grade: row.student_grade ? String(row.student_grade) : null,
+    student_class_name: row.student_class_name ? String(row.student_class_name) : null,
+    award_scope: (String(row.award_scope ?? "individual") as XpActivityScope),
+    xp_amount: Number(row.xp_amount ?? 0),
+    note: row.note ? String(row.note) : null,
+    occurred_on: String(row.occurred_on ?? new Date().toISOString().slice(0, 10)),
+    source_ref: String(row.source_ref ?? ""),
+    xp_event_id: String(row.xp_event_id ?? ""),
+    created_by: String(row.created_by ?? ""),
+    created_by_name: row.created_by_name ? String(row.created_by_name) : null,
+    created_at: String(row.created_at ?? new Date().toISOString()),
+  })) as AdminXpActivityAwardRow[];
+}
+
+export async function listXpActivityAwardsAdminFiltered(input?: {
+  limit?: number;
+  grade?: string | null;
+  search?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("list_xp_activity_awards_admin", {
+    p_limit: input?.limit ?? 500,
+    p_grade: input?.grade ?? null,
+    p_search: input?.search ?? null,
   });
   if (error) throw error;
   return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
@@ -1485,6 +1521,43 @@ export async function awardXpActivityAdmin(input: {
     xp_event_id: String(row.xp_event_id ?? ""),
     award_batch_id: String(row.award_batch_id ?? ""),
   }));
+}
+
+export async function updateXpActivityAwardAdmin(input: {
+  awardId: string;
+  xpAmount?: number | null;
+  occurredOn?: string | null;
+  note?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("update_xp_activity_award_admin", {
+    p_award_id: input.awardId,
+    p_xp_amount: input.xpAmount ?? null,
+    p_occurred_on: input.occurredOn ?? null,
+    p_note: input.note ?? null,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    award_id: String((row as { award_id?: string } | null)?.award_id ?? input.awardId),
+    student_id: String((row as { student_id?: string } | null)?.student_id ?? ""),
+    xp_event_id: String((row as { xp_event_id?: string } | null)?.xp_event_id ?? ""),
+    xp_amount: Number((row as { xp_amount?: number } | null)?.xp_amount ?? 0),
+    occurred_on: String((row as { occurred_on?: string } | null)?.occurred_on ?? ""),
+    note: (row as { note?: string | null } | null)?.note ?? null,
+  };
+}
+
+export async function deleteXpActivityAwardAdmin(awardId: string) {
+  const { data, error } = await supabase.rpc("delete_xp_activity_award_admin", {
+    p_award_id: awardId,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    award_id: String((row as { award_id?: string } | null)?.award_id ?? awardId),
+    student_id: String((row as { student_id?: string } | null)?.student_id ?? ""),
+    xp_event_id: String((row as { xp_event_id?: string } | null)?.xp_event_id ?? ""),
+  };
 }
 
 export async function fetchTeachersWithOlympiads() {
