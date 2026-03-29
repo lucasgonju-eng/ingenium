@@ -9,6 +9,8 @@ type TabMeta = {
   icon: string;
 };
 
+const HIDDEN_TAB_ROUTES = new Set(["feed", "mural"]);
+
 const TAB_META: Record<string, TabMeta> = {
   dashboard: { label: "Inicio", icon: "⌂" },
   mensagens: { label: "Mensagens", icon: "✉" },
@@ -25,7 +27,10 @@ const TAB_META: Record<string, TabMeta> = {
 export default function ScrollableBottomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(8, insets.bottom);
-  const visibleRoutes = state.routes.filter((route) => descriptors[route.key]?.options?.href !== null);
+  const visibleRoutes = state.routes.filter((route) => {
+    if (HIDDEN_TAB_ROUTES.has(route.name)) return false;
+    return descriptors[route.key]?.options?.href !== null;
+  });
 
   return (
     <View
