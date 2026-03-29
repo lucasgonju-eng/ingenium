@@ -46,6 +46,7 @@ import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 import AdminLabGamesSection from "../../components/sections/admin/AdminLabGamesSection";
+import AdminXpLaunchSection from "../../components/sections/admin/AdminXpLaunchSection";
 import { getWolfAdminConfigSnapshot, listLabGamesForAdmin, updateLabGameStatus } from "../../services/games/labGamesService";
 import { previewWolfQuestionFromBankAdminWithFallback } from "../../services/games/wolfQuestionBankService";
 import type { LabGameAction, LabGameListItem } from "../../types/games/lab-games";
@@ -60,10 +61,12 @@ type AdminTab =
   | "avisos-gerais"
   | "gtm"
   | "notificacoes"
-  | "lab-games";
+  | "lab-games"
+  | "lancamento-xp";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
   { key: "mensagens-admin", label: "Mensagens Admin" },
+  { key: "lancamento-xp", label: "Lançamento de XP" },
   { key: "lab-games", label: "Lab Games" },
   { key: "crm-inscricoes", label: "CRM Inscrições" },
   { key: "importacao-2026", label: "Importação 2026" },
@@ -290,7 +293,7 @@ export default function AdminDashboardScreen() {
   } as const;
 
   const isAdminStrict = accessRole === "admin";
-  const visibleTabs = ADMIN_TABS;
+  const visibleTabs = isAdminStrict ? ADMIN_TABS : ADMIN_TABS.filter((tab) => tab.key !== "lancamento-xp");
 
   useEffect(() => {
     let mounted = true;
@@ -1976,6 +1979,8 @@ export default function AdminDashboardScreen() {
                 }}
               />
             ) : null}
+
+            {activeTab === "lancamento-xp" ? <AdminXpLaunchSection canAccess={isAdminStrict} students={students} /> : null}
 
             {activeTab === "mensagens-admin" ? (
               <View

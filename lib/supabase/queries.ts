@@ -49,6 +49,47 @@ export type MyXpHistoryRow = {
   created_at: string;
 };
 
+export type XpActivityGroup = "fundamental" | "medio";
+export type XpActivityScope = "individual" | "collective";
+
+export type AdminXpActivityCatalogRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  target_group: XpActivityGroup;
+  target_grade: string;
+  xp_amount: number;
+  default_scope: XpActivityScope;
+  recurrence_note: string | null;
+  seed_key: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminXpActivityAwardRow = {
+  award_id: string;
+  award_batch_id: string;
+  activity_id: string;
+  activity_title: string;
+  target_group: XpActivityGroup;
+  target_grade: string;
+  student_id: string;
+  student_full_name: string | null;
+  student_grade: string | null;
+  student_class_name: string | null;
+  award_scope: XpActivityScope;
+  xp_amount: number;
+  note: string | null;
+  occurred_on: string;
+  source_ref: string;
+  xp_event_id: string;
+  created_by: string;
+  created_by_name: string | null;
+  created_at: string;
+};
+
 export type FullStudentRow = {
   id: string;
   full_name: string | null;
@@ -1336,6 +1377,114 @@ export async function fetchPlanProStudentsAdmin() {
     secondary_responsible_cpf: row.secondary_responsible_cpf ? String(row.secondary_responsible_cpf) : null,
     secondary_responsible_relationship: row.secondary_responsible_relationship ? String(row.secondary_responsible_relationship) : null,
   })) as PlanProStudentRow[];
+}
+
+export async function listXpActivityCatalogAdmin() {
+  const { data, error } = await supabase.rpc("list_xp_activity_catalog_admin");
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id ?? ""),
+    title: String(row.title ?? ""),
+    description: row.description ? String(row.description) : null,
+    target_group: (String(row.target_group ?? "fundamental") as XpActivityGroup),
+    target_grade: String(row.target_grade ?? ""),
+    xp_amount: Number(row.xp_amount ?? 0),
+    default_scope: (String(row.default_scope ?? "individual") as XpActivityScope),
+    recurrence_note: row.recurrence_note ? String(row.recurrence_note) : null,
+    seed_key: row.seed_key ? String(row.seed_key) : null,
+    is_active: Boolean(row.is_active ?? true),
+    created_by: row.created_by ? String(row.created_by) : null,
+    created_at: String(row.created_at ?? new Date().toISOString()),
+    updated_at: String(row.updated_at ?? new Date().toISOString()),
+  })) as AdminXpActivityCatalogRow[];
+}
+
+export async function createXpActivityCatalogAdmin(input: {
+  title: string;
+  description?: string | null;
+  target_group: XpActivityGroup;
+  target_grade: string;
+  xp_amount: number;
+  default_scope?: XpActivityScope;
+  recurrence_note?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("create_xp_activity_catalog_admin", {
+    p_title: input.title,
+    p_description: input.description ?? null,
+    p_target_group: input.target_group,
+    p_target_grade: input.target_grade,
+    p_xp_amount: input.xp_amount,
+    p_default_scope: input.default_scope ?? "individual",
+    p_recurrence_note: input.recurrence_note ?? null,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    id: String((row as { id?: string } | null)?.id ?? ""),
+    title: String((row as { title?: string } | null)?.title ?? ""),
+    description: (row as { description?: string | null } | null)?.description ?? null,
+    target_group: (String((row as { target_group?: string } | null)?.target_group ?? "fundamental") as XpActivityGroup),
+    target_grade: String((row as { target_grade?: string } | null)?.target_grade ?? ""),
+    xp_amount: Number((row as { xp_amount?: number } | null)?.xp_amount ?? 0),
+    default_scope: (String((row as { default_scope?: string } | null)?.default_scope ?? "individual") as XpActivityScope),
+    recurrence_note: (row as { recurrence_note?: string | null } | null)?.recurrence_note ?? null,
+    seed_key: (row as { seed_key?: string | null } | null)?.seed_key ?? null,
+    is_active: Boolean((row as { is_active?: boolean } | null)?.is_active ?? true),
+    created_by: (row as { created_by?: string | null } | null)?.created_by ?? null,
+    created_at: String((row as { created_at?: string } | null)?.created_at ?? new Date().toISOString()),
+    updated_at: String((row as { updated_at?: string } | null)?.updated_at ?? new Date().toISOString()),
+  } as AdminXpActivityCatalogRow;
+}
+
+export async function listXpActivityAwardsAdmin(limit = 50) {
+  const { data, error } = await supabase.rpc("list_xp_activity_awards_admin", {
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    award_id: String(row.award_id ?? ""),
+    award_batch_id: String(row.award_batch_id ?? ""),
+    activity_id: String(row.activity_id ?? ""),
+    activity_title: String(row.activity_title ?? ""),
+    target_group: (String(row.target_group ?? "fundamental") as XpActivityGroup),
+    target_grade: String(row.target_grade ?? ""),
+    student_id: String(row.student_id ?? ""),
+    student_full_name: row.student_full_name ? String(row.student_full_name) : null,
+    student_grade: row.student_grade ? String(row.student_grade) : null,
+    student_class_name: row.student_class_name ? String(row.student_class_name) : null,
+    award_scope: (String(row.award_scope ?? "individual") as XpActivityScope),
+    xp_amount: Number(row.xp_amount ?? 0),
+    note: row.note ? String(row.note) : null,
+    occurred_on: String(row.occurred_on ?? new Date().toISOString().slice(0, 10)),
+    source_ref: String(row.source_ref ?? ""),
+    xp_event_id: String(row.xp_event_id ?? ""),
+    created_by: String(row.created_by ?? ""),
+    created_by_name: row.created_by_name ? String(row.created_by_name) : null,
+    created_at: String(row.created_at ?? new Date().toISOString()),
+  })) as AdminXpActivityAwardRow[];
+}
+
+export async function awardXpActivityAdmin(input: {
+  activityId: string;
+  studentIds: string[];
+  note?: string | null;
+  occurredOn?: string | null;
+  awardScope?: XpActivityScope | null;
+}) {
+  const { data, error } = await supabase.rpc("award_xp_activity_admin", {
+    p_activity_id: input.activityId,
+    p_student_ids: input.studentIds,
+    p_note: input.note ?? null,
+    p_occurred_on: input.occurredOn ?? null,
+    p_award_scope: input.awardScope ?? null,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    award_id: String(row.award_id ?? ""),
+    student_id: String(row.student_id ?? ""),
+    xp_event_id: String(row.xp_event_id ?? ""),
+    award_batch_id: String(row.award_batch_id ?? ""),
+  }));
 }
 
 export async function fetchTeachersWithOlympiads() {
