@@ -46,6 +46,21 @@ as $$
   );
 $$;
 
+create or replace function public.normalize_enrollment_number(p_value text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when regexp_replace(coalesce(p_value, ''), '\D', '', 'g') = '' then ''
+    else regexp_replace(
+      ltrim(regexp_replace(coalesce(p_value, ''), '\D', '', 'g'), '0'),
+      '^$',
+      '0'
+    )
+  end;
+$$;
+
 create or replace function public.list_student_enrollments_2026_admin()
 returns table (
   id uuid,
@@ -98,7 +113,7 @@ declare
   v_number text;
   v_name text;
   v_norm text;
-  v_exists boolean;
+  v_existing_id uuid;
   v_ins integer := 0;
   v_upd integer := 0;
   v_total integer := 0;
@@ -119,7 +134,7 @@ begin
   for v_item in
     select value from jsonb_array_elements(p_rows)
   loop
-    v_number := regexp_replace(coalesce(v_item->>'enrollment_number', ''), '\D', '', 'g');
+    v_number := public.normalize_enrollment_number(v_item->>'enrollment_number');
     v_name := trim(coalesce(v_item->>'full_name', ''));
     v_norm := public.normalize_student_name(v_name);
 
@@ -127,37 +142,38 @@ begin
       continue;
     end if;
 
-    select exists (
-      select 1
-      from public.student_enrollments_2026 se
-      where se.enrollment_number = v_number
-    )
-    into v_exists;
+    select se.id
+      into v_existing_id
+    from public.student_enrollments_2026 se
+    where public.normalize_enrollment_number(se.enrollment_number) = v_number
+      and se.school_year = 2026
+    limit 1;
 
-    insert into public.student_enrollments_2026 (
-      enrollment_number,
-      full_name,
-      full_name_normalized,
-      school_year,
-      updated_at
-    )
-    values (
-      v_number,
-      v_name,
-      v_norm,
-      2026,
-      now()
-    )
-    on conflict (enrollment_number) do update
-    set full_name = excluded.full_name,
-        full_name_normalized = excluded.full_name_normalized,
-        school_year = 2026,
-        updated_at = now();
-
-    if v_exists then
-      v_upd := v_upd + 1;
-    else
+    if v_existing_id is null then
+      insert into public.student_enrollments_2026 (
+        enrollment_number,
+        full_name,
+        full_name_normalized,
+        school_year,
+        updated_at
+      )
+      values (
+        v_number,
+        v_name,
+        v_norm,
+        2026,
+        now()
+      );
       v_ins := v_ins + 1;
+    else
+      update public.student_enrollments_2026 se
+      set enrollment_number = v_number,
+          full_name = v_name,
+          full_name_normalized = v_norm,
+          school_year = 2026,
+          updated_at = now()
+      where se.id = v_existing_id;
+      v_upd := v_upd + 1;
     end if;
     v_total := v_total + 1;
   end loop;
@@ -189,7 +205,7 @@ declare
   v_norm text;
   v_row public.student_enrollments_2026%rowtype;
 begin
-  v_number := regexp_replace(coalesce(p_enrollment_number, ''), '\D', '', 'g');
+  v_number := public.normalize_enrollment_number(p_enrollment_number);
   v_name := trim(coalesce(p_full_name, ''));
   v_norm := public.normalize_student_name(v_name);
 
@@ -205,9 +221,9 @@ begin
 
   select *
     into v_row
-  from public.student_enrollments_2026
-  where enrollment_number = v_number
-    and school_year = 2026
+  from public.student_enrollments_2026 se
+  where public.normalize_enrollment_number(se.enrollment_number) = v_number
+    and se.school_year = 2026
   limit 1;
 
   if not found then

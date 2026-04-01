@@ -11,6 +11,29 @@ import { supabase } from "../../lib/supabase/client";
 import { ensureCurrentUserProfileFromAuthMetadata } from "../../lib/supabase/queries";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
+function mapAuthErrorMessage(rawMessage: string) {
+  const normalized = rawMessage.trim().toLowerCase();
+  if (!normalized) {
+    return "Nao foi possivel autenticar agora. Tente novamente.";
+  }
+  if (
+    normalized.includes("user already registered") ||
+    normalized.includes("database error finding user")
+  ) {
+    return "Este e-mail ja possui cadastro. Tente entrar e, se preciso, toque em 'Esqueci minha senha'.";
+  }
+  if (normalized.includes("invalid login credentials")) {
+    return "Email ou senha incorretos. Confira os dados ou toque em 'Esqueci minha senha'.";
+  }
+  if (normalized.includes("email not confirmed")) {
+    return "Cadastro ainda nao confirmado. Abra seu email e clique no link de confirmacao.";
+  }
+  if (normalized.includes("rate limit")) {
+    return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+  }
+  return rawMessage;
+}
+
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,14 +58,15 @@ export default function LoginScreen() {
       setErrorText(null);
 
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
       });
 
       if (error) {
+        const friendlyMessage = mapAuthErrorMessage(error.message);
         trackEvent("login_error", { message: error.message });
-        setErrorText(error.message);
-        Alert.alert("Erro no login", error.message);
+        setErrorText(friendlyMessage);
+        Alert.alert("Nao foi possivel entrar", friendlyMessage);
         return;
       }
 
@@ -94,8 +118,9 @@ export default function LoginScreen() {
       trackEvent("login_success", { method: "email_password" });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha de conexão ao tentar entrar.";
-      setErrorText(message);
-      Alert.alert("Erro no login", message);
+      const friendlyMessage = mapAuthErrorMessage(message);
+      setErrorText(friendlyMessage);
+      Alert.alert("Nao foi possivel entrar", friendlyMessage);
     } finally {
       setLoading(false);
     }
@@ -116,7 +141,7 @@ export default function LoginScreen() {
 
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
       if (error) {
-        Alert.alert("Erro ao enviar e-mail", error.message);
+        Alert.alert("Erro ao enviar e-mail", mapAuthErrorMessage(error.message));
         return;
       }
 
@@ -144,11 +169,11 @@ export default function LoginScreen() {
 
       const { error } = await supabase.auth.resend({
         type: "signup",
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         options: { emailRedirectTo },
       });
       if (error) {
-        Alert.alert("Erro ao reenviar", error.message);
+        Alert.alert("Erro ao reenviar", mapAuthErrorMessage(error.message));
         return;
       }
 
@@ -187,6 +212,27 @@ export default function LoginScreen() {
                 marginTop: spacing.xs,
                 borderRadius: radii.md,
                 borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.18)",
+                backgroundColor: "rgba(255,255,255,0.04)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+              }}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.9)", lineHeight: 18 }}>
+                Dica rapida:
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: 2, lineHeight: 18 }}>
+                • Primeiro acesso: confirme o e-mail antes de entrar.
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: 2, lineHeight: 18 }}>
+                • Sem acesso: use "Esqueci minha senha".
+              </Text>
+            </View>
+            <View
+              style={{
+                marginTop: spacing.xs,
+                borderRadius: radii.md,
+                borderWidth: 1,
                 borderColor: "rgba(255,199,0,0.45)",
                 backgroundColor: "rgba(255,199,0,0.10)",
                 paddingHorizontal: spacing.sm,
@@ -198,6 +244,9 @@ export default function LoginScreen() {
               </Text>
               <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2, lineHeight: 18 }}>
                 Sem clicar no link de confirmação, o login não será liberado.
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 4, lineHeight: 18 }}>
+                Recebeu mensagem de e-mail já cadastrado no Criar conta? Entre por aqui e use "Esqueci minha senha".
               </Text>
             </View>
 
@@ -263,7 +312,7 @@ export default function LoginScreen() {
               style={{ marginTop: spacing.xs, alignSelf: "flex-end" }}
             >
               <Text style={{ color: colors.einsteinYellow, fontSize: typography.small.fontSize }} weight="semibold">
-                {resetLoading ? "Enviando..." : "Esqueci minha senha"}
+                {resetLoading ? "Enviando..." : "Esqueci minha senha (recuperar acesso)"}
               </Text>
             </Pressable>
             <Pressable

@@ -45,6 +45,28 @@ function showFeedback(title: string, message: string) {
   Alert.alert(title, message);
 }
 
+function mapSignupErrorMessage(rawMessage: string) {
+  const normalized = rawMessage.trim().toLowerCase();
+  if (!normalized) {
+    return "Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.";
+  }
+  if (
+    normalized.includes("user already registered") ||
+    normalized.includes("already registered") ||
+    normalized.includes("email already") ||
+    normalized.includes("database error finding user")
+  ) {
+    return "Este e-mail ja possui cadastro. Toque em 'Ja tem conta? Entrar' e use 'Esqueci minha senha' se necessario.";
+  }
+  if (normalized.includes("email rate limit") || normalized.includes("over_email_send_rate_limit")) {
+    return "Muitas solicitacoes de confirmacao em pouco tempo. Aguarde alguns minutos e tente novamente.";
+  }
+  if (normalized.includes("invalid email")) {
+    return "O e-mail informado parece invalido. Confira e tente novamente.";
+  }
+  return rawMessage;
+}
+
 export default function CadastroScreen() {
   const [nome, setNome] = useState("");
   const [serie, setSerie] = useState<(typeof SERIES_OPTIONS)[number] | "">("");
@@ -133,7 +155,7 @@ export default function CadastroScreen() {
           );
           return;
         }
-        showFeedback("Erro no cadastro", error.message);
+        showFeedback("Nao foi possivel concluir o cadastro", mapSignupErrorMessage(error.message));
         trackEvent("signup_error", { message: error.message });
         return;
       }
@@ -203,7 +225,7 @@ export default function CadastroScreen() {
       router.replace("/(auth)/login");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Falha ao criar conta.";
-      showFeedback("Erro no cadastro", message);
+      showFeedback("Nao foi possivel concluir o cadastro", mapSignupErrorMessage(message));
     } finally {
       setLoading(false);
     }
@@ -242,6 +264,27 @@ export default function CadastroScreen() {
             <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
               Cadastro do aluno
             </Text>
+            <View
+              style={{
+                marginTop: spacing.xs,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.18)",
+                backgroundColor: "rgba(255,255,255,0.04)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+              }}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.9)", lineHeight: 18 }}>
+                Dica rapida:
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: 2, lineHeight: 18 }}>
+                • Primeiro acesso: use "Criar conta" e confirme no e-mail.
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.82)", marginTop: 2, lineHeight: 18 }}>
+                • E-mail ja cadastrado: use "Entrar" + "Esqueci minha senha".
+              </Text>
+            </View>
 
             <TextInput
               placeholder="Nome completo"
@@ -432,6 +475,9 @@ export default function CadastroScreen() {
               <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 2, lineHeight: 18 }}>
                 Sem essa confirmação, seu primeiro login fica bloqueado.
               </Text>
+              <Text style={{ color: "rgba(255,255,255,0.88)", marginTop: 4, lineHeight: 18 }}>
+                Se este e-mail já tiver cadastro, não crie outra conta: toque em "Já tem conta? Entrar" e recupere a senha.
+              </Text>
             </View>
 
             <Pressable
@@ -455,7 +501,7 @@ export default function CadastroScreen() {
 
           <Pressable onPress={() => router.push("/(auth)/login")} style={{ marginTop: spacing.md }}>
             <Text style={{ color: colors.einsteinYellow, textAlign: "center" }} weight="semibold">
-              Já tem conta? Entrar
+              Já tem conta? Entrar e recuperar senha
             </Text>
           </Pressable>
         </View>
