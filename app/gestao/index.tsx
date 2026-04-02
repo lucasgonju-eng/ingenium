@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
+import AdminXpLaunchSection from "../../components/sections/admin/AdminXpLaunchSection";
 import StitchHeader from "../../components/ui/StitchHeader";
 import { Text } from "../../components/ui/Text";
 import {
@@ -22,7 +23,16 @@ import {
 import { supabase } from "../../lib/supabase/client";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 
-type GestaoTab = ReturnType<typeof getAdminCoreTabs>[number]["key"];
+type GestaoCoreTab = ReturnType<typeof getAdminCoreTabs>[number]["key"];
+type GestaoTab = GestaoCoreTab | "lancamento-xp";
+const GESTAO_TABS: Array<{ key: GestaoTab; label: string }> = [
+  ...getAdminCoreTabs(),
+  { key: "lancamento-xp", label: "Lançamento de XP" },
+];
+
+function isGestaoCoreTab(value: GestaoTab): value is GestaoCoreTab {
+  return value !== "lancamento-xp";
+}
 
 export default function GestaoDashboardPlaceholder() {
   const [loading, setLoading] = useState(true);
@@ -216,7 +226,7 @@ export default function GestaoDashboardPlaceholder() {
         {!loading && authorized && !mustChangePassword ? (
           <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.sm }}>
             <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
-              {getAdminCoreTabs().map((tab) => {
+              {GESTAO_TABS.map((tab) => {
                 const active = activeTab === tab.key;
                 return (
                   <Pressable
@@ -336,9 +346,11 @@ export default function GestaoDashboardPlaceholder() {
                 </Text>
               </Pressable>
             </View>
+          ) : activeTab === "lancamento-xp" ? (
+            <AdminXpLaunchSection canAccess={authorized} students={students} />
           ) : (
             <AdminCoreDashboard
-              activeTab={activeTab}
+              activeTab={isGestaoCoreTab(activeTab) ? activeTab : "dashboard"}
               students={students}
               rankingRows={rankingRows}
               teachers={teachers}
