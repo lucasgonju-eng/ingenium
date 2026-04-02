@@ -24,6 +24,7 @@ import {
   RegisteredStudentRow,
   RankingStudentRow,
   MyRankGeralMedia,
+  MyAccessRole,
 } from "../../lib/supabase/queries";
 import { colors, radii, sizes, spacing, typography } from "../../lib/theme/tokens";
 
@@ -76,6 +77,7 @@ export default function DashboardScreen() {
   });
   const [seriesFilter, setSeriesFilter] = useState<SeriesFilter>("Todos");
   const [showTeacherPendingBanner, setShowTeacherPendingBanner] = useState(false);
+  const [accessRole, setAccessRole] = useState<MyAccessRole>(null);
   const mailPulseAnim = useRef(new Animated.Value(0)).current;
   const gradesOrder = ["6º Ano", "7º Ano", "8º Ano", "9º Ano", "1ª Série", "2ª Série", "3ª Série"] as const;
 
@@ -130,6 +132,7 @@ export default function DashboardScreen() {
 
       try {
         const role = await fetchMyAccessRole();
+        setAccessRole(role);
         if (role !== "teacher") {
           const metadataPending = Boolean(user?.user_metadata?.teacher_pending);
           if (metadataPending) {
@@ -141,6 +144,7 @@ export default function DashboardScreen() {
           setShowTeacherPendingBanner(false);
         }
       } catch {
+        setAccessRole(null);
         setShowTeacherPendingBanner(false);
       }
 
@@ -215,6 +219,7 @@ export default function DashboardScreen() {
       bronze: rankingRowsForPanel.filter((row) => row.lobo_class === "bronze"),
     };
   }, [rankingRowsForPanel]);
+  const hideWolfLevel = accessRole === "gestao" || accessRole === "admin";
 
   if (loading) {
     return (
@@ -363,17 +368,36 @@ export default function DashboardScreen() {
       ) : null}
 
       <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
-        <DashboardHero
-          loboClass={cls}
-          label={label}
-          accent={accent}
-          points={points}
-          rankText={rankText}
-          progressPct={progress.pct}
-          progressNext={progress.next}
-          progressText={progress.text}
-          eligibilityText={eligibilityText}
-        />
+        {hideWolfLevel ? (
+          <View
+            style={{
+              borderRadius: radii.md,
+              padding: sizes.compactCardPadding,
+              backgroundColor: colors.surfaceCard,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.titleMd.fontSize }} weight="bold">
+              Conta administrativa
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.78)", marginTop: spacing.xs, lineHeight: 20 }}>
+              Perfis de Gestão e Administração não possuem classificação de Lobo nem progressão de XP de aluno.
+            </Text>
+          </View>
+        ) : (
+          <DashboardHero
+            loboClass={cls}
+            label={label}
+            accent={accent}
+            points={points}
+            rankText={rankText}
+            progressPct={progress.pct}
+            progressNext={progress.next}
+            progressText={progress.text}
+            eligibilityText={eligibilityText}
+          />
+        )}
 
         <View
           style={{

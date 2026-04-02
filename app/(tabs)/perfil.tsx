@@ -123,6 +123,7 @@ export default function PerfilScreen() {
   const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordFeedbackVisible, setPasswordFeedbackVisible] = useState(false);
   const [passwordFeedbackTitle, setPasswordFeedbackTitle] = useState("");
@@ -187,6 +188,7 @@ export default function PerfilScreen() {
   };
 
   const canSendMessages = accessRole === "teacher" || accessRole === "coord" || accessRole === "gestao" || accessRole === "admin";
+  const canChangeGestaoPassword = accessRole === "gestao";
   const selectedRecipient = messageRecipients.find((recipient) => recipient.id === selectedRecipientId) ?? null;
   const filteredRecipients = useMemo(() => {
     const query = recipientQuery.trim().toLowerCase();
@@ -239,6 +241,10 @@ export default function PerfilScreen() {
       setPasswordFeedbackVisible(true);
     };
 
+    if (canChangeGestaoPassword && !currentPassword) {
+      showPasswordFeedback("Senha atual obrigatória", "Informe sua senha atual para continuar.");
+      return;
+    }
     if (!newPassword || !confirmPassword) {
       showPasswordFeedback("Campos obrigatórios", "Preencha nova senha e confirmação.");
       return;
@@ -254,10 +260,21 @@ export default function PerfilScreen() {
 
     try {
       setSavingPassword(true);
+      if (canChangeGestaoPassword) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password: currentPassword,
+        });
+        if (signInError) {
+          showPasswordFeedback("Senha atual inválida", "A senha atual informada está incorreta.");
+          return;
+        }
+      }
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
       if (error) throw error;
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       showPasswordFeedback("Senha atualizada", "Sua senha foi atualizada com sucesso.");
@@ -751,72 +768,6 @@ export default function PerfilScreen() {
               }}
             />
 
-            <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.sm, fontSize: typography.small.fontSize }}>
-              Nova senha
-            </Text>
-
-            <TextInput
-              placeholder="Digite sua nova senha"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-              style={{
-                marginTop: spacing.xs,
-                height: 46,
-                borderRadius: radii.md,
-                borderWidth: 1,
-                borderColor: colors.borderSoft,
-                backgroundColor: "rgba(255,255,255,0.03)",
-                color: colors.white,
-                paddingHorizontal: spacing.sm,
-                fontFamily: typography.fontFamily.base,
-              }}
-            />
-
-            <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
-              Confirmar nova senha
-            </Text>
-
-            <TextInput
-              placeholder="Confirme sua nova senha"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              style={{
-                marginTop: spacing.xs,
-                height: 46,
-                borderRadius: radii.md,
-                borderWidth: 1,
-                borderColor: colors.borderSoft,
-                backgroundColor: "rgba(255,255,255,0.03)",
-                color: colors.white,
-                paddingHorizontal: spacing.sm,
-                fontFamily: typography.fontFamily.base,
-              }}
-            />
-
-            <Pressable
-              onPress={() => {
-                void handlePasswordChange();
-              }}
-              disabled={savingPassword}
-              style={{
-                marginTop: spacing.sm,
-                height: 46,
-                borderRadius: radii.md,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: colors.einsteinYellow,
-                opacity: savingPassword ? 0.7 : 1,
-              }}
-            >
-              <Text style={{ color: colors.einsteinBlue }} weight="bold">
-                {savingPassword ? "Atualizando senha..." : "Atualizar senha"}
-              </Text>
-            </Pressable>
-
             <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: spacing.xs, fontSize: typography.small.fontSize }}>
               WhatsApp (opcional)
             </Text>
@@ -938,6 +889,103 @@ export default function PerfilScreen() {
               >
                 <Text style={{ color: colors.einsteinBlue }} weight="bold">
                   {savingAdminPassword ? "Atualizando..." : "Atualizar senha"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {canChangeGestaoPassword ? (
+            <View
+              style={{
+                marginTop: spacing.md,
+                borderRadius: radii.lg,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: colors.surfacePanel,
+                padding: spacing.md,
+              }}
+            >
+              <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+                Segurança da conta
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
+                Para alterar a senha da Gestão, confirme a senha atual.
+              </Text>
+
+              <TextInput
+                placeholder="Senha atual"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                style={{
+                  marginTop: spacing.sm,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <TextInput
+                placeholder="Nova senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+                style={{
+                  marginTop: spacing.xs,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <TextInput
+                placeholder="Confirmar nova senha"
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                secureTextEntry
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                style={{
+                  marginTop: spacing.xs,
+                  height: 46,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: colors.white,
+                  paddingHorizontal: spacing.sm,
+                  fontFamily: typography.fontFamily.base,
+                }}
+              />
+
+              <Pressable
+                onPress={() => {
+                  void handlePasswordChange();
+                }}
+                disabled={savingPassword}
+                style={{
+                  marginTop: spacing.md,
+                  height: 46,
+                  borderRadius: radii.md,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: colors.einsteinYellow,
+                  opacity: savingPassword ? 0.7 : 1,
+                }}
+              >
+                <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                  {savingPassword ? "Atualizando senha..." : "Alterar senha"}
                 </Text>
               </Pressable>
             </View>
