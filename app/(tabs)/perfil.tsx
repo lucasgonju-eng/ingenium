@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import AvatarWithFallback from "../../components/ui/AvatarWithFallback";
 import StitchScreenFrame from "../../components/layout/StitchScreenFrame";
@@ -124,6 +124,9 @@ export default function PerfilScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordFeedbackVisible, setPasswordFeedbackVisible] = useState(false);
+  const [passwordFeedbackTitle, setPasswordFeedbackTitle] = useState("");
+  const [passwordFeedbackMessage, setPasswordFeedbackMessage] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
   const [savingAdminPassword, setSavingAdminPassword] = useState(false);
@@ -230,16 +233,22 @@ export default function PerfilScreen() {
   };
 
   const handlePasswordChange = async () => {
+    const showPasswordFeedback = (title: string, message: string) => {
+      setPasswordFeedbackTitle(title);
+      setPasswordFeedbackMessage(message);
+      setPasswordFeedbackVisible(true);
+    };
+
     if (!newPassword || !confirmPassword) {
-      Alert.alert("Campos obrigatórios", "Preencha nova senha e confirmação.");
+      showPasswordFeedback("Campos obrigatórios", "Preencha nova senha e confirmação.");
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert("Senha fraca", "Use pelo menos 8 caracteres.");
+      showPasswordFeedback("Senha fraca", "Use pelo menos 8 caracteres.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert("Confirmação inválida", "A confirmação da senha não confere.");
+      showPasswordFeedback("Confirmação inválida", "A confirmação da senha não confere.");
       return;
     }
 
@@ -251,10 +260,10 @@ export default function PerfilScreen() {
       if (error) throw error;
       setNewPassword("");
       setConfirmPassword("");
-      Alert.alert("Senha atualizada", "Sua senha foi atualizada com sucesso.");
+      showPasswordFeedback("Senha atualizada", "Sua senha foi atualizada com sucesso.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Não foi possível atualizar a senha.";
-      Alert.alert("Erro", message);
+      showPasswordFeedback("Erro", message);
     } finally {
       setSavingPassword(false);
     }
@@ -1101,6 +1110,56 @@ export default function PerfilScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      <Modal
+        visible={passwordFeedbackVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPasswordFeedbackVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: spacing.md,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+              {passwordFeedbackTitle}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: spacing.xs, lineHeight: 20 }}>
+              {passwordFeedbackMessage}
+            </Text>
+            <Pressable
+              onPress={() => setPasswordFeedbackVisible(false)}
+              style={{
+                marginTop: spacing.md,
+                height: 42,
+                borderRadius: radii.md,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: colors.einsteinYellow,
+              }}
+            >
+              <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                Ok
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </StitchScreenFrame>
   );
 }
