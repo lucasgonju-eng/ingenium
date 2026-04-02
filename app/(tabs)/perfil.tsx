@@ -121,6 +121,9 @@ export default function PerfilScreen() {
     source: "fallback",
   });
   const [isAdminAccount, setIsAdminAccount] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
   const [savingAdminPassword, setSavingAdminPassword] = useState(false);
@@ -223,6 +226,37 @@ export default function PerfilScreen() {
       Alert.alert("Erro", message);
     } finally {
       setSavingAdminPassword(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert("Campos obrigatórios", "Preencha nova senha e confirmação.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert("Senha fraca", "Use pelo menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Confirmação inválida", "A confirmação da senha não confere.");
+      return;
+    }
+
+    try {
+      setSavingPassword(true);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) throw error;
+      setNewPassword("");
+      setConfirmPassword("");
+      Alert.alert("Senha atualizada", "Sua senha foi atualizada com sucesso.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Não foi possível atualizar a senha.";
+      Alert.alert("Erro", message);
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -752,6 +786,82 @@ export default function PerfilScreen() {
             >
               <Text style={{ color: colors.einsteinBlue }} weight="bold">
                 {saving ? "Salvando..." : "Salvar perfil"}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View
+            style={{
+              marginTop: spacing.md,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.borderSoft,
+              backgroundColor: colors.surfacePanel,
+              padding: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: typography.subtitle.fontSize }} weight="bold">
+              Segurança da conta
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs, lineHeight: 20 }}>
+              Altere sua senha de acesso para manter sua conta segura.
+            </Text>
+
+            <TextInput
+              placeholder="Nova senha"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+              style={{
+                marginTop: spacing.sm,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+
+            <TextInput
+              placeholder="Confirmar senha"
+              placeholderTextColor="rgba(255,255,255,0.45)"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              style={{
+                marginTop: spacing.xs,
+                height: 46,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: colors.white,
+                paddingHorizontal: spacing.sm,
+                fontFamily: typography.fontFamily.base,
+              }}
+            />
+
+            <Pressable
+              onPress={() => {
+                void handlePasswordChange();
+              }}
+              disabled={savingPassword}
+              style={{
+                marginTop: spacing.md,
+                height: 46,
+                borderRadius: radii.md,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: colors.einsteinYellow,
+                opacity: savingPassword ? 0.7 : 1,
+              }}
+            >
+              <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                {savingPassword ? "Atualizando..." : "Atualizar senha"}
               </Text>
             </Pressable>
           </View>
