@@ -568,27 +568,36 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       Alert.alert("Log de envios", "Lote não encontrado.");
       return;
     }
+    const runDelete = async () => {
+      try {
+        setRemovingLogBatch(batchId);
+        for (const row of batchRows) {
+          await deleteXpActivityAwardAdmin(row.award_id);
+        }
+        await refreshAfterChange();
+        if (editingLogBatchId === batchId) cancelEditingLogBatch();
+        Alert.alert("Log de envios", "Lote removido com sucesso.");
+      } catch (error) {
+        Alert.alert("Log de envios", error instanceof Error ? error.message : "Não foi possível remover o lote.");
+      } finally {
+        setRemovingLogBatch(null);
+      }
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const confirmed = window.confirm("Deseja realmente remover todo este envio?");
+      if (!confirmed) return;
+      await runDelete();
+      return;
+    }
+
     Alert.alert("Remover lote", "Deseja realmente remover todo este envio?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Remover",
         style: "destructive",
         onPress: () => {
-          void (async () => {
-            try {
-              setRemovingLogBatch(batchId);
-              for (const row of batchRows) {
-                await deleteXpActivityAwardAdmin(row.award_id);
-              }
-              await refreshAfterChange();
-              if (editingLogBatchId === batchId) cancelEditingLogBatch();
-              Alert.alert("Log de envios", "Lote removido com sucesso.");
-            } catch (error) {
-              Alert.alert("Log de envios", error instanceof Error ? error.message : "Não foi possível remover o lote.");
-            } finally {
-              setRemovingLogBatch(null);
-            }
-          })();
+          void runDelete();
         },
       },
     ]);
@@ -1643,6 +1652,15 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                 </View>
                 {editingLogBatchId === entry.award_batch_id ? (
                   <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      Alunos no lote ({getAwardsByBatchId(entry.award_batch_id).length})
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.76)", lineHeight: 20 }}>
+                      {getAwardsByBatchId(entry.award_batch_id)
+                        .map((row) => row.student_full_name?.trim() || "Aluno sem nome")
+                        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                        .join(", ")}
+                    </Text>
                     <Text style={fieldLabelStyle}>XP do lote</Text>
                     <TextInput
                       value={editingLogXpAmount}
