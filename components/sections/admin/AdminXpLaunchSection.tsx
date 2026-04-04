@@ -389,6 +389,14 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     setSelectedStudentIds((prev) => (prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]));
   }
 
+  function markAllVisibleStudents() {
+    setSelectedStudentIds(visibleStudents.map((student) => student.id));
+  }
+
+  function clearAllSelectedStudents() {
+    setSelectedStudentIds([]);
+  }
+
   function startEditingAward(entry: AdminXpActivityAwardRow) {
     setEditingAwardId(entry.award_id);
     setEditingXpAmount(String(entry.xp_amount));
@@ -958,14 +966,14 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                 Seleção individual
               </Text>
               <View style={{ flexDirection: "row", gap: spacing.xs }}>
-                <Pressable onPress={() => setSelectedStudentIds(visibleStudents.map((student) => student.id))} style={secondaryButtonStyle}>
+                <Pressable onPress={markAllVisibleStudents} style={secondaryButtonStyle}>
                   <Text style={{ color: colors.white }} weight="semibold">
-                    Selecionar todos
+                    Marcar todos os alunos
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => setSelectedStudentIds([])} style={secondaryButtonStyle}>
+                <Pressable onPress={clearAllSelectedStudents} style={secondaryButtonStyle}>
                   <Text style={{ color: colors.white }} weight="semibold">
-                    Limpar
+                    Desmarcar todos
                   </Text>
                 </Pressable>
               </View>
