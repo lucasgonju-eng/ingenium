@@ -102,6 +102,11 @@ function normalizeSearchValue(value: string) {
     .toLocaleLowerCase("pt-BR");
 }
 
+function isNoTaskNotificationActivityTitle(value: string) {
+  const normalized = normalizeSearchValue(value);
+  return normalized === "nenhuma notificacao de tarefa";
+}
+
 function csvEscapeCell(value: string | number | null | undefined) {
   const content = String(value ?? "");
   if (/[",\n;]/.test(content)) {
@@ -536,6 +541,10 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     }
     if (!Number.isFinite(xpAmount) || xpAmount <= 0) {
       Alert.alert("Nova atividade", "Informe um valor de XP válido.");
+      return;
+    }
+    if (isNoTaskNotificationActivityTitle(title) && Math.round(xpAmount) !== 160) {
+      Alert.alert("Nova atividade", 'A atividade "Nenhuma notificação de tarefa" deve valer exatamente 160 XP por aluno.');
       return;
     }
 
