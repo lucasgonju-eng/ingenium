@@ -68,6 +68,10 @@ function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function getTodayShortDate() {
+  return formatIsoToShortDate(getTodayIsoDate());
+}
+
 function sortStudentsByName(items: FullStudentRow[]) {
   return [...items].sort((a, b) => {
     const nameA = (a.full_name ?? "").trim().toLocaleLowerCase("pt-BR");
@@ -100,8 +104,39 @@ function formatDateOnly(value: string) {
   });
 }
 
-function isIsoDate(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+function formatIsoToShortDate(value: string) {
+  const trimmed = String(value ?? "").trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const [, yyyy, mm, dd] = match;
+  return `${dd}-${mm}-${yyyy.slice(-2)}`;
+}
+
+function normalizeShortDateInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+}
+
+function shortDateToIso(value: string) {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{2})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, ddRaw, mmRaw, yyRaw] = match;
+  const dd = Number(ddRaw);
+  const mm = Number(mmRaw);
+  const yy = Number(yyRaw);
+  const yyyy = 2000 + yy;
+  const parsed = new Date(yyyy, mm - 1, dd);
+  const valid =
+    parsed.getFullYear() === yyyy &&
+    parsed.getMonth() === mm - 1 &&
+    parsed.getDate() === dd &&
+    yyyy >= 2000 &&
+    yyyy <= 2099;
+  if (!valid) return null;
+  return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
 }
 
 function normalizeSearchValue(value: string) {
@@ -139,7 +174,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [awardScope, setAwardScope] = useState<XpActivityScope>("individual");
   const [awardNote, setAwardNote] = useState("");
-  const [occurredOn, setOccurredOn] = useState("");
+  const [occurredOn, setOccurredOn] = useState(getTodayShortDate());
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDescription, setNewActivityDescription] = useState("");
@@ -155,7 +190,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [historyTotalCount, setHistoryTotalCount] = useState(0);
   const [editingAwardId, setEditingAwardId] = useState<string | null>(null);
   const [editingXpAmount, setEditingXpAmount] = useState("");
-  const [editingOccurredOn, setEditingOccurredOn] = useState(getTodayIsoDate());
+  const [editingOccurredOn, setEditingOccurredOn] = useState(getTodayShortDate());
   const [editingNote, setEditingNote] = useState("");
   const [logRows, setLogRows] = useState<AdminXpActivityAwardRow[]>([]);
   const [logSearchTerm, setLogSearchTerm] = useState("");
@@ -422,14 +457,14 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   function startEditingAward(entry: AdminXpActivityAwardRow) {
     setEditingAwardId(entry.award_id);
     setEditingXpAmount(String(entry.xp_amount));
-    setEditingOccurredOn(entry.occurred_on);
+    setEditingOccurredOn(formatIsoToShortDate(entry.occurred_on));
     setEditingNote(entry.note ?? "");
   }
 
   function cancelEditingAward() {
     setEditingAwardId(null);
     setEditingXpAmount("");
-    setEditingOccurredOn(getTodayIsoDate());
+    setEditingOccurredOn(getTodayShortDate());
     setEditingNote("");
   }
 
@@ -507,15 +542,20 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
 
   async function handleSaveAwardEdit(awardId: string) {
     const xpAmount = Number(editingXpAmount);
+    const occurredOnIso = shortDateToIso(editingOccurredOn);
     if (!Number.isFinite(xpAmount) || xpAmount <= 0) {
       Alert.alert("Histórico de XP", "Informe um valor de XP válido para salvar.");
+      return;
+    }
+    if (!occurredOnIso) {
+      Alert.alert("Histórico de XP", "Informe a data no formato DD-MM-AA.");
       return;
     }
     try {
       await updateXpActivityAwardAdmin({
         awardId,
         xpAmount: Math.round(xpAmount),
-        occurredOn: editingOccurredOn.trim() || null,
+        occurredOn: occurredOnIso,
         note: editingNote.trim() || null,
       });
       await refreshHistoryOnly();
@@ -600,8 +640,9 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       return;
     }
 
-    if (!isIsoDate(occurredOn)) {
-      Alert.alert("Lançamento de XP", "Informe a data da atividade no formato AAAA-MM-DD.");
+    const occurredOnIso = shortDateToIso(occurredOn);
+    if (!occurredOnIso) {
+      Alert.alert("Lançamento de XP", "Informe a data da atividade no formato DD-MM-AA.");
       return;
     }
 
@@ -621,7 +662,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         activityId: selectedActivity.id,
         studentIds: targetIds,
         note: awardNote.trim() || null,
-          occurredOn: occurredOn.trim(),
+          occurredOn: occurredOnIso,
         awardScope,
       });
       const rankingAfter = await fetchRankingAllRegisteredStudents(5000).catch(() => []);
@@ -646,10 +687,10 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       await refreshAfterChange();
       setSelectedStudentIds([]);
       setAwardNote("");
-      setOccurredOn("");
+      setOccurredOn(getTodayShortDate());
       setLastLaunchSummary({
         activityTitle: selectedActivity.title,
-        occurredOn: occurredOn.trim(),
+        occurredOn: occurredOnIso,
         launchAt: new Date().toISOString(),
         awardBatchId: result[0]?.award_batch_id ?? "sem-lote",
         rows: summaryRows,
@@ -986,8 +1027,9 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         <Text style={fieldLabelStyle}>Data da atividade (obrigatória)</Text>
         <TextInput
           value={occurredOn}
-          onChangeText={setOccurredOn}
-          placeholder="AAAA-MM-DD (ex.: 2026-03-23)"
+          onChangeText={(value) => setOccurredOn(normalizeShortDateInput(value))}
+          keyboardType="number-pad"
+          placeholder="DD-MM-AA (ex.: 23-03-26)"
           placeholderTextColor="rgba(255,255,255,0.38)"
           style={inputStyle}
         />
@@ -1145,6 +1187,32 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           </Text>
         </Pressable>
 
+        <View style={floatingSummaryCardStyle}>
+          <Text style={{ color: colors.white }} weight="bold">
+            Resumo flutuante da atividade
+          </Text>
+          <View style={{ marginTop: spacing.xs, gap: 6 }}>
+            <Text style={{ color: "rgba(255,255,255,0.82)" }}>
+              Atividade selecionada:{" "}
+              <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                {selectedActivity?.title ?? "Selecione uma atividade"}
+              </Text>
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.82)" }}>
+              XP da atividade a ser adicionado:{" "}
+              <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                {selectedActivity?.xp_amount ?? 0} XP
+              </Text>
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.82)" }}>
+              Data da atividade (não é a data do lançamento):{" "}
+              <Text style={{ color: colors.einsteinYellow }} weight="semibold">
+                {occurredOn || "--"}
+              </Text>
+            </Text>
+          </View>
+        </View>
+
         {lastLaunchSummary ? (
           <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
             <Text style={{ color: colors.white }} weight="bold">
@@ -1268,8 +1336,9 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                         <Text style={fieldLabelStyle}>Data</Text>
                         <TextInput
                           value={editingOccurredOn}
-                          onChangeText={setEditingOccurredOn}
-                          placeholder="AAAA-MM-DD"
+                          onChangeText={(value) => setEditingOccurredOn(normalizeShortDateInput(value))}
+                          keyboardType="number-pad"
+                          placeholder="DD-MM-AA"
                           placeholderTextColor="rgba(255,255,255,0.38)"
                           style={inputStyle}
                         />
@@ -1581,4 +1650,18 @@ const hintBoxStyle = {
   borderColor: "rgba(255,199,0,0.24)",
   backgroundColor: "rgba(255,199,0,0.08)",
   padding: spacing.sm,
+};
+
+const floatingSummaryCardStyle = {
+  marginTop: spacing.md,
+  borderRadius: radii.md,
+  borderWidth: 1,
+  borderColor: "rgba(255,199,0,0.45)",
+  backgroundColor: "rgba(255,199,0,0.10)",
+  padding: spacing.sm,
+  shadowColor: "#000",
+  shadowOpacity: 0.24,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 8,
 };
