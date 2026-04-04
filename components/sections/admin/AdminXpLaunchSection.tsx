@@ -807,7 +807,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       await refreshAfterChange();
       setSelectedStudentIds([]);
       setAwardNote("");
-      setOccurredOn(getTodayShortDate());
+      setOccurredOn(formatIsoToShortDate(occurredOnIso));
       setLastLaunchSummary({
         activityTitle: selectedActivity.title,
         occurredOn: occurredOnIso,
