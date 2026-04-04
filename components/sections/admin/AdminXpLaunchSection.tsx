@@ -6,6 +6,7 @@ import {
   awardXpActivityAdmin,
   createXpActivityCatalogAdmin,
   deleteXpActivityAwardAdmin,
+  fetchRankingAllRegisteredStudents,
   listXpActivityAwardsAdminFiltered,
   listXpActivityAwardsAdminPage,
   listXpActivityCatalogAdmin,
@@ -13,6 +14,7 @@ import {
   type AdminXpActivityAwardRow,
   type AdminXpActivityCatalogRow,
   type FullStudentRow,
+  type RankingStudentRow,
   type XpActivityGroup,
   type XpActivityScope,
 } from "../../../lib/supabase/queries";
@@ -37,6 +39,14 @@ type XpAdminBatchLogRow = {
   created_at: string;
   students_count: number;
   total_xp: number;
+};
+
+type XpLaunchStudentSummaryRow = {
+  student_id: string;
+  student_name: string;
+  xp_before: number;
+  xp_gained: number;
+  xp_after: number;
 };
 
 const GROUP_OPTIONS: Array<{ value: XpActivityGroup; label: string }> = [
@@ -149,6 +159,13 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [editingNote, setEditingNote] = useState("");
   const [logRows, setLogRows] = useState<AdminXpActivityAwardRow[]>([]);
   const [logSearchTerm, setLogSearchTerm] = useState("");
+  const [lastLaunchSummary, setLastLaunchSummary] = useState<{
+    activityTitle: string;
+    occurredOn: string;
+    launchAt: string;
+    awardBatchId: string;
+    rows: XpLaunchStudentSummaryRow[];
+  } | null>(null);
 
   useEffect(() => {
     if (!canAccess) return;
@@ -596,6 +613,10 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
 
     try {
       setLaunchingXp(true);
+      const rankingBefore = await fetchRankingAllRegisteredStudents(5000).catch(() => []);
+      const beforeByStudentId = new Map<string, number>(
+        rankingBefore.map((row: RankingStudentRow) => [row.user_id, Number(row.total_points ?? 0)]),
+      );
       const result = await awardXpActivityAdmin({
         activityId: selectedActivity.id,
         studentIds: targetIds,
@@ -603,10 +624,36 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           occurredOn: occurredOn.trim(),
         awardScope,
       });
+      const rankingAfter = await fetchRankingAllRegisteredStudents(5000).catch(() => []);
+      const afterByStudentId = new Map<string, number>(
+        rankingAfter.map((row: RankingStudentRow) => [row.user_id, Number(row.total_points ?? 0)]),
+      );
+      const studentsById = new Map<string, FullStudentRow>(students.map((row) => [row.id, row]));
+      const summaryRows: XpLaunchStudentSummaryRow[] = targetIds.map((studentId) => {
+        const xpBefore = Number(beforeByStudentId.get(studentId) ?? 0);
+        const xpAfter = Number(afterByStudentId.get(studentId) ?? xpBefore);
+        const computedGain = xpAfter - xpBefore;
+        const xpGained = Number.isFinite(computedGain) && computedGain > 0 ? computedGain : selectedActivity.xp_amount;
+        return {
+          student_id: studentId,
+          student_name: studentsById.get(studentId)?.full_name?.trim() || "Aluno sem nome",
+          xp_before: xpBefore,
+          xp_gained: xpGained,
+          xp_after: xpAfter,
+        };
+      });
+      summaryRows.sort((a, b) => a.student_name.localeCompare(b.student_name, "pt-BR"));
       await refreshAfterChange();
       setSelectedStudentIds([]);
       setAwardNote("");
       setOccurredOn("");
+      setLastLaunchSummary({
+        activityTitle: selectedActivity.title,
+        occurredOn: occurredOn.trim(),
+        launchAt: new Date().toISOString(),
+        awardBatchId: result[0]?.award_batch_id ?? "sem-lote",
+        rows: summaryRows,
+      });
       Alert.alert(
         "Lançamento de XP",
         `${result.length} lançamento(s) registrados com ${selectedActivity.xp_amount} XP por aluno.`,
@@ -1097,6 +1144,54 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
             {launchingXp ? "Registrando lançamento..." : "Confirmar lançamento de XP"}
           </Text>
         </Pressable>
+
+        {lastLaunchSummary ? (
+          <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
+            <Text style={{ color: colors.white }} weight="bold">
+              Resultado do último lançamento
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.75)" }}>
+              {lastLaunchSummary.activityTitle} • Data da atividade: {formatDateOnly(lastLaunchSummary.occurredOn)} • Lote:{" "}
+              {lastLaunchSummary.awardBatchId}
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.62)" }}>
+              Registrado em: {formatDateTime(lastLaunchSummary.launchAt)}
+            </Text>
+
+            <View style={historyCardStyle}>
+              <View style={{ flexDirection: "row", gap: spacing.xs }}>
+                <Text style={{ color: colors.einsteinYellow, flex: 1 }} weight="bold">
+                  Aluno
+                </Text>
+                <Text style={{ color: colors.einsteinYellow, width: 84, textAlign: "right" }} weight="bold">
+                  Antes
+                </Text>
+                <Text style={{ color: colors.einsteinYellow, width: 84, textAlign: "right" }} weight="bold">
+                  Ganhou
+                </Text>
+                <Text style={{ color: colors.einsteinYellow, width: 84, textAlign: "right" }} weight="bold">
+                  Depois
+                </Text>
+              </View>
+              <View style={{ marginTop: spacing.xs, gap: 6 }}>
+                {lastLaunchSummary.rows.map((row) => (
+                  <View key={`launch-summary-${row.student_id}`} style={{ flexDirection: "row", gap: spacing.xs }}>
+                    <Text style={{ color: colors.white, flex: 1 }}>{row.student_name}</Text>
+                    <Text style={{ color: "rgba(255,255,255,0.85)", width: 84, textAlign: "right" }}>
+                      {row.xp_before.toLocaleString("pt-BR")}
+                    </Text>
+                    <Text style={{ color: colors.einsteinYellow, width: 84, textAlign: "right" }} weight="bold">
+                      +{row.xp_gained.toLocaleString("pt-BR")}
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.90)", width: 84, textAlign: "right" }} weight="semibold">
+                      {row.xp_after.toLocaleString("pt-BR")}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        ) : null}
       </View>
       </>
       ) : null}
