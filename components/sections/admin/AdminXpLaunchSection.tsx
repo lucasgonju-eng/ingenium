@@ -194,6 +194,12 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [editingNote, setEditingNote] = useState("");
   const [logRows, setLogRows] = useState<AdminXpActivityAwardRow[]>([]);
   const [logSearchTerm, setLogSearchTerm] = useState("");
+  const [editingLogBatchId, setEditingLogBatchId] = useState<string | null>(null);
+  const [editingLogXpAmount, setEditingLogXpAmount] = useState("");
+  const [editingLogOccurredOn, setEditingLogOccurredOn] = useState(getTodayShortDate());
+  const [editingLogNote, setEditingLogNote] = useState("");
+  const [savingLogBatch, setSavingLogBatch] = useState(false);
+  const [removingLogBatch, setRemovingLogBatch] = useState<string | null>(null);
   const [lastLaunchSummary, setLastLaunchSummary] = useState<{
     activityTitle: string;
     occurredOn: string;
@@ -285,6 +291,18 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     }
   }, [selectedActivity?.id]);
 
+  useEffect(() => {
+    if (selectedActivity && isNoTaskNotificationActivityTitle(selectedActivity.title) && awardScope !== "individual") {
+      setAwardScope("individual");
+    }
+  }, [selectedActivity, awardScope]);
+
+  useEffect(() => {
+    if (isNoTaskNotificationActivityTitle(newActivityTitle) && newActivityScope !== "individual") {
+      setNewActivityScope("individual");
+    }
+  }, [newActivityTitle, newActivityScope]);
+
   const gradeStudents = useMemo(() => {
     const items = students.filter((student) => student.grade === selectedGrade && student.is_active !== false);
     return sortStudentsByName(items);
@@ -360,7 +378,11 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     setHistoryPage(1);
   }, [historyGradeFilter, historySearchTerm]);
 
-  const selectedCount = awardScope === "collective" ? visibleStudents.length : selectedStudentIds.length;
+  const selectedActivityForcesIndividual = Boolean(
+    selectedActivity && isNoTaskNotificationActivityTitle(selectedActivity.title),
+  );
+  const effectiveAwardScope: XpActivityScope = selectedActivityForcesIndividual ? "individual" : awardScope;
+  const selectedCount = effectiveAwardScope === "collective" ? visibleStudents.length : selectedStudentIds.length;
   const totalXpPreview = selectedActivity ? selectedCount * selectedActivity.xp_amount : 0;
   const historyTotalPages = Math.max(1, Math.ceil(historyTotalCount / HISTORY_PAGE_SIZE));
   const historyStartIndex = historyTotalCount === 0 ? 0 : (historyPage - 1) * HISTORY_PAGE_SIZE + 1;
@@ -454,6 +476,27 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     setSelectedStudentIds([]);
   }
 
+  function getAwardsByBatchId(batchId: string) {
+    return logRows.filter((row) => row.award_batch_id === batchId);
+  }
+
+  function startEditingLogBatch(batchId: string) {
+    const batchRows = getAwardsByBatchId(batchId);
+    if (batchRows.length === 0) return;
+    const first = batchRows[0];
+    setEditingLogBatchId(batchId);
+    setEditingLogXpAmount(String(first.xp_amount));
+    setEditingLogOccurredOn(formatIsoToShortDate(first.occurred_on));
+    setEditingLogNote(first.note ?? "");
+  }
+
+  function cancelEditingLogBatch() {
+    setEditingLogBatchId(null);
+    setEditingLogXpAmount("");
+    setEditingLogOccurredOn(getTodayShortDate());
+    setEditingLogNote("");
+  }
+
   function startEditingAward(entry: AdminXpActivityAwardRow) {
     setEditingAwardId(entry.award_id);
     setEditingXpAmount(String(entry.xp_amount));
@@ -481,6 +524,74 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     if (historyPage > historyPageResult.totalPages) {
       setHistoryPage(historyPageResult.totalPages);
     }
+  }
+
+  async function handleSaveLogBatch(batchId: string) {
+    const xpAmount = Number(editingLogXpAmount);
+    const occurredOnIso = shortDateToIso(editingLogOccurredOn);
+    if (!Number.isFinite(xpAmount) || xpAmount <= 0) {
+      Alert.alert("Log de envios", "Informe um valor de XP válido para o lote.");
+      return;
+    }
+    if (!occurredOnIso) {
+      Alert.alert("Log de envios", "Informe a data no formato DD-MM-AA.");
+      return;
+    }
+    const batchRows = getAwardsByBatchId(batchId);
+    if (batchRows.length === 0) {
+      Alert.alert("Log de envios", "Lote não encontrado.");
+      return;
+    }
+    try {
+      setSavingLogBatch(true);
+      for (const row of batchRows) {
+        await updateXpActivityAwardAdmin({
+          awardId: row.award_id,
+          xpAmount: Math.round(xpAmount),
+          occurredOn: occurredOnIso,
+          note: editingLogNote.trim() || null,
+        });
+      }
+      await refreshAfterChange();
+      cancelEditingLogBatch();
+      Alert.alert("Log de envios", "Lote atualizado com sucesso.");
+    } catch (error) {
+      Alert.alert("Log de envios", error instanceof Error ? error.message : "Não foi possível editar o lote.");
+    } finally {
+      setSavingLogBatch(false);
+    }
+  }
+
+  async function handleDeleteLogBatch(batchId: string) {
+    const batchRows = getAwardsByBatchId(batchId);
+    if (batchRows.length === 0) {
+      Alert.alert("Log de envios", "Lote não encontrado.");
+      return;
+    }
+    Alert.alert("Remover lote", "Deseja realmente remover todo este envio?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Remover",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              setRemovingLogBatch(batchId);
+              for (const row of batchRows) {
+                await deleteXpActivityAwardAdmin(row.award_id);
+              }
+              await refreshAfterChange();
+              if (editingLogBatchId === batchId) cancelEditingLogBatch();
+              Alert.alert("Log de envios", "Lote removido com sucesso.");
+            } catch (error) {
+              Alert.alert("Log de envios", error instanceof Error ? error.message : "Não foi possível remover o lote.");
+            } finally {
+              setRemovingLogBatch(null);
+            }
+          })();
+        },
+      },
+    ]);
   }
 
   async function handleExportLogCsv() {
@@ -646,7 +757,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       return;
     }
 
-    const targetIds = awardScope === "collective" ? visibleStudents.map((student) => student.id) : selectedStudentIds;
+    const targetIds = effectiveAwardScope === "collective" ? visibleStudents.map((student) => student.id) : selectedStudentIds;
     if (targetIds.length === 0) {
       Alert.alert("Lançamento de XP", "Selecione ao menos um aluno para o lançamento.");
       return;
@@ -663,7 +774,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         studentIds: targetIds,
         note: awardNote.trim() || null,
           occurredOn: occurredOnIso,
-        awardScope,
+        awardScope: effectiveAwardScope,
       });
       const rankingAfter = await fetchRankingAllRegisteredStudents(5000).catch(() => []);
       const afterByStudentId = new Map<string, number>(
@@ -973,8 +1084,16 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
             {SCOPE_OPTIONS.map((option) => {
               const active = newActivityScope === option.value;
+              const blockedByTitle = isNoTaskNotificationActivityTitle(newActivityTitle) && option.value === "collective";
               return (
-                <Pressable key={option.value} onPress={() => setNewActivityScope(option.value)} style={[pillStyle, active ? pillActiveStyle : null]}>
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    if (blockedByTitle) return;
+                    setNewActivityScope(option.value);
+                  }}
+                  style={[pillStyle, active ? pillActiveStyle : null, blockedByTitle ? disabledButtonStyle : null]}
+                >
                   <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
                     {option.label}
                   </Text>
@@ -982,6 +1101,11 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
               );
             })}
           </View>
+          {isNoTaskNotificationActivityTitle(newActivityTitle) ? (
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs }}>
+              Esta atividade deve ser sempre individual.
+            </Text>
+          ) : null}
 
           <Text style={fieldLabelStyle}>Observação de recorrência</Text>
           <TextInput
@@ -1014,8 +1138,16 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         <View style={{ flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
           {SCOPE_OPTIONS.map((option) => {
             const active = awardScope === option.value;
+            const blockedByActivity = selectedActivityForcesIndividual && option.value === "collective";
             return (
-              <Pressable key={option.value} onPress={() => setAwardScope(option.value)} style={[pillStyle, active ? pillActiveStyle : null]}>
+              <Pressable
+                key={option.value}
+                onPress={() => {
+                  if (blockedByActivity) return;
+                  setAwardScope(option.value);
+                }}
+                style={[pillStyle, active ? pillActiveStyle : null, blockedByActivity ? disabledButtonStyle : null]}
+              >
                 <Text style={{ color: active ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
                   {option.label}
                 </Text>
@@ -1023,6 +1155,11 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
             );
           })}
         </View>
+        {selectedActivityForcesIndividual ? (
+          <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: spacing.xs }}>
+            Para esta atividade, o lançamento coletivo é bloqueado e sempre individual.
+          </Text>
+        ) : null}
 
         <Text style={fieldLabelStyle}>Data da atividade (obrigatória)</Text>
         <TextInput
@@ -1047,7 +1184,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           multiline
         />
 
-        {awardScope === "collective" ? (
+        {effectiveAwardScope === "collective" ? (
           <View style={hintBoxStyle}>
             <Text style={{ color: colors.white }} weight="semibold">
               Lançamento coletivo
@@ -1483,6 +1620,73 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
                   <Text style={{ color: "rgba(255,255,255,0.70)", marginTop: 4 }}>
                     Observação: {entry.note}
                   </Text>
+                ) : null}
+                <View style={{ marginTop: spacing.xs, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+                  <Pressable
+                    onPress={() => startEditingLogBatch(entry.award_batch_id)}
+                    style={secondaryButtonStyle}
+                    disabled={savingLogBatch || removingLogBatch === entry.award_batch_id}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      Editar lote
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void handleDeleteLogBatch(entry.award_batch_id)}
+                    style={dangerButtonStyle}
+                    disabled={savingLogBatch || removingLogBatch === entry.award_batch_id}
+                  >
+                    <Text style={{ color: colors.white }} weight="semibold">
+                      {removingLogBatch === entry.award_batch_id ? "Removendo..." : "Remover lote"}
+                    </Text>
+                  </Pressable>
+                </View>
+                {editingLogBatchId === entry.award_batch_id ? (
+                  <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                    <Text style={fieldLabelStyle}>XP do lote</Text>
+                    <TextInput
+                      value={editingLogXpAmount}
+                      onChangeText={setEditingLogXpAmount}
+                      keyboardType="numeric"
+                      placeholder="XP"
+                      placeholderTextColor="rgba(255,255,255,0.38)"
+                      style={inputStyle}
+                    />
+                    <Text style={fieldLabelStyle}>Data da atividade</Text>
+                    <TextInput
+                      value={editingLogOccurredOn}
+                      onChangeText={(value) => setEditingLogOccurredOn(normalizeShortDateInput(value))}
+                      keyboardType="number-pad"
+                      placeholder="DD-MM-AA"
+                      placeholderTextColor="rgba(255,255,255,0.38)"
+                      style={inputStyle}
+                    />
+                    <Text style={fieldLabelStyle}>Observação</Text>
+                    <TextInput
+                      value={editingLogNote}
+                      onChangeText={setEditingLogNote}
+                      placeholder="Observação do lote"
+                      placeholderTextColor="rgba(255,255,255,0.38)"
+                      style={[inputStyle, multilineInputStyle]}
+                      multiline
+                    />
+                    <View style={{ flexDirection: "row", gap: spacing.xs }}>
+                      <Pressable
+                        onPress={() => void handleSaveLogBatch(entry.award_batch_id)}
+                        style={primaryButtonStyleCompact}
+                        disabled={savingLogBatch}
+                      >
+                        <Text style={{ color: colors.einsteinBlue }} weight="bold">
+                          {savingLogBatch ? "Salvando..." : "Salvar lote"}
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={cancelEditingLogBatch} style={secondaryButtonStyle} disabled={savingLogBatch}>
+                        <Text style={{ color: colors.white }} weight="semibold">
+                          Cancelar
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 ) : null}
               </View>
             ))
