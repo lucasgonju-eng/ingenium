@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, TextInput, View } from "react-native";
 import { Text } from "../../ui/Text";
 import { colors, radii, spacing, typography } from "../../../lib/theme/tokens";
 import {
   awardXpActivityAdmin,
   createXpActivityCatalogAdmin,
   deleteXpActivityAwardAdmin,
+  listXpActivityAwardsAdminFiltered,
   listXpActivityAwardsAdminPage,
   listXpActivityCatalogAdmin,
   updateXpActivityAwardAdmin,
@@ -21,8 +22,22 @@ type Props = {
   students: FullStudentRow[];
 };
 
-type XpAdminSubTab = "launch" | "history";
+type XpAdminSubTab = "launch" | "history" | "log";
 const HISTORY_PAGE_SIZE = 50;
+const LOG_EXPORT_LIMIT = 3000;
+
+type XpAdminBatchLogRow = {
+  award_batch_id: string;
+  activity_title: string;
+  target_grade: string;
+  award_scope: XpActivityScope;
+  note: string | null;
+  created_by: string;
+  created_by_name: string | null;
+  created_at: string;
+  students_count: number;
+  total_xp: number;
+};
 
 const GROUP_OPTIONS: Array<{ value: XpActivityGroup; label: string }> = [
   { value: "fundamental", label: "Fundamental" },
@@ -87,6 +102,14 @@ function normalizeSearchValue(value: string) {
     .toLocaleLowerCase("pt-BR");
 }
 
+function csvEscapeCell(value: string | number | null | undefined) {
+  const content = String(value ?? "");
+  if (/[",\n;]/.test(content)) {
+    return `"${content.replace(/"/g, '""')}"`;
+  }
+  return content;
+}
+
 export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [activeSubTab, setActiveSubTab] = useState<XpAdminSubTab>("launch");
   const [catalog, setCatalog] = useState<AdminXpActivityCatalogRow[]>([]);
@@ -119,6 +142,8 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const [editingXpAmount, setEditingXpAmount] = useState("");
   const [editingOccurredOn, setEditingOccurredOn] = useState(getTodayIsoDate());
   const [editingNote, setEditingNote] = useState("");
+  const [logRows, setLogRows] = useState<AdminXpActivityAwardRow[]>([]);
+  const [logSearchTerm, setLogSearchTerm] = useState("");
 
   useEffect(() => {
     if (!canAccess) return;
@@ -127,11 +152,17 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     async function loadData() {
       try {
         setLoading(true);
-        const [catalogRows, historyPageResult] = await Promise.all([
+        const [catalogRows, historyPageResult, logRowsResult] = await Promise.all([
           listXpActivityCatalogAdmin(),
           listXpActivityAwardsAdminPage({
             page: 1,
             pageSize: HISTORY_PAGE_SIZE,
+          }),
+          listXpActivityAwardsAdminFiltered({
+            limit: LOG_EXPORT_LIMIT,
+            offset: 0,
+            grade: null,
+            search: null,
           }),
         ]);
         if (!mounted) return;
@@ -139,6 +170,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         setHistory(historyPageResult.rows);
         setHistoryTotalCount(historyPageResult.totalCount);
         setHistoryPage(1);
+        setLogRows(logRowsResult);
       } catch (error) {
         if (!mounted) return;
         Alert.alert("Lançamento de XP", error instanceof Error ? error.message : "Não foi possível carregar os dados da aba.");
@@ -276,9 +308,60 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
   const historyTotalPages = Math.max(1, Math.ceil(historyTotalCount / HISTORY_PAGE_SIZE));
   const historyStartIndex = historyTotalCount === 0 ? 0 : (historyPage - 1) * HISTORY_PAGE_SIZE + 1;
   const historyEndIndex = Math.min(historyPage * HISTORY_PAGE_SIZE, historyTotalCount);
+  const logBatches = useMemo(() => {
+    const grouped = new Map<string, XpAdminBatchLogRow>();
+    for (const row of logRows) {
+      const key = row.award_batch_id || row.award_id;
+      const current = grouped.get(key);
+      if (!current) {
+        grouped.set(key, {
+          award_batch_id: key,
+          activity_title: row.activity_title,
+          target_grade: row.target_grade,
+          award_scope: row.award_scope,
+          note: row.note ?? null,
+          created_by: row.created_by,
+          created_by_name: row.created_by_name ?? null,
+          created_at: row.created_at,
+          students_count: 1,
+          total_xp: Number(row.xp_amount ?? 0),
+        });
+      } else {
+        current.students_count += 1;
+        current.total_xp += Number(row.xp_amount ?? 0);
+      }
+    }
+    return [...grouped.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [logRows]);
+  const filteredLogBatches = useMemo(() => {
+    const term = normalizeSearchValue(logSearchTerm);
+    if (!term) return logBatches;
+    return logBatches.filter((item) =>
+      [
+        item.activity_title,
+        item.created_by_name ?? "",
+        item.created_by,
+        item.target_grade,
+        item.note ?? "",
+        item.award_batch_id,
+      ]
+        .map((value) => normalizeSearchValue(value))
+        .some((value) => value.includes(term)),
+    );
+  }, [logBatches, logSearchTerm]);
+
+  async function refreshLogsOnly() {
+    const logRowsResult = await listXpActivityAwardsAdminFiltered({
+      limit: LOG_EXPORT_LIMIT,
+      offset: 0,
+      grade: null,
+      search: null,
+    });
+    setLogRows(logRowsResult);
+  }
 
   async function refreshAfterChange() {
-    const [catalogRows, historyPageResult] = await Promise.all([
+    const [catalogRows, historyPageResult, logRowsResult] = await Promise.all([
       listXpActivityCatalogAdmin(),
       listXpActivityAwardsAdminPage({
         page: historyPage,
@@ -286,10 +369,17 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
         grade: historyGradeFilter === "__all__" ? null : historyGradeFilter,
         search: historySearchTerm.trim() || null,
       }),
+      listXpActivityAwardsAdminFiltered({
+        limit: LOG_EXPORT_LIMIT,
+        offset: 0,
+        grade: null,
+        search: null,
+      }),
     ]);
     setCatalog(catalogRows);
     setHistory(historyPageResult.rows);
     setHistoryTotalCount(historyPageResult.totalCount);
+    setLogRows(logRowsResult);
     if (historyPage > historyPageResult.totalPages) {
       setHistoryPage(historyPageResult.totalPages);
     }
@@ -322,8 +412,66 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     });
     setHistory(historyPageResult.rows);
     setHistoryTotalCount(historyPageResult.totalCount);
+    await refreshLogsOnly();
     if (historyPage > historyPageResult.totalPages) {
       setHistoryPage(historyPageResult.totalPages);
+    }
+  }
+
+  async function handleExportLogCsv() {
+    try {
+      const rows = filteredLogBatches;
+      if (rows.length === 0) {
+        Alert.alert("Log de envios", "Não há dados para exportar com os filtros atuais.");
+        return;
+      }
+      const header = [
+        "batch_id",
+        "atividade",
+        "serie_alvo",
+        "escopo",
+        "qtd_alunos",
+        "xp_total",
+        "responsavel_id",
+        "responsavel_nome",
+        "observacao",
+        "lancado_em",
+      ];
+      const lines = rows.map((row) =>
+        [
+          row.award_batch_id,
+          row.activity_title,
+          row.target_grade,
+          row.award_scope === "collective" ? "Coletivo" : "Individual",
+          row.students_count,
+          row.total_xp,
+          row.created_by,
+          row.created_by_name ?? "",
+          row.note ?? "",
+          row.created_at,
+        ]
+          .map((item) => csvEscapeCell(item))
+          .join(";"),
+      );
+      const csvContent = [header.join(";"), ...lines].join("\n");
+      if (Platform.OS !== "web" || typeof window === "undefined" || typeof document === "undefined") {
+        Alert.alert("Log de envios", "A exportação CSV está disponível no painel web.");
+        return;
+      }
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const now = new Date();
+      const dateTag = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      link.href = url;
+      link.download = `xp-log-envios-${dateTag}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      Alert.alert("Log de envios", "Exportação concluída.");
+    } catch (error) {
+      Alert.alert("Log de envios", error instanceof Error ? error.message : "Não foi possível exportar o CSV.");
     }
   }
 
@@ -566,7 +714,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           Área de XP Admin
         </Text>
         <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
-          Escolha entre lançar novos XP ou revisar o histórico completo dos alunos.
+          Escolha entre lançar novos XP, revisar o histórico dos alunos ou abrir o log de envios.
         </Text>
         <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
           <Pressable onPress={() => setActiveSubTab("launch")} style={[pillStyle, activeSubTab === "launch" ? pillActiveStyle : null]}>
@@ -577,6 +725,11 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
           <Pressable onPress={() => setActiveSubTab("history")} style={[pillStyle, activeSubTab === "history" ? pillActiveStyle : null]}>
             <Text style={{ color: activeSubTab === "history" ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
               Histórico de XP
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => setActiveSubTab("log")} style={[pillStyle, activeSubTab === "log" ? pillActiveStyle : null]}>
+            <Text style={{ color: activeSubTab === "log" ? colors.einsteinYellow : "rgba(255,255,255,0.82)" }} weight="semibold">
+              Log de envios
             </Text>
           </Pressable>
         </View>
@@ -1086,6 +1239,73 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
               </Text>
             </Pressable>
           </View>
+        </View>
+      </View>
+      ) : null}
+
+      {activeSubTab === "log" ? (
+      <View style={cardStyle}>
+        <Text style={{ color: colors.white }} weight="bold">
+          Log de envios de XP
+        </Text>
+        <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4 }}>
+          Cada linha representa um envio em lote, com responsável e horário de lançamento.
+        </Text>
+
+        <Text style={fieldLabelStyle}>Buscar no log</Text>
+        <TextInput
+          value={logSearchTerm}
+          onChangeText={setLogSearchTerm}
+          placeholder="Atividade, responsável, série ou ID do lote..."
+          placeholderTextColor="rgba(255,255,255,0.38)"
+          style={inputStyle}
+        />
+
+        <View style={{ marginTop: spacing.sm, flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" }}>
+          <Pressable onPress={() => void refreshLogsOnly()} style={secondaryButtonStyle}>
+            <Text style={{ color: colors.white }} weight="semibold">
+              Atualizar log
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => void handleExportLogCsv()} style={primaryButtonStyleCompact}>
+            <Text style={{ color: colors.einsteinBlue }} weight="bold">
+              Exportar CSV
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+          {filteredLogBatches.length === 0 ? (
+            <Text style={{ color: "rgba(255,255,255,0.68)" }}>Nenhum envio encontrado com os filtros atuais.</Text>
+          ) : (
+            filteredLogBatches.map((entry) => (
+              <View key={entry.award_batch_id} style={historyCardStyle}>
+                <Text style={{ color: colors.white }} weight="bold">
+                  {entry.activity_title}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.76)", marginTop: 4 }}>
+                  Responsável: {entry.created_by_name ?? "Sem nome"} ({entry.created_by})
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                  Série: {entry.target_grade} • Escopo: {entry.award_scope === "collective" ? "Coletivo" : "Individual"}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.68)", marginTop: 2 }}>
+                  Alunos no envio: {entry.students_count} • XP total: {entry.total_xp.toLocaleString("pt-BR")}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.60)", marginTop: 2 }}>
+                  Horário: {formatDateTime(entry.created_at)}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.55)", marginTop: 2, fontSize: 12 }}>
+                  Lote: {entry.award_batch_id}
+                </Text>
+                {entry.note ? (
+                  <Text style={{ color: "rgba(255,255,255,0.70)", marginTop: 4 }}>
+                    Observação: {entry.note}
+                  </Text>
+                ) : null}
+              </View>
+            ))
+          )}
         </View>
       </View>
       ) : null}
