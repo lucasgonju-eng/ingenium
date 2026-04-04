@@ -152,6 +152,13 @@ function isNoTaskNotificationActivityTitle(value: string) {
   return normalized === "nenhuma notificacao de tarefa";
 }
 
+function getFixedXpByActivityTitle(value: string) {
+  const normalized = normalizeSearchValue(value);
+  if (normalized === "nenhuma notificacao de tarefa") return 160;
+  if (normalized === "einstein science (laboratorio)") return 100;
+  return null;
+}
+
 function csvEscapeCell(value: string | number | null | undefined) {
   const content = String(value ?? "");
   if (/[",\n;]/.test(content)) {
@@ -720,8 +727,9 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
       Alert.alert("Nova atividade", "Informe um valor de XP válido.");
       return;
     }
-    if (isNoTaskNotificationActivityTitle(title) && Math.round(xpAmount) !== 160) {
-      Alert.alert("Nova atividade", 'A atividade "Nenhuma notificação de tarefa" deve valer exatamente 160 XP por aluno.');
+    const fixedXp = getFixedXpByActivityTitle(title);
+    if (fixedXp !== null && Math.round(xpAmount) !== fixedXp) {
+      Alert.alert("Nova atividade", `A atividade "${title}" deve valer exatamente ${fixedXp} XP por aluno.`);
       return;
     }
 

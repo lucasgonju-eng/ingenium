@@ -1,16 +1,38 @@
--- Garante que a atividade "Nenhuma notificação de tarefa" permaneça em 160 XP
--- e com escopo individual.
+-- Garante regras fixas de XP para atividades específicas:
+-- - "Nenhuma notificação de tarefa" => 160 XP e escopo individual
+-- - "Einstein Science (Laboratório)" => 100 XP
 -- Aplica correção retroativa e trava inserções/edições futuras.
 
 update public.xp_activity_catalog
-set xp_amount = 160,
-    default_scope = 'individual',
+set xp_amount =
+      case
+        when lower(trim(coalesce(title, ''))) in (lower('Nenhuma notificação de tarefa'), lower('Nenhuma notificacao de tarefa')) then 160
+        when lower(trim(coalesce(title, ''))) in (lower('Einstein Science (Laboratório)'), lower('Einstein Science (Laboratorio)')) then 100
+        else xp_amount
+      end,
+    default_scope =
+      case
+        when lower(trim(coalesce(title, ''))) in (lower('Nenhuma notificação de tarefa'), lower('Nenhuma notificacao de tarefa')) then 'individual'
+        else default_scope
+      end,
     updated_at = now()
 where lower(trim(coalesce(title, ''))) in (
   lower('Nenhuma notificação de tarefa'),
-  lower('Nenhuma notificacao de tarefa')
+  lower('Nenhuma notificacao de tarefa'),
+  lower('Einstein Science (Laboratório)'),
+  lower('Einstein Science (Laboratorio)')
 )
-  and (xp_amount <> 160 or coalesce(default_scope, 'individual') <> 'individual');
+  and (
+    (
+      lower(trim(coalesce(title, ''))) in (lower('Nenhuma notificação de tarefa'), lower('Nenhuma notificacao de tarefa'))
+      and (xp_amount <> 160 or coalesce(default_scope, 'individual') <> 'individual')
+    )
+    or
+    (
+      lower(trim(coalesce(title, ''))) in (lower('Einstein Science (Laboratório)'), lower('Einstein Science (Laboratorio)'))
+      and xp_amount <> 100
+    )
+  );
 
 update public.xp_activity_awards a
 set award_scope = 'individual'
@@ -32,6 +54,8 @@ begin
   if v_title in (lower('Nenhuma notificação de tarefa'), lower('Nenhuma notificacao de tarefa')) then
     new.xp_amount := 160;
     new.default_scope := 'individual';
+  elsif v_title in (lower('Einstein Science (Laboratório)'), lower('Einstein Science (Laboratorio)')) then
+    new.xp_amount := 100;
   end if;
   return new;
 end;
