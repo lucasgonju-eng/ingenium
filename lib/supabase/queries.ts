@@ -90,6 +90,12 @@ export type AdminXpActivityAwardRow = {
   created_at: string;
 };
 
+export type AdminBiSnapshot = {
+  awards: AdminXpActivityAwardRow[];
+  fetched_at: string;
+  limit_applied: number;
+};
+
 export type FullStudentRow = {
   id: string;
   full_name: string | null;
@@ -1545,6 +1551,22 @@ export async function listXpActivityAwardsAdminPage(input?: {
     page,
     pageSize,
     totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+  };
+}
+
+export async function fetchAdminBiSnapshot(limit = 3000): Promise<AdminBiSnapshot> {
+  const safeLimit = Math.max(100, Math.min(limit, 5000));
+  const awards = await listXpActivityAwardsAdminFiltered({
+    limit: safeLimit,
+    offset: 0,
+    grade: null,
+    search: null,
+  });
+
+  return {
+    awards,
+    fetched_at: new Date().toISOString(),
+    limit_applied: safeLimit,
   };
 }
 

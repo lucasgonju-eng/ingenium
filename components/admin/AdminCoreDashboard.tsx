@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Text } from "../ui/Text";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
@@ -70,6 +70,7 @@ type Props = {
   onSetStudentActive?: (studentId: string, isActive: boolean) => void;
   onSetTeacherActive?: (teacherId: string, isActive: boolean) => void;
   enablePlanProStudentPopup?: boolean;
+  dashboardExtra?: ReactNode;
 };
 
 export default function AdminCoreDashboard(props: Props) {
@@ -125,6 +126,7 @@ export default function AdminCoreDashboard(props: Props) {
     onSetStudentActive,
     onSetTeacherActive,
     enablePlanProStudentPopup = false,
+    dashboardExtra,
   } = props;
 
   const totalStudents = students.length;
@@ -232,6 +234,8 @@ export default function AdminCoreDashboard(props: Props) {
             ))}
           </View>
         </View>
+
+        {dashboardExtra}
       </>
     );
   }

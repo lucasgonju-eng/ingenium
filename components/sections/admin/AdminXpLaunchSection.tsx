@@ -22,6 +22,7 @@ import {
 type Props = {
   canAccess: boolean;
   students: FullStudentRow[];
+  onDataChanged?: () => void;
 };
 
 type XpAdminSubTab = "launch" | "history" | "log";
@@ -167,7 +168,7 @@ function csvEscapeCell(value: string | number | null | undefined) {
   return content;
 }
 
-export default function AdminXpLaunchSection({ canAccess, students }: Props) {
+export default function AdminXpLaunchSection({ canAccess, students, onDataChanged }: Props) {
   const [activeSubTab, setActiveSubTab] = useState<XpAdminSubTab>("launch");
   const [catalog, setCatalog] = useState<AdminXpActivityCatalogRow[]>([]);
   const [history, setHistory] = useState<AdminXpActivityAwardRow[]>([]);
@@ -469,6 +470,7 @@ export default function AdminXpLaunchSection({ canAccess, students }: Props) {
     if (historyPage > historyPageResult.totalPages) {
       setHistoryPage(historyPageResult.totalPages);
     }
+    onDataChanged?.();
   }
 
   function toggleStudent(studentId: string) {

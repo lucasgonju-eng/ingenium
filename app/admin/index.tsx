@@ -16,6 +16,7 @@ import {
   sendStudentPendingStatusEmail,
   fetchSaasAnalyticsOverview,
   fetchStudentEmailRecipientsForSender,
+  fetchAdminBiSnapshot,
   fetchMyAccessRole,
   fetchPlanProStudentsAdmin,
   fetchRankingAllRegisteredStudents,
@@ -32,6 +33,7 @@ import {
   setUserActiveAdmin,
   type MyAccessRole,
   type AccessRequestRow,
+  type AdminXpActivityAwardRow,
   type AdminStudentMessageHistoryRow,
   type FullStudentRow,
   type PlanProStudentRow,
@@ -45,6 +47,7 @@ import { supabase } from "../../lib/supabase/client";
 import { trackEvent } from "../../lib/analytics/gtm";
 import { colors, radii, spacing, typography } from "../../lib/theme/tokens";
 import AdminCoreDashboard, { getAdminCoreTabs } from "../../components/admin/AdminCoreDashboard";
+import AdminBiSection, { AdminBiHighlights } from "../../components/sections/admin/AdminBiSection";
 import AdminLabGamesSection from "../../components/sections/admin/AdminLabGamesSection";
 import AdminXpLaunchSection from "../../components/sections/admin/AdminXpLaunchSection";
 import { getWolfAdminConfigSnapshot, listLabGamesForAdmin, updateLabGameStatus } from "../../services/games/labGamesService";
@@ -62,9 +65,11 @@ type AdminTab =
   | "gtm"
   | "notificacoes"
   | "lab-games"
-  | "lancamento-xp";
+  | "lancamento-xp"
+  | "bi";
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   ...getAdminCoreTabs(),
+  { key: "bi", label: "BI" },
   { key: "mensagens-admin", label: "Mensagens Admin" },
   { key: "lancamento-xp", label: "Lançamento de XP (Admin)" },
   { key: "lab-games", label: "Lab Games" },
@@ -271,6 +276,9 @@ export default function AdminDashboardScreen() {
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
   const [broadcastHistoryRows, setBroadcastHistoryRows] = useState<AdminStudentMessageHistoryRow[]>([]);
+  const [biAwards, setBiAwards] = useState<AdminXpActivityAwardRow[]>([]);
+  const [biLoading, setBiLoading] = useState(false);
+  const [biErrorText, setBiErrorText] = useState<string | null>(null);
   const isAdminWeb = Platform.OS === "web";
   const frameMaxWidth = isAdminWeb ? 1500 : 430;
 
@@ -333,6 +341,7 @@ export default function AdminDashboardScreen() {
           requestsData,
           studentEmailRows,
           broadcastHistoryData,
+          biSnapshot,
         ] = await Promise.all([
           fetchRegisteredStudentsFull(),
           fetchPlanProStudentsAdmin().catch(() => []),
@@ -343,6 +352,7 @@ export default function AdminDashboardScreen() {
           fetchPendingAccessRequestsAdmin(),
           fetchStudentEmailRecipientsForSender().catch(() => []),
           fetchAdminStudentMessageHistory(5000).catch(() => []),
+          fetchAdminBiSnapshot(3000).catch(() => null),
         ]);
         if (!mounted) return;
         setAuthorized(true);
@@ -354,6 +364,8 @@ export default function AdminDashboardScreen() {
         setSaasAnalytics(analyticsData);
         setPendingRequests(requestsData);
         setBroadcastHistoryRows(broadcastHistoryData);
+        setBiAwards(biSnapshot?.awards ?? []);
+        setBiErrorText(biSnapshot ? null : "Não foi possível carregar o snapshot analítico do BI.");
         setStudentEmailsById(
           (studentEmailRows ?? []).reduce<Record<string, string>>((acc, row) => {
             if (row.id && row.email) acc[row.id] = row.email;
@@ -664,6 +676,19 @@ export default function AdminDashboardScreen() {
   async function reloadBroadcastHistory() {
     const historyRows = await fetchAdminStudentMessageHistory(5000).catch(() => []);
     setBroadcastHistoryRows(historyRows);
+  }
+
+  async function reloadBiData() {
+    try {
+      setBiLoading(true);
+      setBiErrorText(null);
+      const snapshot = await fetchAdminBiSnapshot(3000);
+      setBiAwards(snapshot.awards);
+    } catch (error) {
+      setBiErrorText(error instanceof Error ? error.message : "Não foi possível atualizar o BI.");
+    } finally {
+      setBiLoading(false);
+    }
   }
 
   async function handleCreateTeacher() {
@@ -1676,6 +1701,19 @@ export default function AdminDashboardScreen() {
                   void handleSetTeacherActive(teacherId, isActive);
                 }}
                 enablePlanProStudentPopup
+                dashboardExtra={
+                  <AdminBiHighlights
+                    awards={biAwards}
+                    students={students}
+                    rankingRows={rankingRows}
+                    loading={biLoading}
+                    errorText={biErrorText}
+                    onRetry={() => {
+                      void reloadBiData();
+                    }}
+                    onOpenBiTab={() => setActiveTab("bi")}
+                  />
+                }
               />
             ) : null}
 
@@ -1980,7 +2018,28 @@ export default function AdminDashboardScreen() {
               />
             ) : null}
 
-            {activeTab === "lancamento-xp" ? <AdminXpLaunchSection canAccess={isAdminStrict} students={students} /> : null}
+            {activeTab === "bi" ? (
+              <AdminBiSection
+                awards={biAwards}
+                students={students}
+                rankingRows={rankingRows}
+                loading={biLoading}
+                errorText={biErrorText}
+                onRetry={() => {
+                  void reloadBiData();
+                }}
+              />
+            ) : null}
+
+            {activeTab === "lancamento-xp" ? (
+              <AdminXpLaunchSection
+                canAccess={isAdminStrict}
+                students={students}
+                onDataChanged={() => {
+                  void Promise.all([reloadStudentsAndRanking(), reloadBiData()]);
+                }}
+              />
+            ) : null}
 
             {activeTab === "mensagens-admin" ? (
               <View
