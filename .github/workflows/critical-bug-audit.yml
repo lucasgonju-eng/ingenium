@@ -1,11 +1,9 @@
 name: Critical Bug Audit
 
 on:
-  schedule:
-    # 08:00 no Brasil, GMT-3 = 11:00 UTC
-    - cron: "0 11 * * *"
-
   workflow_dispatch:
+  schedule:
+    - cron: "0 11 * * *"
 
 permissions:
   contents: read
@@ -24,13 +22,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "20"
 
       - name: Run critical bug audit
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-OPENAI_MODEL: gpt-5-mini
+          OPENAI_MODEL: gpt-5-mini
           REPO_NAME: ${{ github.repository }}
           BRANCH_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
