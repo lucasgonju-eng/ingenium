@@ -30,7 +30,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          OPENAI_MODEL: gpt-5.4-mini
+OPENAI_MODEL: gpt-5-mini
           REPO_NAME: ${{ github.repository }}
           BRANCH_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
